@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Admin - Nuqthah Learning Center</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#2E5E4E',
+                        accent: '#C9A227',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+
+<body class="bg-gray-50 text-gray-950">
+
+    <div class="max-w-6xl mx-auto px-4 py-8">
+        <header class="mb-8">
+            <h1 class="text-3xl font-bold text-primary">Dashboard Admin</h1>
+            <p class="text-sm text-gray-500">Kelola penambahan dan penghapusan materi pembelajaran Nuqthah Learning
+                Center secara dinamis.</p>
+        </header>
+
+        <!-- Form Tambah Materi -->
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-8">
+            <h2 class="text-xl font-bold mb-4 text-primary">Tambah Materi Baru</h2>
+            <form id="add-course-form" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+
+                <!-- KATEGORI UTAMA -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Kategori Utama</label>
+                    <select id="category" required
+                        class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary bg-white">
+                        <option value="">-- Pilih Kategori --</option>
+                        <option value="syariah">Bimbel Syariah</option>
+                        <option value="ushul">Bimbel Ushuludin</option>
+                        <option value="tafaqquh">Tafaqquh</option>
+                        <option value="tashil">Ilmu Alat</option>
+                        <option value="amiyah">Amiyah Mesir</option>
+                    </select>
+                </div>
+
+                <!-- SUB-FILTER / TINGKAT -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Sub-Filter / Tingkat</label>
+                    <select id="subfilter" required
+                        class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary bg-white">
+                        <option value="">-- Pilih Kategori Dulu --</option>
+                    </select>
+                </div>
+
+                <!-- MODE (ONLINE / OFFLINE) -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Mode Kelas</label>
+                    <select id="mode" required
+                        class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary bg-white">
+                        <option value="Online">Online</option>
+                        <option value="Offline">Offline</option>
+                    </select>
+                </div>
+
+                <!-- TIPE / METODE KELAS -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Tipe / Metode Kelas</label>
+                    <select id="class_type" required
+                        class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary bg-white">
+                        <option value="E-LEARNING">E-LEARNING</option>
+                        <option value="INTERAKTIF">INTERAKTIF</option>
+                    </select>
+                </div>
+
+                <!-- ID UNIK KURSUS (OTOMATIS) -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">ID Unik Kursus
+                        (Otomatis)</label>
+                    <input type="text" id="course_id" readonly placeholder="Terbentuk otomatis"
+                        class="w-full border border-gray-200 bg-gray-100 p-2.5 rounded-xl text-sm text-gray-500 cursor-not-allowed">
+                </div>
+
+                <!-- JUDUL / NAMA MATERI -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Judul / Nama Materi</label>
+                    <input type="text" id="title" placeholder="cth: Tarikh Tasyri' TK1" required
+                        class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary">
+                </div>
+
+                <!-- NAMA PENGAJAR -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Nama Pengajar
+                        (Asatidzah)</label>
+                    <input type="text" id="instructor" placeholder="cth: Ust Ernanda Yusril, Lc." required
+                        class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary">
+                </div>
+
+                <!-- JUMLAH PERTEMUAN -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Jumlah Pertemuan / Sesi</label>
+                    <input type="text" id="meetings" placeholder="cth: 10 Pertemuan" required
+                        class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary">
+                </div>
+
+                <!-- FASILITAS / KETERANGAN -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Fasilitas / Keterangan</label>
+                    <input type="text" id="facility" placeholder="cth: Latihan Soal+Talkhisan" required
+                        class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary">
+                </div>
+
+                <!-- KUOTA PESERTA -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Kuota Peserta</label>
+                    <input type="text" id="quota" placeholder="cth: Kuota Tak Terbatas / 25 Orang" required
+                        class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary">
+                </div>
+
+                <!-- HARGA RUPIAH -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Harga (Rupiah)</label>
+                    <input type="text" id="price" placeholder="cth: Rp 90.000" required
+                        class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary">
+                </div>
+
+                <!-- HARGA ALTERNATIF LE -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Harga Alternatif (LE)</label>
+                    <input type="text" id="price_le" placeholder="cth: / 270 LE"
+                        class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary">
+                </div>
+
+                <!-- LINK PENDAFTARAN -->
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Link Pendaftaran (URL
+                        Mayar)</label>
+                    <input type="url" id="link" placeholder="cth: https://nuqthahlearning.myr.id/course/..." required
+                        class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary">
+                </div>
+
+                <!-- URL GAMBAR COVER -->
+                <div class="md:col-span-2 lg:col-span-3">
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">URL Gambar Cover</label>
+                    <input type="url" id="image" placeholder="cth: https://userkv.r2.mayar.id/landing-page/assets/..."
+                        required
+                        class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary">
+                </div>
+
+                <!-- TOMBOL SUBMIT -->
+                <div class="md:col-span-2 lg:col-span-3">
+                    <button type="submit"
+                        class="w-full bg-primary text-white font-bold py-3 rounded-xl hover:bg-opacity-90 transition shadow-sm">
+                        Simpan Materi ke Database
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Tabel Daftar Materi -->
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+            <h2 class="text-xl font-bold mb-4 text-primary">Daftar Materi Tersimpan</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="border-b bg-gray-50 text-xs text-gray-500 uppercase tracking-wider">
+                            <th class="p-3">Materi</th>
+                            <th class="p-3">Kategori & Sub</th>
+                            <th class="p-3">Mode</th>
+                            <th class="p-3">Harga</th>
+                            <th class="p-3 text-center">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="course-table-body" class="text-sm">
+                        <!-- Data dimuat dinamis -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Supabase JS SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        const SUPABASE_URL = 'https://idwrkzekykarxnuoaysu.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_N96gYsm_jeSntalN3qMVCA_TpXloD4u';
+        const { createClient } = supabase;
+        const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // Data Sub-filter yang disesuaikan dengan materi.html
+        const SUB_FILTERS = {
+            syariah: ['Tingkat 1', 'Tingkat 2', 'Tingkat 3'],
+            ushul: ['Tingkat 1', 'Tingkat 2', 'Tingkat 3'],
+            tafaqquh: ['Fiqih', 'Ushul Fiqh', 'Tauhid'],
+            tashil: ['Nahwu', 'Sharaf', 'Balaghah', 'Mantiq'],
+            amiyah: ['Dasar', 'Menengah', 'Lanjut']
+        };
+
+        function updateSubFilters() {
+            const catSelect = document.getElementById('category');
+            const subSelect = document.getElementById('subfilter');
+            const selectedCat = catSelect.value;
+
+            subSelect.innerHTML = '<option value="">-- Pilih Sub-Filter --</option>';
+
+            if (SUB_FILTERS[selectedCat]) {
+                SUB_FILTERS[selectedCat].forEach(sub => {
+                    const opt = document.createElement('option');
+                    opt.value = sub;
+                    opt.textContent = sub;
+                    subSelect.appendChild(opt);
+                });
+            }
+            generateCourseId();
+        }
+
+        function generateCourseId() {
+            const cat = document.getElementById('category').value;
+            const sub = document.getElementById('subfilter').value;
+            const mode = document.getElementById('mode').value.toLowerCase();
+
+            if (cat && sub) {
+                const cleanSub = sub.toLowerCase().replace(/\s+/g, '');
+                const randomStr = Math.random().toString(36).substring(2, 6);
+                document.getElementById('course_id').value = `nlc-${cat.substring(0, 3)}-${cleanSub}-${mode}-${randomStr}`;
+            } else {
+                document.getElementById('course_id').value = '';
+            }
+        }
+
+        // Pasang Event Listener secara aman
+        document.getElementById('category').addEventListener('change', updateSubFilters);
+        document.getElementById('subfilter').addEventListener('change', generateCourseId);
+        document.getElementById('mode').addEventListener('change', generateCourseId);
+
+        async function fetchCourses() {
+            const tbody = document.getElementById('course-table-body');
+            tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-400">Memuat data...</td></tr>';
+
+            const { data, error } = await supabaseClient.from('courses').select('*').order('created_at', { ascending: false });
+
+            if (error) {
+                tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-red-500">Gagal memuat: ${error.message}</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = '';
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-500">Belum ada materi tersimpan.</td></tr>';
+                return;
+            }
+
+            data.forEach(course => {
+                const tr = document.createElement('tr');
+                tr.className = 'border-b hover:bg-gray-50';
+                tr.innerHTML = `
+                    <td class="p-3 font-bold text-gray-800">${course.title} <div class="text-[10px] text-gray-400 font-normal">ID: ${course.course_id}</div></td>
+                    <td class="p-3 text-gray-600">${course.category} / ${course.subfilter}</td>
+                    <td class="p-3 text-gray-600"><span class="px-2 py-0.5 rounded text-xs bg-emerald-50 text-emerald-700 font-semibold">${course.mode || 'Online'}</span></td>
+                    <td class="p-3 text-primary font-semibold">${course.price}</td>
+                    <td class="p-3 text-center">
+                        <button onclick="deleteCourse('${course.id}')" class="bg-red-50 text-red-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-100 transition">Hapus</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        document.getElementById('add-course-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const newCourse = {
+                course_id: document.getElementById('course_id').value,
+                title: document.getElementById('title').value,
+                category: document.getElementById('category').value,
+                subfilter: document.getElementById('subfilter').value,
+                mode: document.getElementById('mode').value,
+                instructor: document.getElementById('instructor').value,
+                meetings: document.getElementById('meetings').value,
+                class_type: document.getElementById('class_type').value,
+                facility: document.getElementById('facility').value,
+                quota: document.getElementById('quota').value,
+                price: document.getElementById('price').value,
+                price_le: document.getElementById('price_le').value,
+                link: document.getElementById('link').value,
+                image: document.getElementById('image').value
+            };
+
+            const { error } = await supabaseClient.from('courses').insert([newCourse]);
+            if (error) {
+                alert('Gagal menambah materi: ' + error.message);
+            } else {
+                alert('Materi berhasil ditambahkan!');
+                e.target.reset();
+                document.getElementById('subfilter').innerHTML = '<option value="">-- Pilih Kategori Dulu --</option>';
+                fetchCourses();
+            }
+        });
+
+        async function deleteCourse(id) {
+            if (!confirm('Apakah Anda yakin ingin menghapus materi ini?')) return;
+
+            const { error } = await supabaseClient.from('courses').delete().eq('id', id);
+            if (error) {
+                alert('Gagal menghapus: ' + error.message);
+            } else {
+                fetchCourses();
+            }
+        }
+
+        fetchCourses();
+    </script>
+</body>
+
+</html>
