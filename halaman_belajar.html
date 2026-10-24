@@ -139,12 +139,34 @@
 <body class="bg-gray-50 text-gray-900 font-sans">
 
     <!-- Top Navigation -->
-    <nav class="bg-primary text-white px-4 sm:px-6 py-3 flex justify-between items-center shadow-md">
+    <nav class="bg-primary text-white px-4 sm:px-6 py-3 flex flex-wrap justify-between items-center gap-2 shadow-md">
         <a href="index.html" class="flex items-center gap-2 font-bold text-xs sm:text-sm hover:opacity-90">
             <i class="fas fa-arrow-left"></i> Kembali ke Katalog Materi
         </a>
-        <div id="user-status-badge" class="text-[11px] sm:text-xs bg-white/10 px-3 py-1.5 rounded-full font-semibold">
-            Memuat Status Akses...
+
+        <div class="flex items-center gap-2">
+            <!-- Tombol Masuk OTP (Muncul jika belum login) -->
+            <button id="nav-login-btn" onclick="openOtpModal()"
+                class="hidden text-[11px] sm:text-xs bg-accent hover:bg-opacity-90 text-white px-3 py-1.5 rounded-full font-bold transition shadow-sm">
+                <i class="fas fa-sign-in-alt mr-1"></i> Masuk Akun
+            </button>
+
+            <!-- Info Akun Aktif & Tombol Keluar (Muncul jika sudah login) -->
+            <div id="user-account-badge"
+                class="hidden items-center gap-2 text-[11px] sm:text-xs bg-white/10 px-3 py-1.5 rounded-full font-semibold border border-white/15">
+                <i class="fas fa-user-check text-emerald-300"></i>
+                <span id="nav-user-email" class="max-w-[120px] sm:max-w-[180px] truncate">-</span>
+                <button onclick="logoutUser()" title="Keluar dari Akun"
+                    class="text-red-300 hover:text-red-200 underline ml-1 font-bold">
+                    Keluar
+                </button>
+            </div>
+
+            <!-- Badge Status Akses Materi -->
+            <div id="user-status-badge"
+                class="text-[11px] sm:text-xs bg-white/10 px-3 py-1.5 rounded-full font-semibold">
+                Memuat Status Akses...
+            </div>
         </div>
     </nav>
 
@@ -335,13 +357,19 @@
                 </div>
                 <h3 class="text-xl font-bold text-primary">Materi Ini Terkunci</h3>
                 <p id="paywall-desc" class="text-sm text-gray-600 max-w-md mx-auto">
-                    Anda sedang berada di mode Free Trial. Selesaikan pembayaran untuk membuka seluruh video sesi,
-                    penjelasan mendalam, dan bank soal latihan secara penuh.
+                    Anda sedang berada di mode Free Trial. Daftarkan akun dan selesaikan pembayaran untuk membuka
+                    seluruh video sesi, penjelasan mendalam, dan bank soal latihan secara penuh.
                 </p>
-                <button onclick="triggerMidtransPayment()"
-                    class="bg-accent text-white font-bold px-8 py-3 rounded-xl text-sm shadow-md hover:bg-opacity-90 transition transform hover:scale-105">
-                    Buka Akses Penuh (<span id="paywall-price">Rp 0</span>)
-                </button>
+                <div class="flex flex-col sm:flex-row items-center justify-center gap-3 pt-1">
+                    <button onclick="openCheckoutModal()"
+                        class="w-full sm:w-auto bg-accent text-white font-bold px-8 py-3 rounded-xl text-sm shadow-md hover:bg-opacity-90 transition transform hover:scale-105">
+                        Buka Akses Penuh (<span id="paywall-price">Rp 0</span>)
+                    </button>
+                    <button onclick="openOtpModal()"
+                        class="w-full sm:w-auto bg-white text-primary border border-primary/30 font-bold px-6 py-3 rounded-xl text-sm hover:bg-gray-50 transition">
+                        Sudah Punya Akun? Masuk OTP
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -355,6 +383,124 @@
             </div>
         </div>
     </main>
+
+    <!-- ================= MODAL 1: FORM PENDAFTARAN AKUN & PEMBAYARAN ================= -->
+    <div id="checkout-modal"
+        class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 hidden"
+        style="z-index: 99995;">
+        <div class="bg-white w-full max-w-md rounded-2xl p-6 space-y-5 shadow-2xl relative">
+            <div class="flex items-center justify-between border-b pb-3">
+                <div>
+                    <h3 class="font-bold text-primary text-lg">Daftar Akun & Buka Akses</h3>
+                    <p class="text-xs text-gray-500">Akun ini digunakan untuk mengakses materi di semua perangkat Anda.
+                    </p>
+                </div>
+                <button onclick="closeCheckoutModal()"
+                    class="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-500">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <form id="checkout-form" onsubmit="handleCheckoutFormSubmit(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Alamat Email Aktif</label>
+                    <input type="email" id="reg-email" required placeholder="contoh@email.com"
+                        class="w-full border border-gray-200 p-3 rounded-xl text-sm focus:outline-none focus:border-primary">
+                    <span class="text-[10px] text-gray-400 mt-0.5 block">Kode OTP akan dikirimkan ke email ini saat Anda
+                        login di perangkat lain.</span>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Nama Lengkap</label>
+                    <input type="text" id="reg-name" required placeholder="Masukkan nama lengkap Anda"
+                        class="w-full border border-gray-200 p-3 rounded-xl text-sm focus:outline-none focus:border-primary">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Nomor WhatsApp</label>
+                    <input type="tel" id="reg-whatsapp" required placeholder="cth: 081234567890"
+                        class="w-full border border-gray-200 p-3 rounded-xl text-sm focus:outline-none focus:border-primary">
+                </div>
+
+                <div class="bg-emerald-50 border border-emerald-100 p-3 rounded-xl flex items-center justify-between">
+                    <span class="text-xs font-semibold text-gray-600">Total Pembayaran Materi:</span>
+                    <span id="modal-checkout-price" class="text-base font-bold text-primary">Rp 0</span>
+                </div>
+
+                <button type="submit" id="btn-submit-checkout"
+                    class="w-full bg-accent text-white font-bold py-3.5 rounded-xl text-sm shadow-md hover:bg-opacity-90 transition flex items-center justify-center gap-2">
+                    <i class="fas fa-credit-card"></i> Bayar Sekarang & Buka Materi
+                </button>
+            </form>
+
+            <div class="border-t pt-3 text-center">
+                <p class="text-xs text-gray-500">Sudah pernah mendaftar dan membayar sebelumnya?</p>
+                <button type="button" onclick="switchCheckoutToOtp()"
+                    class="text-xs font-bold text-primary underline mt-1 hover:opacity-80">
+                    Masuk Menggunakan Email & Kode OTP
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MODAL 2: LOGIN LINTAS PERANGKAT DENGAN KODE OTP ================= -->
+    <div id="otp-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 hidden"
+        style="z-index: 99996;">
+        <div class="bg-white w-full max-w-md rounded-2xl p-6 space-y-5 shadow-2xl relative">
+            <div class="flex items-center justify-between border-b pb-3">
+                <div>
+                    <h3 class="font-bold text-primary text-lg">Masuk ke Akun Belajar</h3>
+                    <p class="text-xs text-gray-500">Gunakan email yang Anda pakai saat pendaftaran materi.</p>
+                </div>
+                <button onclick="closeOtpModal()"
+                    class="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-500">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <!-- Langkah 1: Input Email untuk Meminta OTP -->
+            <div id="otp-step-email" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Email Terdaftar</label>
+                    <input type="email" id="otp-email-input" placeholder="Masukkan email pendaftaran Anda"
+                        class="w-full border border-gray-200 p-3 rounded-xl text-sm focus:outline-none focus:border-primary">
+                </div>
+                <button type="button" id="btn-request-otp" onclick="requestOtpCode()"
+                    class="w-full bg-primary text-white font-bold py-3 rounded-xl text-sm hover:bg-opacity-90 transition">
+                    Minta Kode OTP
+                </button>
+            </div>
+
+            <!-- Langkah 2: Input 6 Digit Kode OTP -->
+            <div id="otp-step-verify" class="space-y-4 hidden">
+                <div class="bg-amber-50 border border-amber-200 p-3 rounded-xl text-xs text-amber-800">
+                    Kode OTP 6 digit telah dikirimkan ke <strong id="otp-target-email-label">-</strong>.
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1 text-center">Masukkan 6 Digit
+                        Kode OTP</label>
+                    <input type="text" id="otp-code-input" maxlength="6" placeholder="••••••"
+                        class="w-full border border-gray-200 p-3 rounded-xl text-center tracking-[0.5em] font-bold text-lg focus:outline-none focus:border-primary">
+                </div>
+                <button type="button" id="btn-verify-otp" onclick="verifyOtpCode()"
+                    class="w-full bg-accent text-white font-bold py-3 rounded-xl text-sm hover:bg-opacity-90 transition shadow-md">
+                    Verifikasi & Buka Akses Materi
+                </button>
+                <button type="button" onclick="resetOtpModalSteps()"
+                    class="w-full text-xs text-gray-500 underline hover:text-gray-700 text-center block">
+                    Ganti Email atau Kirim Ulang OTP
+                </button>
+            </div>
+
+            <div class="border-t pt-3 text-center">
+                <p class="text-xs text-gray-500">Belum punya akun atau belum membeli materi ini?</p>
+                <button type="button" onclick="switchOtpToCheckout()"
+                    class="text-xs font-bold text-accent underline mt-1 hover:opacity-80">
+                    Daftar & Buka Akses Penuh Sekarang
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- MODAL KUIS INTERAKTIF -->
     <div id="quiz-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 hidden"
@@ -383,6 +529,14 @@
         const SUPABASE_URL = 'https://idwrkzekykarxnuoaysu.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_N96gYsm_jeSntalN3qMVCA_TpXloD4u';
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // State Akun Siswa (Disimpan di LocalStorage perangkat)
+        let currentUser = null;
+        try {
+            currentUser = JSON.parse(localStorage.getItem('nuqthah_current_user')) || null;
+        } catch (e) {
+            currentUser = null;
+        }
 
         // State Utama Pembelajaran & Player
         let player = null;
@@ -424,7 +578,7 @@
         const speedSelect = document.getElementById('speed-select');
         const btnFullscreen = document.getElementById('btn-fullscreen');
         const iconFullscreen = document.getElementById('icon-fullscreen');
-        const btnRotate = document.getElementById('btn-rotate'); // Tombol Rotate Baru
+        const btnRotate = document.getElementById('btn-rotate');
 
         // Callback Resmi YouTube IFrame API
         window.onYouTubeIframeAPIReady = function () {
@@ -441,9 +595,93 @@
                 window.location.href = 'index.html';
                 return;
             }
+            updateNavUserBadge();
             setupCustomPlayerEvents();
             await initializePageData();
         });
+
+        // Perbarui Tampilan Navigasi Atas Sesuai Status Login
+        function updateNavUserBadge() {
+            const loginBtn = document.getElementById('nav-login-btn');
+            const accountBadge = document.getElementById('user-account-badge');
+            const emailLabel = document.getElementById('nav-user-email');
+
+            if (currentUser && currentUser.email) {
+                loginBtn.classList.add('hidden');
+                accountBadge.classList.remove('hidden');
+                accountBadge.classList.add('flex');
+                emailLabel.textContent = currentUser.email;
+            } else {
+                loginBtn.classList.remove('hidden');
+                accountBadge.classList.add('hidden');
+                accountBadge.classList.remove('flex');
+            }
+        }
+
+        function logoutUser() {
+            if (!confirm('Apakah Anda yakin ingin keluar dari akun ini di perangkat ini?')) return;
+            localStorage.removeItem('nuqthah_current_user');
+            localStorage.removeItem(`nuqthah_access_${courseId}`);
+            window.location.reload();
+        }
+
+        // Cek apakah user yang login memiliki akses penuh ke materi ini di Supabase
+        async function verifyUserCourseAccess() {
+            if (!currentUser || !currentUser.email) return false;
+
+            // 1. Cek cache akses lokal untuk email yang sama
+            const localAccessEmail = localStorage.getItem(`nuqthah_access_${courseId}_email`);
+            if (localStorage.getItem(`nuqthah_access_${courseId}`) === 'granted' && localAccessEmail === currentUser.email) {
+                return true;
+            }
+
+            // 2. Cek ke tabel user_access di Supabase (Berdasarkan user_id atau user_email)
+            try {
+                if (currentUser.id) {
+                    const { data: accById } = await supabaseClient
+                        .from('user_access')
+                        .select('*')
+                        .eq('course_id', courseId)
+                        .eq('user_id', currentUser.id)
+                        .limit(1);
+                    if (accById && accById.length > 0) {
+                        localStorage.setItem(`nuqthah_access_${courseId}`, 'granted');
+                        localStorage.setItem(`nuqthah_access_${courseId}_email`, currentUser.email);
+                        return true;
+                    }
+                }
+
+                const { data: accByEmail } = await supabaseClient
+                    .from('user_access')
+                    .select('*')
+                    .eq('course_id', courseId)
+                    .eq('user_email', currentUser.email)
+                    .limit(1);
+                if (accByEmail && accByEmail.length > 0) {
+                    localStorage.setItem(`nuqthah_access_${courseId}`, 'granted');
+                    localStorage.setItem(`nuqthah_access_${courseId}_email`, currentUser.email);
+                    return true;
+                }
+
+                // 3. Cek juga ke tabel transactions yang berstatus 'success'
+                const { data: trxSuccess } = await supabaseClient
+                    .from('transactions')
+                    .select('*')
+                    .eq('course_id', courseId)
+                    .eq('user_email', currentUser.email)
+                    .eq('status', 'success')
+                    .limit(1);
+                if (trxSuccess && trxSuccess.length > 0) {
+                    localStorage.setItem(`nuqthah_access_${courseId}`, 'granted');
+                    localStorage.setItem(`nuqthah_access_${courseId}_email`, currentUser.email);
+                    return true;
+                }
+            } catch (e) {
+                console.warn('Gagal mengecek akses dari database:', e);
+            }
+
+            return false;
+        }
 
         async function initializePageData() {
             try {
@@ -457,13 +695,15 @@
                 document.getElementById('course-instructor').textContent = course.instructor || 'Pengajar Nuqthah';
                 document.getElementById('course-facility').textContent = `${course.facility} | Kuota: ${course.quota}`;
                 document.getElementById('paywall-price').textContent = course.price;
+                document.getElementById('modal-checkout-price').textContent = course.price;
 
-                const localAccess = localStorage.getItem(`nuqthah_access_${courseId}`);
-                if (localAccess === 'granted') {
-                    isUserHasAccess = true;
+                // Cek Hak Akses Berdasarkan Akun Siswa
+                isUserHasAccess = await verifyUserCourseAccess();
+
+                if (isUserHasAccess) {
                     document.getElementById('user-status-badge').innerHTML = '<i class="fas fa-check-circle text-emerald-300 mr-1"></i> Akses Penuh Terbuka';
+                    document.getElementById('paywall-container').classList.add('hidden');
                 } else {
-                    isUserHasAccess = false;
                     document.getElementById('user-status-badge').innerHTML = '<i class="fas fa-lock text-amber-300 mr-1"></i> Mode Free Trial';
                     document.getElementById('paywall-container').classList.remove('hidden');
                 }
@@ -515,8 +755,7 @@
 
                 div.onclick = () => {
                     if (isLocked) {
-                        alert('Modul ini terkunci. Selesaikan pembayaran untuk membuka akses penuh.');
-                        document.getElementById('paywall-container').scrollIntoView({ behavior: 'smooth' });
+                        openCheckoutModal();
                         return;
                     }
                     loadModule(index);
@@ -853,12 +1092,10 @@
             const isNativeFs = document.fullscreenElement || document.webkitFullscreenElement;
             const isPseudoFs = playerContainer.classList.contains('is-pseudo-fullscreen');
 
-            // 1. Pastikan masuk ke mode Fullscreen terlebih dahulu
             if (!isNativeFs && !isPseudoFs) {
                 await toggleFullscreen();
             }
 
-            // 2. Coba kunci orientasi layar
             if (screen.orientation && screen.orientation.lock) {
                 try {
                     if (screen.orientation.type.includes('portrait')) {
@@ -894,14 +1131,12 @@
         }
 
         function setupCustomPlayerEvents() {
-            // Klik layar utama atau tombol tengah untuk Play/Pause
             videoClickArea.addEventListener('click', (e) => {
                 if (e.target.closest('#player-error')) return;
                 togglePlayPause();
                 showControls();
             });
 
-            // Double klik pada area video untuk Fullscreen
             videoClickArea.addEventListener('dblclick', (e) => {
                 if (e.target.closest('#player-error')) return;
                 toggleFullscreen();
@@ -911,11 +1146,8 @@
             btnSkipBack.addEventListener('click', () => skipTime(-10));
             btnSkipForward.addEventListener('click', () => skipTime(10));
             btnMute.addEventListener('click', toggleMute);
-
-            // Event Listener Tombol Rotate
             btnRotate.addEventListener('click', forceLandscape);
 
-            // Slider Timeline
             progressSlider.addEventListener('input', (e) => {
                 isDraggingTimeline = true;
                 const pct = parseFloat(e.target.value);
@@ -937,7 +1169,6 @@
                 scheduleHideControls();
             });
 
-            // Slider Volume
             volumeSlider.addEventListener('input', (e) => {
                 const vol = parseInt(e.target.value, 10);
                 updateRangeBackground(volumeSlider, vol);
@@ -950,7 +1181,6 @@
                 }
             });
 
-            // Kecepatan Putar
             speedSelect.addEventListener('change', (e) => {
                 const rate = parseFloat(e.target.value);
                 if (player && typeof player.setPlaybackRate === 'function') {
@@ -958,9 +1188,8 @@
                 }
             });
 
-            // Fullscreen
             btnFullscreen.addEventListener('click', toggleFullscreen);
-            
+
             document.addEventListener('fullscreenchange', () => {
                 if (document.fullscreenElement === playerContainer) {
                     iconFullscreen.className = 'fas fa-compress text-xs sm:text-sm';
@@ -971,7 +1200,7 @@
                     }
                 }
             });
-            
+
             document.addEventListener('webkitfullscreenchange', () => {
                 if (document.webkitFullscreenElement === playerContainer) {
                     iconFullscreen.className = 'fas fa-compress text-xs sm:text-sm';
@@ -983,7 +1212,6 @@
                 }
             });
 
-            // Interaksi Mouse & Sentuhan untuk Auto-Hide Toolbar
             playerContainer.addEventListener('mousemove', showControls);
             playerContainer.addEventListener('touchstart', showControls, { passive: true });
             playerContainer.addEventListener('mouseleave', () => {
@@ -992,13 +1220,16 @@
                 }
             });
 
-            // Shortcut Keyboard (Spasi, Panah Kiri/Kanan, M, F, R, Escape)
             document.addEventListener('keydown', (e) => {
                 const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
                 if (['input', 'textarea', 'select', 'button'].includes(activeTag)) return;
 
                 const quizModal = document.getElementById('quiz-modal');
-                if (quizModal && !quizModal.classList.contains('hidden')) return;
+                const checkoutModal = document.getElementById('checkout-modal');
+                const otpModal = document.getElementById('otp-modal');
+                if ((quizModal && !quizModal.classList.contains('hidden')) ||
+                    (checkoutModal && !checkoutModal.classList.contains('hidden')) ||
+                    (otpModal && !otpModal.classList.contains('hidden'))) return;
 
                 if (e.code === 'Space') {
                     e.preventDefault();
@@ -1028,7 +1259,7 @@
             });
         }
 
-        // ================= SISTEM KUIS INTERAKTIF & MIDTRANS =================
+        // ================= SISTEM KUIS INTERAKTIF =================
         async function triggerQuiz(cId) {
             const { data: quizzes, error } = await supabaseClient
                 .from('quizzes').select('*').eq('course_id', cId);
@@ -1088,10 +1319,106 @@
             }
         }
 
-        async function triggerMidtransPayment() {
+        // ================= SISTEM PENDAFTARAN AKUN, PEMBAYARAN MIDTRANS & LOGIN OTP =================
+
+        function openCheckoutModal() {
+            // Jika user sudah login di perangkat ini, isi otomatis formnya
+            if (currentUser) {
+                document.getElementById('reg-email').value = currentUser.email || '';
+                document.getElementById('reg-name').value = currentUser.name || '';
+                document.getElementById('reg-whatsapp').value = currentUser.whatsapp || '';
+            }
+            document.getElementById('checkout-modal').classList.remove('hidden');
+        }
+
+        function closeCheckoutModal() {
+            document.getElementById('checkout-modal').classList.add('hidden');
+        }
+
+        function openOtpModal() {
+            resetOtpModalSteps();
+            document.getElementById('otp-modal').classList.remove('hidden');
+        }
+
+        function closeOtpModal() {
+            document.getElementById('otp-modal').classList.add('hidden');
+        }
+
+        function switchCheckoutToOtp() {
+            closeCheckoutModal();
+            openOtpModal();
+        }
+
+        function switchOtpToCheckout() {
+            closeOtpModal();
+            openCheckoutModal();
+        }
+
+        function resetOtpModalSteps() {
+            document.getElementById('otp-step-email').classList.remove('hidden');
+            document.getElementById('otp-step-verify').classList.add('hidden');
+            document.getElementById('otp-code-input').value = '';
+        }
+
+        // Handle Submit Form Pendaftaran -> Simpan Akun -> Buka Midtrans Snap
+        async function handleCheckoutFormSubmit(e) {
+            e.preventDefault();
+            const email = document.getElementById('reg-email').value.trim().toLowerCase();
+            const name = document.getElementById('reg-name').value.trim();
+            const whatsapp = document.getElementById('reg-whatsapp').value.trim();
+            const submitBtn = document.getElementById('btn-submit-checkout');
+
+            if (!email || !name || !whatsapp) {
+                alert('Harap lengkapi semua kolom pendaftaran.');
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Memproses Akun & Pembayaran...';
+
             try {
-                const userId = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.id : 'guest-user';
-                const userEmail = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.email : 'user@nuqthah.com';
+                // 1. Simpan atau perbarui data akun di tabel users Supabase
+                const { data: savedUser, error: userErr } = await supabaseClient
+                    .from('users')
+                    .upsert([{ email, name, whatsapp }], { onConflict: 'email' })
+                    .select()
+                    .single();
+
+                if (userErr) throw new Error('Gagal menyimpan data akun: ' + userErr.message);
+
+                currentUser = savedUser || { email, name, whatsapp };
+                localStorage.setItem('nuqthah_current_user', JSON.stringify(currentUser));
+                updateNavUserBadge();
+
+                // 2. Cek apakah email ini sebenarnya sudah pernah membeli materi ini sebelumnya
+                const alreadyHasAccess = await verifyUserCourseAccess();
+                if (alreadyHasAccess) {
+                    closeCheckoutModal();
+                    alert('Akun email ini sudah memiliki akses penuh ke materi ini! Silakan masuk menggunakan Kode OTP.');
+                    openOtpModal();
+                    document.getElementById('otp-email-input').value = email;
+                    return;
+                }
+
+                // 3. Panggil Midtrans Snap
+                await triggerMidtransPayment(currentUser);
+
+            } catch (err) {
+                console.error(err);
+                alert(err.message || 'Terjadi kesalahan saat memproses pendaftaran.');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-credit-card"></i> Bayar Sekarang & Buka Materi';
+            }
+        }
+
+        async function triggerMidtransPayment(userObj) {
+            try {
+                const userToUse = userObj || currentUser;
+                if (!userToUse || !userToUse.email) {
+                    openCheckoutModal();
+                    return;
+                }
 
                 const response = await fetch('http://localhost:3000/api/create-transaction', {
                     method: 'POST',
@@ -1099,18 +1426,37 @@
                     body: JSON.stringify({
                         course_id: courseId,
                         price: courseData.price,
-                        user_id: userId,
-                        user_email: userEmail
+                        user_id: userToUse.id || null,
+                        user_email: userToUse.email
                     })
                 });
 
                 const data = await response.json();
-                if (!data.token) throw new Error('Gagal mendapatkan token pembayaran.');
+                if (!data.token) throw new Error(data.error || 'Gagal mendapatkan token pembayaran.');
+
+                closeCheckoutModal();
 
                 window.snap.pay(data.token, {
-                    onSuccess: function (result) {
-                        alert("Pembayaran Berhasil! Memuat ulang halaman...");
+                    onSuccess: async function (result) {
+                        // Catat akses ke database Supabase agar langsung sinkron di semua perangkat
+                        try {
+                            await supabaseClient.from('transactions')
+                                .update({ status: 'success' })
+                                .eq('order_id', data.order_id);
+
+                            await supabaseClient.from('user_access').insert([{
+                                user_id: userToUse.id || null,
+                                user_email: userToUse.email,
+                                course_id: courseId,
+                                order_id: data.order_id
+                            }]);
+                        } catch (dbErr) {
+                            console.warn('Info sinkronisasi akses:', dbErr);
+                        }
+
                         localStorage.setItem(`nuqthah_access_${courseId}`, 'granted');
+                        localStorage.setItem(`nuqthah_access_${courseId}_email`, userToUse.email);
+                        alert("Pembayaran Berhasil! Seluruh materi sekarang terbuka untuk akun Anda.");
                         window.location.reload();
                     },
                     onPending: function (result) {
@@ -1124,6 +1470,93 @@
             } catch (err) {
                 console.error(err);
                 alert('Terjadi kesalahan koneksi ke server pembayaran.');
+            }
+        }
+
+        // Langkah 1 OTP: Minta Kode OTP ke Server Backend
+        async function requestOtpCode() {
+            const emailInput = document.getElementById('otp-email-input').value.trim().toLowerCase();
+            const btnRequest = document.getElementById('btn-request-otp');
+
+            if (!emailInput) {
+                alert('Silakan masukkan alamat email pendaftaran Anda.');
+                return;
+            }
+
+            btnRequest.disabled = true;
+            btnRequest.innerHTML = '<i class="fas fa-circle-notch fa-spin mr-1"></i> Mengirim OTP...';
+
+            try {
+                const res = await fetch('http://localhost:3000/api/send-otp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: emailInput })
+                });
+                const data = await res.json();
+
+                if (!res.ok || !data.success) {
+                    throw new Error(data.error || 'Gagal mengirim kode OTP.');
+                }
+
+                document.getElementById('otp-target-email-label').textContent = emailInput;
+                document.getElementById('otp-step-email').classList.add('hidden');
+                document.getElementById('otp-step-verify').classList.remove('hidden');
+
+            } catch (err) {
+                alert(err.message);
+            } finally {
+                btnRequest.disabled = false;
+                btnRequest.innerHTML = 'Minta Kode OTP';
+            }
+        }
+
+        // Langkah 2 OTP: Verifikasi 6 Digit Kode OTP ke Server Backend
+        async function verifyOtpCode() {
+            const emailInput = document.getElementById('otp-email-input').value.trim().toLowerCase();
+            const codeInput = document.getElementById('otp-code-input').value.trim();
+            const btnVerify = document.getElementById('btn-verify-otp');
+
+            if (!codeInput || codeInput.length < 6) {
+                alert('Silakan masukkan 6 digit kode OTP dengan benar.');
+                return;
+            }
+
+            btnVerify.disabled = true;
+            btnVerify.innerHTML = '<i class="fas fa-circle-notch fa-spin mr-1"></i> Memverifikasi...';
+
+            try {
+                const res = await fetch('http://localhost:3000/api/verify-otp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: emailInput, code: codeInput })
+                });
+                const data = await res.json();
+
+                if (!res.ok || !data.success) {
+                    throw new Error(data.error || 'Kode OTP tidak valid.');
+                }
+
+                // Simpan sesi user yang berhasil login
+                currentUser = data.user;
+                localStorage.setItem('nuqthah_current_user', JSON.stringify(currentUser));
+                updateNavUserBadge();
+
+                // Cek apakah akun ini memiliki akses penuh ke materi ini
+                const hasAccess = await verifyUserCourseAccess();
+                closeOtpModal();
+
+                if (hasAccess) {
+                    alert(`Selamat datang kembali, ${currentUser.name}! Akses materi Anda telah dibuka.`);
+                } else {
+                    alert(`Halo ${currentUser.name}, Anda berhasil masuk, namun akun ini belum tercatat membeli materi ini. Silakan lanjutkan pembayaran untuk membuka akses penuh.`);
+                }
+                window.location.reload();
+
+            } catch (err) {
+                alert(err.message);
+            } finally {
+                btnVerify.disabled = false;
+                btnVerify.innerHTML = 'Verifikasi & Buka Akses Materi';
             }
         }
     </script>
