@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- index.html - Integrasi Dinamis Supabase, Paket Bundling, Materimu Drawer & Halaman Belajar -->
+<!-- index.html - Integrasi Dinamis Supabase, Paket Bundling, Strict Access Control, Materimu Drawer & Halaman Belajar -->
 <html lang="id">
 
 <head>
@@ -766,7 +766,7 @@
         }
 
         // ================================================================
-        // DATA RETRIEVAL
+        // DATA RETRIEVAL (STRICT MODE + OFFLINE FALLBACK)
         // ================================================================
         function getLocalItems() {
             try { return JSON.parse(localStorage.getItem(LOCAL_KEY) || '[]'); } catch (e) { return []; }
@@ -791,39 +791,35 @@
             } catch (err) { console.error('Session check error:', err); }
         }
 
-        // Ambil daftar course_id yang sudah dibeli user (termasuk ekspansi Paket Bundling)
+        // Ambil daftar course_id yang aktif (Strict Mode: wajib is_active = true di user_access)
         async function fetchPurchasedCourseIds() {
             const ids = new Set();
             if (!currentUser) return ids;
 
             try {
-                const queries = [];
+                if (currentUser.email) {
+                    const { data: byEmail, error: emailErr } = await supabaseClient
+                        .from('user_access')
+                        .select('course_id')
+                        .eq('user_email', currentUser.email)
+                        .eq('is_active', true);
+
+                    if (emailErr) throw emailErr;
+                    (byEmail || []).forEach(row => row.course_id && ids.add(row.course_id));
+                }
 
                 if (currentUser.id) {
-                    queries.push(
-                        supabaseClient.from('user_access').select('course_id').eq('user_id', currentUser.id)
-                            .then(r => (r.data || []).forEach(row => row.course_id && ids.add(row.course_id)))
-                            .catch(() => { })
-                    );
+                    const { data: byId, error: idErr } = await supabaseClient
+                        .from('user_access')
+                        .select('course_id')
+                        .eq('user_id', currentUser.id)
+                        .eq('is_active', true);
+
+                    if (idErr) throw idErr;
+                    (byId || []).forEach(row => row.course_id && ids.add(row.course_id));
                 }
 
-                if (currentUser.email) {
-                    queries.push(
-                        supabaseClient.from('user_access').select('course_id').eq('user_email', currentUser.email)
-                            .then(r => (r.data || []).forEach(row => row.course_id && ids.add(row.course_id)))
-                            .catch(() => { })
-                    );
-                    queries.push(
-                        supabaseClient.from('transactions').select('course_id')
-                            .eq('user_email', currentUser.email).eq('status', 'success')
-                            .then(r => (r.data || []).forEach(row => row.course_id && ids.add(row.course_id)))
-                            .catch(() => { })
-                    );
-                }
-
-                await Promise.all(queries);
-
-                // Jika salah satu course yang dibeli adalah Paket Bundling, otomatis tandai seluruh materi anggotanya sebagai Terbuka!
+                // Ekspansi Paket Bundling: Jika paket aktif, otomatis buka seluruh materi anggotanya
                 allCourses.forEach(c => {
                     if (ids.has(c.course_id)) {
                         const bInfo = parseBundleInfo(c);
@@ -832,8 +828,33 @@
                         }
                     }
                 });
+
+                // Sinkronkan cache lokal perangkat dengan status terbaru dari database
+                if (currentUser.email) {
+                    allCourses.forEach(c => {
+                        if (ids.has(c.course_id)) {
+                            localStorage.setItem(`nuqthah_access_${c.course_id}`, 'granted');
+                            localStorage.setItem(`nuqthah_access_${c.course_id}_email`, currentUser.email);
+                        } else {
+                            // Jika akses dicabut (is_active = false / dihapus), bersihkan cache lokalnya
+                            localStorage.removeItem(`nuqthah_access_${c.course_id}`);
+                            localStorage.removeItem(`nuqthah_access_${c.course_id}_email`);
+                        }
+                    });
+                }
+
             } catch (e) {
-                console.warn('Gagal memuat daftar pembelian:', e);
+                console.warn('Koneksi ke database terganggu, menggunakan fallback cache lokal:', e);
+                // Fallback darurat saat jaringan siswa buruk agar daftar materi terbuka tidak hilang
+                if (currentUser.email) {
+                    allCourses.forEach(c => {
+                        const cached = localStorage.getItem(`nuqthah_access_${c.course_id}`);
+                        const cachedEmail = localStorage.getItem(`nuqthah_access_${c.course_id}_email`);
+                        if (cached === 'granted' && cachedEmail === currentUser.email) {
+                            ids.add(c.course_id);
+                        }
+                    });
+                }
             }
 
             return ids;
