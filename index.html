@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- index.html - Integrasi Dinamis Supabase, Materimu Drawer & Halaman Belajar -->
+<!-- index.html - Integrasi Dinamis Supabase, Paket Bundling, Materimu Drawer & Halaman Belajar -->
 <html lang="id">
 
 <head>
@@ -446,10 +446,19 @@
             id="sub-filter-container"></div>
     </div>
 
-    <!-- Online/Offline Filter Bar -->
+    <!-- Online/Offline Filter Bar & Search -->
     <div class="bg-primary/5 border-b border-gray-100 py-3 z-[48]">
-        <div class="max-w-screen-xl mx-auto px-6 overflow-x-auto hide-scrollbar flex items-center justify-start md:justify-center gap-3"
-            id="online-offline-filter"></div>
+        <div
+            class="max-w-screen-xl mx-auto px-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            <div class="overflow-x-auto hide-scrollbar flex items-center justify-start gap-2.5"
+                id="online-offline-filter"></div>
+            <div class="relative w-full sm:w-64">
+                <i class="fas fa-search absolute left-3 top-2.5 text-gray-400 text-xs"></i>
+                <input type="text" id="catalog-search-input" oninput="applyFilters()"
+                    placeholder="Cari materi atau pengajar..."
+                    class="w-full bg-white border border-gray-200 pl-8 pr-3 py-1.5 rounded-full text-xs focus:outline-none focus:border-primary shadow-sm">
+            </div>
+        </div>
     </div>
 
     <!-- Main Content -->
@@ -542,7 +551,7 @@
         </div>
     </div>
 
-    <!-- Confirm Modal (pengganti confirm()) -->
+    <!-- Confirm Modal -->
     <div id="confirm-modal" class="fixed inset-0 flex items-center justify-center p-4 hidden"
         style="z-index: 99999998;">
         <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" onclick="closeConfirmModal()"></div>
@@ -586,6 +595,32 @@
         let allCourses = [];
         let purchasedCourseIds = new Set();
         let confirmCallback = null;
+
+        // ================================================================
+        // HELPER PARSE BUNDLING PAKET
+        // ================================================================
+        function parseBundleInfo(course) {
+            const rawLink = String(course?.link || '');
+            if (rawLink.startsWith('BUNDLE::')) {
+                const withoutPrefix = rawLink.substring(8);
+                const parts = withoutPrefix.split('||');
+                try {
+                    const ids = JSON.parse(parts[0]);
+                    return {
+                        isBundle: true,
+                        bundledIds: Array.isArray(ids) ? ids : [],
+                        externalLink: parts[1] || ''
+                    };
+                } catch (e) {
+                    return { isBundle: true, bundledIds: [], externalLink: '' };
+                }
+            }
+            return {
+                isBundle: false,
+                bundledIds: [],
+                externalLink: rawLink
+            };
+        }
 
         // ================================================================
         // TOAST SYSTEM
@@ -686,14 +721,12 @@
         function logoutUser() {
             localStorage.removeItem('nuqthah_current_user');
 
-            // Hapus semua cache akses materi
             Object.keys(localStorage).forEach(key => {
                 if (key.startsWith('nuqthah_access_') || key.startsWith('nuqthah_resume_')) {
                     localStorage.removeItem(key);
                 }
             });
 
-            // Logout dari Supabase Auth jika ada
             supabaseClient.auth.signOut().catch(() => { });
 
             currentUser = null;
@@ -703,7 +736,6 @@
             updateAuthUI();
             showToast('Anda telah keluar dari akun.', 'info', 'Berhasil Keluar');
 
-            // Refresh UI untuk menghapus badge "TERBUKA"
             loadSavedMaterials();
             renderCoursesToDOM();
         }
@@ -759,7 +791,7 @@
             } catch (err) { console.error('Session check error:', err); }
         }
 
-        // Ambil daftar course_id yang sudah dibeli user (dari user_access & transactions)
+        // Ambil daftar course_id yang sudah dibeli user (termasuk ekspansi Paket Bundling)
         async function fetchPurchasedCourseIds() {
             const ids = new Set();
             if (!currentUser) return ids;
@@ -790,6 +822,16 @@
                 }
 
                 await Promise.all(queries);
+
+                // Jika salah satu course yang dibeli adalah Paket Bundling, otomatis tandai seluruh materi anggotanya sebagai Terbuka!
+                allCourses.forEach(c => {
+                    if (ids.has(c.course_id)) {
+                        const bInfo = parseBundleInfo(c);
+                        if (bInfo.isBundle && bInfo.bundledIds.length > 0) {
+                            bInfo.bundledIds.forEach(childId => ids.add(childId));
+                        }
+                    }
+                });
             } catch (e) {
                 console.warn('Gagal memuat daftar pembelian:', e);
             }
@@ -814,48 +856,50 @@
                     }
                 }
 
-                // Ambil course yang sudah dibeli dari database (jika login)
                 purchasedCourseIds = await fetchPurchasedCourseIds();
 
-                // Ambil detail course untuk yang dibeli
                 let purchasedCourses = [];
                 const purchasedIdsArr = Array.from(purchasedCourseIds).filter(id => !id.startsWith('manual-'));
                 if (purchasedIdsArr.length > 0) {
-                    try {
-                        const { data: courses } = await supabaseClient
-                            .from('courses')
-                            .select('course_id, title, image')
-                            .in('course_id', purchasedIdsArr);
-                        purchasedCourses = courses || [];
-                    } catch (e) {
-                        console.warn('Gagal memuat detail course yang dibeli:', e);
+                    if (allCourses.length > 0) {
+                        purchasedCourses = allCourses.filter(c => purchasedCourseIds.has(c.course_id));
+                    } else {
+                        try {
+                            const { data: courses } = await supabaseClient
+                                .from('courses')
+                                .select('course_id, title, image, link')
+                                .in('course_id', purchasedIdsArr);
+                            purchasedCourses = courses || [];
+                        } catch (e) {
+                            console.warn('Gagal memuat detail course yang dibeli:', e);
+                        }
                     }
                 }
 
-                // Susun local items
                 const localItems = getLocalItems().map(item => ({
                     id: item.id,
                     course_id: item.course_id,
                     title: item.title,
-                    link: item.link || `halaman_belajar.html?course_id=${item.course_id}`,
+                    link: item.link && !String(item.link).startsWith('BUNDLE::') ? item.link : `halaman_belajar.html?course_id=${item.course_id}`,
                     image: item.image || DEFAULT_IMG,
-                    purchased: purchasedCourseIds.has(item.course_id) // Hanya true jika ada di DB
+                    purchased: purchasedCourseIds.has(item.course_id)
                 }));
 
-                // Merge berlapis: local → db → purchased (purchased prioritas tertinggi)
                 const mergedMap = new Map();
 
                 localItems.forEach(item => mergedMap.set(item.course_id, item));
 
                 dbItems.forEach(item => {
                     const existing = mergedMap.get(item.course_id);
+                    const safeLink = item.link && !String(item.link).startsWith('BUNDLE::')
+                        ? item.link
+                        : `halaman_belajar.html?course_id=${item.course_id}`;
                     mergedMap.set(item.course_id, {
                         id: item.id,
                         course_id: item.course_id,
                         title: item.title || existing?.title || 'Materi',
-                        link: item.link || existing?.link || `halaman_belajar.html?course_id=${item.course_id}`,
+                        link: safeLink,
                         image: item.image || existing?.image || DEFAULT_IMG,
-                        // Paksa status berdasarkan database, abaikan existing?.purchased
                         purchased: purchasedCourseIds.has(item.course_id)
                     });
                 });
@@ -866,13 +910,12 @@
                         id: existing?.id || ('access-' + c.course_id),
                         course_id: c.course_id,
                         title: existing?.title || c.title || 'Materi',
-                        link: `halaman_belajar.html?course_id=${c.course_id}`, // paksa link ke halaman belajar
+                        link: `halaman_belajar.html?course_id=${c.course_id}`,
                         image: c.image || existing?.image || DEFAULT_IMG,
                         purchased: true
                     });
                 });
 
-                // Urutkan: purchased di atas
                 savedItems = Array.from(mergedMap.values()).sort((a, b) => {
                     if (a.purchased && !b.purchased) return -1;
                     if (!a.purchased && b.purchased) return 1;
@@ -1072,7 +1115,9 @@
                 itemDiv.className = `saved-item bg-white border rounded-xl p-3 flex gap-3 shadow-sm fade-in relative overflow-hidden ${item.purchased ? 'purchased-item' : 'border-gray-100'}`;
 
                 const thumbSrc = item.image || DEFAULT_IMG;
-                const targetLink = item.link && item.link !== '#' ? item.link : `halaman_belajar.html?course_id=${item.course_id}`;
+                const targetLink = item.link && item.link !== '#' && !String(item.link).startsWith('BUNDLE::')
+                    ? item.link
+                    : `halaman_belajar.html?course_id=${item.course_id}`;
                 const safeTitle = String(item.title).replace(/'/g, "\\'").replace(/"/g, '&quot;');
                 const safeLink = String(targetLink).replace(/'/g, "\\'");
                 const safeId = String(item.id).replace(/'/g, "\\'");
@@ -1150,11 +1195,9 @@
 
                 if (error) throw error;
                 allCourses = data || [];
-                renderCoursesToDOM();
             } catch (err) {
                 console.error('Gagal memuat materi:', err);
                 allCourses = [];
-                renderCoursesToDOM();
             }
         }
 
@@ -1169,38 +1212,50 @@
                 cardDiv.setAttribute('data-category', course.category);
                 cardDiv.setAttribute('data-subfilter', course.subfilter);
                 cardDiv.setAttribute('data-mode', course.mode || 'Online');
+                cardDiv.setAttribute('data-title', (course.title || '').toLowerCase());
+                cardDiv.setAttribute('data-instructor', (course.instructor || '').toLowerCase());
                 cardDiv.style.display = 'none';
 
                 const isPurchased = purchasedCourseIds.has(course.course_id);
+                const bInfo = parseBundleInfo(course);
 
-                let meetingHtml = course.meetings ? `<div class="flex items-center"><i class="fa-solid fa-plus-minus mr-2 text-primary w-3 text-center"></i><span>${course.meetings}</span></div>` : '';
-                let facilityHtml = course.facility ? `<div class="flex items-center"><i class="fas fa-book-open mr-2 text-primary w-3 text-center"></i><span>${course.facility}</span></div>` : '';
-                let quotaHtml = course.quota ? `<div class="flex items-center"><i class="fas fa-users mr-2 text-primary w-3 text-center"></i><span>${course.quota}</span></div>` : '';
-                let priceLeHtml = course.price_le ? `<span class="text-[8px] text-gray-400 font-semibold ml-1 mt-0.5">${course.price_le}</span>` : '';
+                let bundleRowHtml = '';
+                if (bInfo.isBundle && bInfo.bundledIds.length > 0) {
+                    bundleRowHtml = `<div class="flex items-center text-amber-700 font-bold"><i class="fas fa-boxes-stacked mr-2 text-accent w-3 text-center"></i><span>Paket Bundling (${bInfo.bundledIds.length} Materi)</span></div>`;
+                }
+
+                let meetingHtml = course.meetings ? `<div class="flex items-center"><i class="fa-solid fa-plus-minus mr-2 text-primary w-3 text-center"></i><span>${escapeHtml(course.meetings)}</span></div>` : '';
+                let facilityHtml = course.facility ? `<div class="flex items-center"><i class="fas fa-book-open mr-2 text-primary w-3 text-center"></i><span>${escapeHtml(course.facility)}</span></div>` : '';
+                let quotaHtml = course.quota ? `<div class="flex items-center"><i class="fas fa-users mr-2 text-primary w-3 text-center"></i><span>${escapeHtml(course.quota)}</span></div>` : '';
+                let priceLeHtml = course.price_le ? `<span class="text-[8px] text-gray-400 font-semibold ml-1 mt-0.5">${escapeHtml(course.price_le)}</span>` : '';
 
                 let priceHtml = '';
                 if (course.price) {
                     priceHtml = `
                     <div class="flex items-start">
-                        <span class="text-primary font-bold text-base">${course.price}</span>
+                        <span class="text-primary font-bold text-base">${escapeHtml(course.price)}</span>
                         ${priceLeHtml}
                     </div>
-                    <span class="text-[8px] text-gray-400 uppercase tracking-wider font-semibold">Akses Selamanya & Multi-Perangkat</span>`;
+                    <span class="text-[8px] text-gray-400 uppercase tracking-wider font-semibold">Akses Selamanya &amp; Multi-Perangkat</span>`;
                 } else {
                     priceHtml = `<span class="text-primary font-bold text-sm">Hubungi Admin</span>`;
                 }
 
-                // Badge untuk yang sudah dibeli
-                const purchasedRibbon = isPurchased
-                    ? `<div class="absolute top-2 left-2 z-20 bg-emerald-500 text-white px-2 py-0.5 rounded-full text-[10px] font-bold shadow-sm uppercase flex items-center gap-1"><i class="fas fa-check text-[8px]"></i> Terbuka</div>`
-                    : `<div class="absolute top-2 left-2 z-20 bg-white/90 backdrop-blur-sm text-primary px-2 py-0.5 rounded-full text-[10px] font-bold shadow-sm uppercase">${course.mode || 'Online'}</div>`;
+                let topBadgesHtml = '';
+                if (isPurchased) {
+                    topBadgesHtml = `<div class="absolute top-2 left-2 z-20 bg-emerald-500 text-white px-2 py-0.5 rounded-full text-[10px] font-bold shadow-sm uppercase flex items-center gap-1"><i class="fas fa-check text-[8px]"></i> Terbuka</div>`;
+                } else if (bInfo.isBundle) {
+                    topBadgesHtml = `<div class="absolute top-2 left-2 z-20 bg-amber-500 text-white px-2.5 py-0.5 rounded-full text-[10px] font-bold shadow-sm uppercase flex items-center gap-1"><i class="fas fa-boxes-stacked text-[8px]"></i> Paket • ${escapeHtml(course.mode || 'Online')}</div>`;
+                } else {
+                    topBadgesHtml = `<div class="absolute top-2 left-2 z-20 bg-white/90 backdrop-blur-sm text-primary px-2 py-0.5 rounded-full text-[10px] font-bold shadow-sm uppercase">${escapeHtml(course.mode || 'Online')}</div>`;
+                }
 
                 cardDiv.innerHTML = `
                     <div class="relative overflow-hidden group aspect-[4/3]">
                         <img src="${course.image || DEFAULT_IMG}"
                             alt="${escapeHtml(course.title)}"
                             class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105">
-                        ${purchasedRibbon}
+                        ${topBadgesHtml}
                         <button onclick="saveToMaterimu('${course.course_id}')" title="Simpan ke Materimu"
                             class="absolute top-2 right-2 z-20 w-8 h-8 bg-white text-primary rounded-md flex items-center justify-center shadow-md hover:bg-gray-100 transition-colors font-bold text-lg cursor-pointer">
                             <i class="fas fa-plus"></i>
@@ -1209,6 +1264,7 @@
                     <div class="p-4 flex flex-col flex-grow">
                         <h3 class="text-sm font-bold text-gray-800 leading-tight mb-2 card-title-min-h">${escapeHtml(course.title)}</h3>
                         <div class="flex flex-col gap-0.5 mb-3 text-[10px] text-gray-600">
+                            ${bundleRowHtml}
                             <div class="flex items-center"><i class="fas fa-user-tie mr-2 text-accent w-3 text-center"></i><strong>${escapeHtml(course.instructor || 'Pengajar Nuqthah')}</strong></div>
                             ${meetingHtml}
                             <div class="flex items-center"><i class="fas fa-laptop mr-2 text-primary w-3 text-center"></i><span>${escapeHtml(course.class_type || 'E-LEARNING')}</span></div>
@@ -1307,18 +1363,22 @@
 
         function applyFilters() {
             const cards = document.querySelectorAll('.course-card');
+            const searchQuery = (document.getElementById('catalog-search-input')?.value || '').toLowerCase().trim();
             let visibleCount = 0;
 
             cards.forEach(card => {
                 const cat = card.getAttribute('data-category');
                 const sub = card.getAttribute('data-subfilter');
                 const mode = card.getAttribute('data-mode') || 'Online';
+                const title = card.getAttribute('data-title') || '';
+                const instructor = card.getAttribute('data-instructor') || '';
 
                 const matchCat = (cat === currentCategory);
                 const matchSub = (currentSubFilter === 'Semua' || sub === currentSubFilter);
                 const matchMode = (currentMode === 'Semua' || mode.toLowerCase() === currentMode.toLowerCase());
+                const matchSearch = !searchQuery || title.includes(searchQuery) || instructor.includes(searchQuery);
 
-                if (matchCat && matchSub && matchMode) {
+                if (matchCat && matchSub && matchMode && matchSearch) {
                     card.style.display = 'flex';
                     visibleCount++;
                 } else {
@@ -1343,14 +1403,14 @@
             const overlay = document.getElementById('page-loading-overlay');
 
             await checkSession();
-            await loadSavedMaterials();
             await fetchDynamicCourses();
+            await loadSavedMaterials();
+            renderCoursesToDOM();
 
             renderSubFilters();
             renderOnlineOfflineFilter();
-            updateAuthUI(); // Render status login di pojok kanan atas
+            updateAuthUI();
 
-            // Selamat datang kembali (Hanya Muncul Sekali Per Sesi Login)
             if (isLoggedIn && currentUser) {
                 if (!sessionStorage.getItem('nuqthah_welcome_shown')) {
                     const purchasedTotal = savedItems.filter(i => i.purchased).length;
