@@ -95,16 +95,6 @@
         .option-btn {
             transition: all .18s ease;
         }
-
-        @keyframes spinSlow {
-            to {
-                transform: rotate(360deg);
-            }
-        }
-
-        .spin-slow {
-            animation: spinSlow 1s linear infinite;
-        }
     </style>
 </head>
 
@@ -128,13 +118,11 @@
                 class="text-[10px] uppercase tracking-widest bg-accent px-2.5 py-1 rounded-full font-bold hidden sm:inline">Trial
                 Kuis</span>
 
-            <!-- Tombol Masuk (jika belum login) -->
             <button id="nav-login-btn" onclick="openOtpModal()"
                 class="hidden text-[11px] bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-full font-bold transition">
                 <i class="fas fa-sign-in-alt mr-1"></i> Masuk
             </button>
 
-            <!-- Badge Akun (jika sudah login) -->
             <div id="user-account-badge"
                 class="hidden items-center gap-1.5 text-[11px] bg-white/10 px-2.5 py-1.5 rounded-full font-semibold border border-white/15">
                 <i class="fas fa-user-check text-emerald-300"></i>
@@ -157,9 +145,7 @@
             <h2 class="text-2xl font-bold text-primary mb-2">Pilih Kategori Latihan Soal</h2>
             <p class="text-sm text-gray-500 mb-6">Pilih bidang program studi yang ingin kamu uji pemahamannya.</p>
 
-            <div id="category-cards-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
-                <!-- Diinject via JS -->
-            </div>
+            <div id="category-cards-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left"></div>
         </div>
 
         <!-- STEP 2: PILIH SUB-FILTER -->
@@ -208,8 +194,7 @@
             <!-- Banner Mode Trial -->
             <div id="trial-banner"
                 class="hidden mb-5 bg-amber-50 border border-amber-200 rounded-2xl p-3.5 flex items-start gap-3">
-                <div
-                    class="w-8 h-8 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+                <div class="w-8 h-8 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
                     <i class="fas fa-lock text-xs"></i>
                 </div>
                 <div class="flex-1 min-w-0">
@@ -233,13 +218,10 @@
                 <span id="score-badge" class="text-accent">Skor: 0</span>
             </div>
 
-            <!-- Pertanyaan -->
             <h3 id="question-text" class="text-lg md:text-xl font-bold text-gray-800 mb-6 leading-relaxed"></h3>
 
-            <!-- Opsi -->
             <div id="options-container" class="space-y-3 mb-8"></div>
 
-            <!-- Tombol Lanjut -->
             <button id="next-btn" onclick="nextQuestion()"
                 class="w-full bg-primary text-white font-bold py-3.5 rounded-2xl shadow-md hidden hover:bg-opacity-95 transition-all">
                 Lanjut <i class="fas fa-arrow-right ml-1"></i>
@@ -320,7 +302,8 @@
     </footer>
 
     <!-- ================= MODAL CHECKOUT (DAFTAR & BAYAR) ================= -->
-    <div id="checkout-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 hidden"
+    <div id="checkout-modal"
+        class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 hidden"
         style="z-index: 999995;">
         <div
             class="modal-fade bg-white w-full max-w-md rounded-2xl p-6 space-y-4 shadow-2xl relative max-h-[92vh] overflow-y-auto">
@@ -396,7 +379,6 @@
                 </button>
             </div>
 
-            <!-- Langkah 1: Input Email -->
             <div id="otp-step-email" class="space-y-4">
                 <div>
                     <label class="block text-[10px] font-bold text-gray-700 uppercase mb-1 tracking-wider">Email
@@ -410,7 +392,6 @@
                 </button>
             </div>
 
-            <!-- Langkah 2: Input OTP -->
             <div id="otp-step-verify" class="space-y-4 hidden">
                 <div class="bg-amber-50 border border-amber-200 p-3 rounded-xl text-xs text-amber-800">
                     Kode OTP 6 digit telah dikirim ke <strong id="otp-target-email-label">-</strong>.
@@ -453,9 +434,6 @@
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         const BACKEND_BASE_URL = 'https://markaznuqtoh.vercel.app';
-
-        /* Jumlah soal gratis untuk mode trial. Setelah user menjawab soal ke-6
-           dan masih ada soal berikutnya, user akan diarahkan untuk membuka akses. */
         const TRIAL_LIMIT = 6;
 
         const PROGRAMS = {
@@ -466,7 +444,8 @@
             amiyah: { label: 'Amiyah Mesir', subs: ['Dasar', 'Menengah', 'Lanjut'], color: 'bg-rose-50 text-rose-900 border-rose-200 hover:bg-rose-100' }
         };
 
-        let allCoursesData = [];
+        let allRawCoursesData = []; // Semua materi termasuk Paket Bundling
+        let allCoursesData = [];    // Hanya materi satuan (Non-Paket)
         let selectedCategory = '';
         let selectedSubfilter = '';
         let selectedCourseObj = null;
@@ -483,6 +462,32 @@
             currentUser = JSON.parse(localStorage.getItem('nuqthah_current_user')) || null;
         } catch (e) {
             currentUser = null;
+        }
+
+        /* ================================================================
+           HELPER PARSE BUNDLING PAKET
+        ================================================================ */
+        function parseBundleInfo(course) {
+            const rawLink = String(course?.link || '');
+            if (rawLink.startsWith('BUNDLE::')) {
+                const withoutPrefix = rawLink.substring(8);
+                const parts = withoutPrefix.split('||');
+                try {
+                    const ids = JSON.parse(parts[0]);
+                    return {
+                        isBundle: true,
+                        bundledIds: Array.isArray(ids) ? ids : [],
+                        externalLink: parts[1] || ''
+                    };
+                } catch (e) {
+                    return { isBundle: true, bundledIds: [], externalLink: '' };
+                }
+            }
+            return {
+                isBundle: false,
+                bundledIds: [],
+                externalLink: rawLink
+            };
         }
 
         /* ================================================================
@@ -567,7 +572,7 @@
         }
 
         /* ================================================================
-           CEK HAK AKSES (SINKRON DENGAN HALAMAN_BELAJAR)
+           CEK HAK AKSES (SINKRON DENGAN PAKET BUNDLING & HALAMAN_BELAJAR)
         ================================================================ */
         function saveAccessCache(courseId, email) {
             if (!courseId || !email) return;
@@ -579,8 +584,18 @@
             if (!courseIds || courseIds.length === 0) return false;
             if (!currentUser || !currentUser.email) return false;
 
+            // Sertakan juga ID Paket Induk jika materi ini termasuk ke dalam suatu Paket Bundling
+            const parentBundleIds = allRawCoursesData
+                .filter(c => {
+                    const bInfo = parseBundleInfo(c);
+                    return bInfo.isBundle && bInfo.bundledIds.some(id => courseIds.includes(id));
+                })
+                .map(c => c.course_id);
+
+            const allValidIds = Array.from(new Set([...courseIds, ...parentBundleIds]));
+
             // 1. Cache lokal
-            for (const cid of courseIds) {
+            for (const cid of allValidIds) {
                 const cached = localStorage.getItem(`nuqthah_access_${cid}`);
                 const cachedEmail = localStorage.getItem(`nuqthah_access_${cid}_email`);
                 if (cached === 'granted' && cachedEmail === currentUser.email) return true;
@@ -592,7 +607,7 @@
                     const { data } = await supabaseClient
                         .from('user_access')
                         .select('course_id')
-                        .in('course_id', courseIds)
+                        .in('course_id', allValidIds)
                         .eq('user_id', currentUser.id)
                         .limit(1);
 
@@ -606,7 +621,7 @@
                 const { data: byEmail } = await supabaseClient
                     .from('user_access')
                     .select('course_id')
-                    .in('course_id', courseIds)
+                    .in('course_id', allValidIds)
                     .eq('user_email', currentUser.email)
                     .limit(1);
 
@@ -619,7 +634,7 @@
                 const { data: trx } = await supabaseClient
                     .from('transactions')
                     .select('course_id')
-                    .in('course_id', courseIds)
+                    .in('course_id', allValidIds)
                     .eq('user_email', currentUser.email)
                     .eq('status', 'success')
                     .limit(1);
@@ -642,8 +657,9 @@
             try {
                 const { data, error } = await supabaseClient.from('courses').select('*');
                 if (!error && data) {
-                    // Saring agar materi "paket" tidak muncul di kuis
-                    allCoursesData = data.filter(c => !String(c.title || '').toLowerCase().includes('paket'));
+                    allRawCoursesData = data;
+                    // Saring agar materi Paket Bundling tidak muncul di dropdown materi spesifik
+                    allCoursesData = data.filter(c => !parseBundleInfo(c).isBundle && !String(c.title || '').toLowerCase().includes('paket'));
                 }
             } catch (e) {
                 console.warn('Gagal memuat data kursus:', e);
@@ -783,10 +799,8 @@
                 score = 0;
                 selectedOption = null;
 
-                // Cek apakah user punya akses penuh
                 hasFullAccess = await checkCourseAccess(targetCourseIds);
 
-                // Update tampilan
                 const banner = document.getElementById('trial-banner');
                 if (hasFullAccess) {
                     banner.classList.add('hidden');
@@ -883,7 +897,6 @@
 
             const nextIndex = currentIndex + 1;
 
-            // Gerbang trial: setelah soal ke-6 dijawab & masih ada soal berikutnya
             if (!hasFullAccess && nextIndex >= TRIAL_LIMIT && nextIndex < currentQuestions.length) {
                 currentIndex = nextIndex;
                 showQuizLocked();
@@ -913,7 +926,6 @@
 
             document.getElementById('locked-price').textContent = selectedCourseObj?.price || 'Hubungi Admin';
 
-            // Arahkan langsung ke form daftar akun & buka akses
             setTimeout(() => {
                 if (!hasFullAccess) openCheckoutModal();
             }, 400);
@@ -1027,7 +1039,6 @@
             submitBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Memproses Akun...';
 
             try {
-                // 1. Simpan / perbarui akun
                 const { data: savedUser, error: userErr } = await supabaseClient
                     .from('users')
                     .upsert([{ email, name, whatsapp }], { onConflict: 'email' })
@@ -1040,7 +1051,6 @@
                 localStorage.setItem('nuqthah_current_user', JSON.stringify(currentUser));
                 updateNavUserBadge();
 
-                // 2. Cek apakah email ini sudah punya akses
                 const alreadyHasAccess = await checkCourseAccess(targetCourseIds);
 
                 if (alreadyHasAccess) {
@@ -1051,7 +1061,6 @@
                     return;
                 }
 
-                // 3. Lanjut pembayaran Midtrans
                 await triggerMidtransPayment(currentUser);
 
             } catch (err) {
@@ -1093,7 +1102,6 @@
 
                 window.snap.pay(data.token, {
                     onSuccess: async function () {
-                        // Catat akses ke database agar sinkron di semua perangkat
                         try {
                             await supabaseClient.from('transactions')
                                 .update({ status: 'success' })
@@ -1230,7 +1238,6 @@
                     hasFullAccess = true;
                     showToast(`Selamat datang kembali, ${currentUser.name || 'Siswa'}! Akses penuh Anda telah dibuka.`, 'success', 'Berhasil Masuk');
 
-                    // Jika user sedang dalam sesi kuis, lanjutkan otomatis
                     if (currentQuestions.length > 0) {
                         resumeQuizAfterAccess();
                     }
