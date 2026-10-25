@@ -9,7 +9,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Midtrans Snap JS -->
-    <script src="https://app.sandbox.midtrans.com/snap/snap.js" data-client-key="CLIENT_KEY_MIDTRANS_ANDA"></script>
+    <script src="https://app.sandbox.midtrans.com/snap/snap.js" data-client-key="Mid-client-QzcjGlEmaHlfZ81K"></script>
     <!-- YouTube IFrame API -->
     <script src="https://www.youtube.com/iframe_api"></script>
     <script>
@@ -1420,7 +1420,7 @@
                     return;
                 }
 
-                const response = await fetch('http://localhost:3000/api/create-transaction', {
+                const response = await fetch('https://markaznuqthah.vercel.app/api/create-transaction', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1487,7 +1487,7 @@
             btnRequest.innerHTML = '<i class="fas fa-circle-notch fa-spin mr-1"></i> Mengirim OTP...';
 
             try {
-                const res = await fetch('http://localhost:3000/api/send-otp', {
+                const res = await fetch('https://markaznuqthah.vercel.app/api/send-otp', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email: emailInput })
@@ -1525,7 +1525,7 @@
             btnVerify.innerHTML = '<i class="fas fa-circle-notch fa-spin mr-1"></i> Memverifikasi...';
 
             try {
-                const res = await fetch('http://localhost:3000/api/verify-otp', {
+                const res = await fetch('https://markaznuqthah.vercel.app/api/verify-otp', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email: emailInput, code: codeInput })
