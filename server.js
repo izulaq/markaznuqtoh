@@ -7,27 +7,30 @@ const nodemailer = require('nodemailer');
 
 const app = express();
 
-// Konfigurasi CORS agar mengizinkan akses dari frontend Anda
-app.use(cors({
+// Konfigurasi CORS yang komprehensif
+const corsOptions = {
     origin: ['https://markaznuqthahlearning.my.id', 'http://localhost:3000'],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true
-}));
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions)); // Menangani preflight request untuk semua rute
 
 app.use(express.json());
 
-// Inisialisasi Supabase dengan Service Role Key[cite: 7]
+// Inisialisasi Supabase dengan Service Role Key
 const supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
-// Inisialisasi Midtrans Snap API Client[cite: 7]
+// Inisialisasi Midtrans Snap API Client
 let snap = new midtransClient.Snap({
     isProduction: false,
     serverKey: process.env.MIDTRANS_SERVER_KEY,
     clientKey: process.env.MIDTRANS_CLIENT_KEY
 });
 
-// Konfigurasi Pengirim Email (Gmail SMTP)[cite: 7]
+// Konfigurasi Pengirim Email (Gmail SMTP)
 const mailTransporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
@@ -36,7 +39,7 @@ const mailTransporter = nodemailer.createTransport({
     }
 });
 
-// Endpoint 1: Membuat Transaksi & Mendapatkan Snap Token Midtrans[cite: 7]
+// Endpoint 1: Membuat Transaksi & Mendapatkan Snap Token Midtrans
 app.post('/api/create-transaction', async (req, res) => {
     try {
         const { course_id, price, user_id, user_email } = req.body;
@@ -73,7 +76,7 @@ app.post('/api/create-transaction', async (req, res) => {
     }
 });
 
-// Endpoint 2: Midtrans Webhook Notification[cite: 7]
+// Endpoint 2: Midtrans Webhook Notification
 app.post('/api/midtrans-notification', async (req, res) => {
     try {
         let notificationJson = req.body;
@@ -118,7 +121,7 @@ app.post('/api/midtrans-notification', async (req, res) => {
 
 // ================= ROUTE AUTENTIKASI & OTP (MULTI-DEVICE) =================
 
-// Endpoint 3: Kirim Kode OTP ke Email[cite: 7]
+// Endpoint 3: Kirim Kode OTP ke Email
 app.post('/api/send-otp', async (req, res) => {
     const { email } = req.body;
     if (!email) {
@@ -173,7 +176,7 @@ app.post('/api/send-otp', async (req, res) => {
     }
 });
 
-// Endpoint 4: Verifikasi Kode OTP[cite: 7]
+// Endpoint 4: Verifikasi Kode OTP
 app.post('/api/verify-otp', async (req, res) => {
     const { email, code } = req.body;
     if (!email || !code) {
@@ -226,5 +229,4 @@ if (process.env.NODE_ENV !== 'production') {
     });
 }
 
-// PENTING: Ekspor aplikasi agar bisa dibaca oleh Vercel
 module.exports = app;
