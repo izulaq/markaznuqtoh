@@ -1107,12 +1107,23 @@
                                 .update({ status: 'success' })
                                 .eq('order_id', data.order_id);
 
-                            await supabaseClient.from('user_access').insert([{
-                                user_id: userToUse.id || null,
-                                user_email: userToUse.email,
-                                course_id: selectedCourseObj.course_id,
-                                order_id: data.order_id
-                            }]);
+                            // CEK ANTI-DOUBLE: Hanya insert jika belum dimasukkan oleh Webhook Server
+                            const { data: existingAcc } = await supabaseClient
+                                .from('user_access')
+                                .select('id')
+                                .eq('user_email', userToUse.email)
+                                .eq('course_id', selectedCourseObj.course_id)
+                                .limit(1);
+
+                            if (!existingAcc || existingAcc.length === 0) {
+                                await supabaseClient.from('user_access').insert([{
+                                    user_id: userToUse.id || null,
+                                    user_email: userToUse.email,
+                                    course_id: selectedCourseObj.course_id,
+                                    order_id: data.order_id,
+                                    is_active: true
+                                }]);
+                            }
                         } catch (dbErr) {
                             console.warn('Info sinkronisasi akses:', dbErr);
                         }
