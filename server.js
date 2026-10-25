@@ -107,6 +107,39 @@ async function sendFonnteWhatsApp(targetPhone, messageText) {
     }
 }
 
+// ================= HELPER: GRANT ACCESS ANTI-DUPLIKAT =================
+async function grantUserAccessSafely({ userId, userEmail, courseId, orderId }) {
+    const cleanEmail = (userEmail || '').trim().toLowerCase();
+    if (!cleanEmail || !courseId) return;
+
+    // Cek apakah kombinasi user_email + course_id sudah ada di tabel user_access
+    const { data: existing } = await supabaseAdmin
+        .from('user_access')
+        .select('id')
+        .eq('user_email', cleanEmail)
+        .eq('course_id', courseId)
+        .limit(1);
+
+    if (existing && existing.length > 0) {
+        // Jika sudah ada, cukup aktifkan tanpa membuat baris baru
+        await supabaseAdmin
+            .from('user_access')
+            .update({ is_active: true, order_id: orderId })
+            .eq('id', existing[0].id);
+    } else {
+        // Jika belum ada, buat 1 baris baru
+        await supabaseAdmin
+            .from('user_access')
+            .insert([{
+                user_id: userId || null,
+                user_email: cleanEmail,
+                course_id: courseId,
+                order_id: orderId,
+                is_active: true
+            }]);
+    }
+}
+
 // ================= ENDPOINT TRANSAKSI & FOLLOW-UP WA =================
 
 // Endpoint 1: Membuat Transaksi Midtrans & Mengirim WA Follow-Up Pembayaran
@@ -186,7 +219,7 @@ Apabila ada kendala atau butuh bantuan admin, silakan balas pesan ini. Syukran! 
     }
 });
 
-// Endpoint 2: Midtrans Webhook Notification (Update Akses Paket/Satuan & Kirim WA Konfirmasi Lunas)
+// Endpoint 2: Midtrans Webhook Notification (Anti-Duplikat & Kirim WA Konfirmasi Lunas)
 app.post('/api/midtrans-notification', async (req, res) => {
     try {
         let notificationJson = req.body;
@@ -239,24 +272,17 @@ app.post('/api/midtrans-notification', async (req, res) => {
                     .update({ status: 'success' })
                     .eq('order_id', orderId);
 
-                const { data: existingAccess } = await supabaseAdmin
-                    .from('user_access')
-                    .select('id')
-                    .eq('order_id', orderId)
-                    .limit(1);
+                const bundledIds = parseBundleIdsFromLink(courseData?.link);
+                const allCourseIdsToGrant = Array.from(new Set([trx.course_id, ...bundledIds]));
 
-                if (!existingAccess || existingAccess.length === 0) {
-                    const bundledIds = parseBundleIdsFromLink(courseData?.link);
-                    const allCourseIdsToGrant = Array.from(new Set([trx.course_id, ...bundledIds]));
-
-                    const accessRows = allCourseIdsToGrant.map(cid => ({
-                        user_id: trx.user_id || userData?.id || null,
-                        user_email: trx.user_email || null,
-                        course_id: cid,
-                        order_id: orderId
-                    }));
-
-                    await supabaseAdmin.from('user_access').insert(accessRows);
+                // Gunakan helper Anti-Duplikat untuk setiap course_id
+                for (const cid of allCourseIdsToGrant) {
+                    await grantUserAccessSafely({
+                        userId: trx.user_id || userData?.id || null,
+                        userEmail: trx.user_email,
+                        courseId: cid,
+                        orderId: orderId
+                    });
                 }
 
                 if (!wasAlreadySuccess && studentWa) {
@@ -315,7 +341,6 @@ Jika Anda mengalami kesulitan saat melakukan pembayaran, silakan balas pesan ini
 
 // ================= ROUTE AUTENTIKASI & OTP (MULTI-DEVICE) =================
 
-// Endpoint 3: Kirim Kode OTP ke Email (& WhatsApp jika terdaftar)
 app.post('/api/send-otp', async (req, res) => {
     const { email } = req.body;
     if (!email) {
@@ -344,8 +369,6 @@ app.post('/api/send-otp', async (req, res) => {
             .insert([{ email, code: otpCode, expires_at: expiresAt, used: false }]);
 
         if (otpErr) throw otpErr;
-
-        console.log(`[OTP SYSTEM] Kode verifikasi untuk ${email} adalah: ${otpCode}`);
 
         if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
             await mailTransporter.sendMail({
@@ -384,7 +407,6 @@ Kode ini berlaku selama 10 menit. Jangan berikan kode ini kepada siapa pun.`;
     }
 });
 
-// Endpoint 4: Verifikasi Kode OTP
 app.post('/api/verify-otp', async (req, res) => {
     const { email, code } = req.body;
     if (!email || !code) {
