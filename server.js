@@ -16,7 +16,7 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions)); // Menangani preflight request untuk semua rute
+app.options('/(.*)', cors(corsOptions)); // Diperbaiki untuk Express v5
 
 app.use(express.json());
 
