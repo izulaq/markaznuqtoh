@@ -7,17 +7,23 @@ const nodemailer = require('nodemailer');
 
 const app = express();
 
-// Mengizinkan akses CORS dari semua domain (termasuk markaz.nuqthahlearning.my.id)
+// Konfigurasi CORS agar dapat diakses dari domain utama & localhost
 app.use(cors());
 app.use(express.json());
 
-// Route pengecekan status server (agar saat dibuka di browser muncul pesan aktif)
+// Route pengecekan status server di browser
 app.get('/', (req, res) => {
-    res.json({ status: 'OK', message: 'Server Backend Nuqthah Learning Aktif!' });
+    res.json({
+        status: 'OK',
+        message: 'Server Backend Nuqthah Learning Center Aktif!'
+    });
 });
 
 // Inisialisasi Supabase dengan Service Role Key
-const supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+const supabaseAdmin = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
 // Inisialisasi Midtrans Snap API Client
 let snap = new midtransClient.Snap({
@@ -35,7 +41,67 @@ const mailTransporter = nodemailer.createTransport({
     }
 });
 
-// Endpoint 1: Membuat Transaksi & Mendapatkan Snap Token Midtrans
+// ================= HELPER: NORMALISASI NOMOR & KIRIM WA FONNTE =================
+
+// Normalisasi nomor WhatsApp untuk Indonesia (62) dan Mesir (20)
+function normalizePhoneNumber(phone) {
+    if (!phone) return '';
+    let clean = String(phone).replace(/[^0-9]/g, '');
+
+    if (clean.startsWith('00')) {
+        clean = clean.substring(2);
+    } else if (clean.startsWith('08')) {
+        // Format lokal Indonesia (08xxx -> 628xxx)
+        clean = '62' + clean.substring(1);
+    } else if (clean.startsWith('8') && clean.length >= 9 && clean.length <= 13) {
+        clean = '62' + clean;
+    } else if (clean.startsWith('01') && clean.length === 11) {
+        // Format lokal Mesir (010/011/012/015 -> 201xxx)
+        clean = '20' + clean.substring(1);
+    }
+    return clean;
+}
+
+// Fungsi kirim pesan WhatsApp otomatis via Fonnte API
+async function sendFonnteWhatsApp(targetPhone, messageText) {
+    const token = process.env.FONNTE_TOKEN;
+    if (!token) {
+        console.warn('[FONNTE] FONNTE_TOKEN belum diatur di Environment Variables.');
+        return false;
+    }
+
+    const formattedPhone = normalizePhoneNumber(targetPhone);
+    if (!formattedPhone) {
+        console.warn('[FONNTE] Nomor WhatsApp kosong atau tidak valid:', targetPhone);
+        return false;
+    }
+
+    try {
+        const response = await fetch('https://api.fonnte.com/send', {
+            method: 'POST',
+            headers: {
+                'Authorization': token,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                target: formattedPhone,
+                message: messageText,
+                countryCode: '0' // '0' agar mendukung pengiriman lintas negara (Indonesia & Mesir)
+            })
+        });
+
+        const result = await response.json();
+        console.log(`[FONNTE] Respons pengiriman ke ${formattedPhone}:`, result);
+        return result;
+    } catch (err) {
+        console.error('[FONNTE ERROR]:', err.message);
+        return false;
+    }
+}
+
+// ================= ENDPOINT TRANSAKSI & FOLLOW-UP WA =================
+
+// Endpoint 1: Membuat Transaksi Midtrans & Mengirim WA Follow-Up Pembayaran
 app.post('/api/create-transaction', async (req, res) => {
     try {
         const { course_id, price, user_id, user_email } = req.body;
@@ -43,26 +109,69 @@ app.post('/api/create-transaction', async (req, res) => {
         
         const cleanPrice = parseInt(String(price).replace(/[^0-9]/g, '')) || 10000;
 
+        // Ambil data siswa (Nama & Nomor WA) dan judul materi dari Supabase
+        const { data: userData } = await supabaseAdmin
+            .from('users')
+            .select('*')
+            .eq('email', user_email)
+            .single();
+
+        const { data: courseData } = await supabaseAdmin
+            .from('courses')
+            .select('title')
+            .eq('course_id', course_id)
+            .single();
+
+        const studentName = userData?.name || 'Sahabat Nuqthah';
+        const studentWa = userData?.whatsapp || '';
+        const courseTitle = courseData?.title || course_id;
+
         let parameter = {
             transaction_details: {
                 order_id: orderId,
                 gross_amount: cleanPrice
             },
             customer_details: {
-                email: user_email || 'student@nuqthah.com'
+                first_name: studentName,
+                email: user_email || 'student@nuqthah.com',
+                phone: studentWa
             }
         };
 
         let transaction = await snap.createTransaction(parameter);
 
+        // Simpan transaksi ke tabel transactions dengan status pending
         await supabaseAdmin.from('transactions').insert([{
             order_id: orderId,
-            user_id: user_id || null,
+            user_id: user_id || userData?.id || null,
             user_email: user_email || null,
             course_id: course_id,
             gross_amount: cleanPrice,
             status: 'pending'
         }]);
+
+        // Kirim WhatsApp Follow-Up otomatis jika nomor WA siswa tersedia
+        if (studentWa) {
+            const formattedRupiah = 'Rp ' + new Intl.NumberFormat('id-ID').format(cleanPrice);
+            const learningUrl = `https://markaz.nuqthahlearning.my.id/halaman_belajar.html?course_id=${course_id}`;
+
+            const followUpMsg = 
+`Assalamu'alaikum *${studentName}* 👋
+
+Terima kasih telah melakukan pendaftaran materi di *Nuqthah Learning Center*:
+📚 *Materi:* ${courseTitle}
+💳 *Total Tagihan:* ${formattedRupiah}
+🧾 *ID Pesanan:* ${orderId}
+
+Saat ini status pesanan Anda *Menunggu Pembayaran*. Silakan selesaikan pembayaran melalui jendela pembayaran di layar Anda agar akses penuh video materi dan kuis segera terbuka.
+
+Jika jendela pembayaran tertutup atau Anda ingin melanjutkan nanti, silakan klik tautan berikut:
+👉 ${learningUrl}
+
+Apabila ada kendala atau butuh bantuan admin, silakan balas pesan ini. Syukran! 🙏`;
+
+            await sendFonnteWhatsApp(studentWa, followUpMsg);
+        }
 
         res.json({ token: transaction.token, order_id: orderId });
 
@@ -72,7 +181,7 @@ app.post('/api/create-transaction', async (req, res) => {
     }
 });
 
-// Endpoint 2: Midtrans Webhook Notification
+// Endpoint 2: Midtrans Webhook Notification (Update Akses & Kirim WA Konfirmasi Lunas)
 app.post('/api/midtrans-notification', async (req, res) => {
     try {
         let notificationJson = req.body;
@@ -89,23 +198,107 @@ app.post('/api/midtrans-notification', async (req, res) => {
         let transactionStatus = statusResponse.transaction_status;
         let fraudStatus = statusResponse.fraud_status;
 
+        // Ambil data transaksi dari Supabase
+        const { data: trx } = await supabaseAdmin
+            .from('transactions')
+            .select('*')
+            .eq('order_id', orderId)
+            .single();
+
+        if (!trx) {
+            return res.status(200).json({ status: 'OK', message: 'Transaksi tidak ditemukan di DB' });
+        }
+
+        // Ambil informasi pengguna & materi untuk isi pesan WhatsApp
+        const { data: userData } = await supabaseAdmin
+            .from('users')
+            .select('*')
+            .eq('email', trx.user_email)
+            .single();
+
+        const { data: courseData } = await supabaseAdmin
+            .from('courses')
+            .select('title')
+            .eq('course_id', trx.course_id)
+            .single();
+
+        const studentName = userData?.name || 'Sahabat Nuqthah';
+        const studentWa = userData?.whatsapp || '';
+        const courseTitle = courseData?.title || trx.course_id;
+        const learningUrl = `https://markaz.nuqthahlearning.my.id/halaman_belajar.html?course_id=${trx.course_id}`;
+
         if (transactionStatus == 'capture' || transactionStatus == 'settlement') {
             if (fraudStatus == 'accept' || !fraudStatus) {
-                await supabaseAdmin.from('transactions').update({ status: 'success' }).eq('order_id', orderId);
+                const wasAlreadySuccess = trx.status === 'success';
 
-                const { data: trx } = await supabaseAdmin.from('transactions').select('*').eq('order_id', orderId).single();
-                
-                if (trx) {
+                await supabaseAdmin
+                    .from('transactions')
+                    .update({ status: 'success' })
+                    .eq('order_id', orderId);
+
+                // Cek agar tidak terjadi duplikasi data di user_access
+                const { data: existingAccess } = await supabaseAdmin
+                    .from('user_access')
+                    .select('id')
+                    .eq('order_id', orderId)
+                    .limit(1);
+
+                if (!existingAccess || existingAccess.length === 0) {
                     await supabaseAdmin.from('user_access').insert([{
-                        user_id: trx.user_id || null,
+                        user_id: trx.user_id || userData?.id || null,
                         user_email: trx.user_email || null,
                         course_id: trx.course_id,
                         order_id: orderId
                     }]);
                 }
+
+                // Kirim WA Konfirmasi Lunas (hanya 1 kali saat status berubah menjadi success)
+                if (!wasAlreadySuccess && studentWa) {
+                    const formattedRupiah = 'Rp ' + new Intl.NumberFormat('id-ID').format(trx.gross_amount || 0);
+                    const successMsg = 
+`Alhamdulillah! Assalamu'alaikum *${studentName}* 🎉
+
+Pembayaran Anda telah *BERHASIL* kami terima:
+📚 *Materi:* ${courseTitle}
+💳 *Total Dibayar:* ${formattedRupiah}
+🧾 *ID Pesanan:* ${orderId}
+✅ *Status:* LUNAS (Akses Penuh Terbuka)
+
+Seluruh sesi video pembelajaran dan kuis interaktif kini telah aktif untuk akun Anda (${trx.user_email}).
+
+Silakan mulai belajar melalui tautan berikut:
+👉 ${learningUrl}
+
+*(Tips: Jika Anda ingin membuka materi di perangkat atau HP lain, cukup klik tombol "Masuk Akun" di pojok kanan atas dan masukkan email Anda untuk menerima kode OTP).*
+
+Selamat belajar, semoga ilmunya bermanfaat dan berkah! 🌟
+*#MumtazBarengNuqthah*`;
+
+                    await sendFonnteWhatsApp(studentWa, successMsg);
+                }
             }
         } else if (transactionStatus == 'cancel' || transactionStatus == 'deny' || transactionStatus == 'expire') {
-            await supabaseAdmin.from('transactions').update({ status: 'failed' }).eq('order_id', orderId);
+            const wasAlreadyFailed = trx.status === 'failed';
+
+            await supabaseAdmin
+                .from('transactions')
+                .update({ status: 'failed' })
+                .eq('order_id', orderId);
+
+            // Kirim WA Follow-Up jika pembayaran kedaluwarsa (expire)
+            if (transactionStatus == 'expire' && !wasAlreadyFailed && studentWa) {
+                const expireMsg = 
+`Assalamu'alaikum *${studentName}*,
+
+Batas waktu pembayaran untuk pesanan *${orderId}* pada materi *${courseTitle}* telah berakhir (kedaluwarsa).
+
+Apabila Anda masih ingin membuka akses penuh materi ini, silakan lakukan pemesanan ulang melalui halaman ruang belajar berikut:
+👉 ${learningUrl}
+
+Jika Anda mengalami kesulitan saat melakukan pembayaran, silakan balas pesan ini untuk dibantu oleh admin kami. Syukran! 🙏`;
+
+                await sendFonnteWhatsApp(studentWa, expireMsg);
+            }
         }
 
         res.status(200).json({ status: 'OK' });
@@ -117,7 +310,7 @@ app.post('/api/midtrans-notification', async (req, res) => {
 
 // ================= ROUTE AUTENTIKASI & OTP (MULTI-DEVICE) =================
 
-// Endpoint 3: Kirim Kode OTP ke Email
+// Endpoint 3: Kirim Kode OTP ke Email (& WhatsApp jika terdaftar)
 app.post('/api/send-otp', async (req, res) => {
     const { email } = req.body;
     if (!email) {
@@ -132,11 +325,14 @@ app.post('/api/send-otp', async (req, res) => {
             .single();
 
         if (uErr || !userExist) {
-            return res.status(404).json({ success: false, error: 'Email belum terdaftar. Silakan lakukan pendaftaran melalui tombol Buka Akses Penuh.' });
+            return res.status(404).json({
+                success: false,
+                error: 'Email belum terdaftar. Silakan lakukan pendaftaran melalui tombol Buka Akses Penuh.'
+            });
         }
 
         const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-        const expiresAt = new Date(Date.now() + 10 * 60 * 1000); 
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
         const { error: otpErr } = await supabaseAdmin
             .from('otps')
@@ -146,6 +342,7 @@ app.post('/api/send-otp', async (req, res) => {
 
         console.log(`[OTP SYSTEM] Kode verifikasi untuk ${email} adalah: ${otpCode}`);
 
+        // 1. Kirim OTP ke Email
         if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
             await mailTransporter.sendMail({
                 from: `"Nuqthah Learning Center" <${process.env.EMAIL_USER}>`,
@@ -165,10 +362,22 @@ app.post('/api/send-otp', async (req, res) => {
             });
         }
 
-        res.json({ success: true, message: 'Kode OTP berhasil dikirim ke email.' });
+        // 2. Kirim juga OTP ke WhatsApp siswa (jika FONNTE_TOKEN aktif & nomor WA ada)
+        if (userExist.whatsapp && process.env.FONNTE_TOKEN) {
+            const otpWaMsg = 
+`Assalamu'alaikum *${userExist.name}*,
+
+Kode OTP untuk masuk ke akun belajar *Nuqthah Learning Center* Anda adalah:
+*${otpCode}*
+
+Kode ini berlaku selama 10 menit. Jangan berikan kode ini kepada siapa pun.`;
+            await sendFonnteWhatsApp(userExist.whatsapp, otpWaMsg);
+        }
+
+        res.json({ success: true, message: 'Kode OTP berhasil dikirim.' });
     } catch (err) {
         console.error('Error send-otp:', err);
-        res.status(500).json({ success: false, error: 'Gagal mengirim email OTP: ' + err.message });
+        res.status(500).json({ success: false, error: 'Gagal mengirim kode OTP: ' + err.message });
     }
 });
 
