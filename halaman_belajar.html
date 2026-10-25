@@ -2258,21 +2258,30 @@
                                 .update({ status: 'success' })
                                 .eq('order_id', data.order_id);
 
-                            // Jika membeli Paket Bundling, buka akses untuk Paket sekaligus seluruh materi di dalam paket
                             const accessIdsToGrant = isBundleCourse
                                 ? [courseId, ...bundledCourseIds]
                                 : [courseId];
 
-                            const accessRows = accessIdsToGrant.map(cid => ({
-                                user_id: userToUse.id || null,
-                                user_email: userToUse.email,
-                                course_id: cid,
-                                order_id: data.order_id,
-                                is_active: true
-                            }));
+                            // CEK ANTI-DOUBLE: Hanya insert jika belum dimasukkan oleh Webhook Server
+                            for (const cid of accessIdsToGrant) {
+                                const { data: existingAcc } = await supabaseClient
+                                    .from('user_access')
+                                    .select('id')
+                                    .eq('user_email', userToUse.email)
+                                    .eq('course_id', cid)
+                                    .limit(1);
 
-                            await supabaseClient.from('user_access').insert(accessRows);
-                            accessIdsToGrant.forEach(cid => saveAccessCache(cid, userToUse.email));
+                                if (!existingAcc || existingAcc.length === 0) {
+                                    await supabaseClient.from('user_access').insert([{
+                                        user_id: userToUse.id || null,
+                                        user_email: userToUse.email,
+                                        course_id: cid,
+                                        order_id: data.order_id,
+                                        is_active: true
+                                    }]);
+                                }
+                                saveAccessCache(cid, userToUse.email);
+                            }
                         } catch (dbErr) {
                             console.warn('Info sinkronisasi akses:', dbErr);
                         }
@@ -2294,7 +2303,6 @@
                 showToast('Terjadi kesalahan koneksi ke server pembayaran.', 'error', 'Koneksi Gagal');
             }
         }
-
         /* ================================================================
            OTP
         ================================================================ */
