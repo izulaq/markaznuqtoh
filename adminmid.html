@@ -110,7 +110,7 @@
             <div>
                 <h1 class="text-2xl sm:text-3xl font-bold text-primary">Dashboard Admin</h1>
                 <p class="text-xs sm:text-sm text-gray-500">Kelola materi (satuan &amp; paket bundling), modul video,
-                    duplikasi konten, dan bank soal latihan.</p>
+                    bank soal, dan kontrol akses siswa (ON/OFF).</p>
             </div>
             <div class="flex flex-wrap gap-2">
                 <a href="index.html" target="_blank"
@@ -124,8 +124,8 @@
             </div>
         </header>
 
-        <!-- Tab Navigasi Utama -->
-        <div class="flex border-b border-gray-200 mb-8 gap-4 px-2 sm:px-0 overflow-x-auto whitespace-nowrap">
+        <!-- Tab Navigasi Utama (4 Tab Lengkap) -->
+        <div class="flex border-b border-gray-200 mb-8 gap-3 sm:gap-4 px-2 sm:px-0 overflow-x-auto whitespace-nowrap">
             <button onclick="switchTab('materi')" id="tab-materi"
                 class="pb-3 px-2 sm:px-4 font-bold text-sm border-b-2 border-primary text-primary transition-all flex items-center gap-2">
                 <i class="fas fa-book-open"></i> Kelola Materi &amp; Paket
@@ -137,6 +137,12 @@
             <button onclick="switchTab('soal')" id="tab-soal"
                 class="pb-3 px-2 sm:px-4 font-bold text-sm border-b-2 border-transparent text-gray-400 hover:text-gray-700 transition-all flex items-center gap-2">
                 <i class="fas fa-brain"></i> Kelola Bank Soal Latihan
+            </button>
+            <button onclick="switchTab('akses')" id="tab-akses"
+                class="pb-3 px-2 sm:px-4 font-bold text-sm border-b-2 border-transparent text-gray-400 hover:text-gray-700 transition-all flex items-center gap-2">
+                <i class="fas fa-user-shield"></i> Kelola Akses Siswa
+                <span id="badge-tab-akses"
+                    class="bg-emerald-100 text-primary text-[10px] px-2 py-0.5 rounded-full font-extrabold">0</span>
             </button>
         </div>
 
@@ -543,6 +549,169 @@
                 </div>
             </div>
         </div>
+
+        <!-- ================= SECTION 4: KELOLA AKSES SISWA (ON / OFF) ================= -->
+        <div id="section-akses" class="space-y-8 hidden">
+
+            <!-- Ringkasan Statistik Akses -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mx-2 sm:mx-0">
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center text-xl">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div>
+                        <span class="text-[11px] font-bold text-gray-400 uppercase block">Total Hak Akses</span>
+                        <span id="stat-total-access" class="text-2xl font-extrabold text-gray-800">0</span>
+                    </div>
+                </div>
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-emerald-100 flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-xl">
+                        <i class="fas fa-toggle-on"></i>
+                    </div>
+                    <div>
+                        <span class="text-[11px] font-bold text-emerald-700 uppercase block">Akses Aktif (ON)</span>
+                        <span id="stat-active-access" class="text-2xl font-extrabold text-emerald-700">0</span>
+                    </div>
+                </div>
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-red-100 flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-red-100 text-red-600 flex items-center justify-center text-xl">
+                        <i class="fas fa-toggle-off"></i>
+                    </div>
+                    <div>
+                        <span class="text-[11px] font-bold text-red-600 uppercase block">Diblokir / Nonaktif (OFF)</span>
+                        <span id="stat-inactive-access" class="text-2xl font-extrabold text-red-600">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Tambah / Buka Akses Manual (Untuk Pembayaran Transfer / Cash) -->
+            <div class="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 mx-2 sm:mx-0">
+                <div class="mb-4 border-b pb-3">
+                    <h2 class="text-lg sm:text-xl font-bold text-primary"><i class="fas fa-user-plus mr-2"></i>Berikan
+                        Akses Materi Manual (Cash / Transfer Manual)</h2>
+                    <p class="text-xs text-gray-500">Gunakan form ini untuk membuka akses materi secara langsung kepada
+                        siswa tanpa melalui Midtrans.</p>
+                </div>
+
+                <form id="grant-access-form" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <!-- Pilih / Ketik Email Siswa -->
+                    <div class="relative" id="student-user-picker">
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Email Siswa *</label>
+                        <input type="email" id="grant-email" required placeholder="Ketik / pilih email siswa..."
+                            onfocus="openStudentPickerDropdown()" oninput="filterStudentPickerDropdown()"
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary">
+                        <div id="student-user-dropdown"
+                            class="hidden absolute left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl max-h-52 overflow-y-auto z-50 divide-y divide-gray-100">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Nama Siswa *</label>
+                        <input type="text" id="grant-name" required placeholder="Nama lengkap siswa"
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">No. WhatsApp <span
+                                class="text-gray-400 font-normal lowercase">(opsional)</span></label>
+                        <input type="text" id="grant-whatsapp" placeholder="cth: 08123456789"
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary">
+                    </div>
+
+                    <!-- Pilih Materi yang Dibuka -->
+                    <div class="relative" id="access-course-picker">
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Pilih Materi / Paket *</label>
+                        <input type="hidden" id="access-course_id" required>
+                        <div class="relative flex items-center">
+                            <input type="text" id="access-course-search"
+                                placeholder="Cari materi / paket..."
+                                onfocus="openCoursePickerDropdown('access')"
+                                oninput="filterCoursePickerDropdown('access')"
+                                class="w-full border border-gray-200 pr-8 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary bg-white">
+                            <button type="button" onclick="toggleCoursePickerDropdown('access')"
+                                class="absolute right-2.5 text-gray-400 hover:text-gray-600">
+                                <i class="fas fa-chevron-down text-xs"></i>
+                            </button>
+                        </div>
+                        <div id="access-course-dropdown"
+                            class="hidden absolute left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl max-h-60 overflow-y-auto z-50 divide-y divide-gray-100">
+                        </div>
+                    </div>
+
+                    <div class="md:col-span-2 lg:col-span-4">
+                        <button type="submit" id="btn-grant-access"
+                            class="w-full bg-primary text-white font-bold py-3 rounded-xl hover:bg-opacity-90 transition shadow-sm">
+                            <i class="fas fa-unlock-alt mr-1"></i> Buka Akses Penuh untuk Siswa Ini
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Tabel Daftar Akses Siswa + Filter + Sakelar ON/OFF -->
+            <div class="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 mx-2 sm:mx-0 space-y-4">
+                <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 border-b pb-4">
+                    <div>
+                        <h2 class="text-lg sm:text-xl font-bold text-primary">Tabel Kontrol Akses Siswa (ON / OFF)</h2>
+                        <p class="text-xs text-gray-500">Klik sakelar ke posisi <b>OFF</b> untuk menghentikan/mencabut
+                            akses materi siswa secara instan.</p>
+                    </div>
+                    <button onclick="fetchUserAccessList(true)"
+                        class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5">
+                        <i class="fas fa-sync-alt"></i> Muat Ulang Data
+                    </button>
+                </div>
+
+                <!-- Baris Pencarian & Filter Lengkap -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div class="sm:col-span-2 relative">
+                        <i class="fas fa-search absolute left-3.5 top-3 text-gray-400 text-xs"></i>
+                        <input type="text" id="search-akses-input" oninput="renderUserAccessTable()"
+                            placeholder="Cari Nama Siswa, Email, No. WA, atau Nama Materi..."
+                            class="w-full border border-gray-200 pl-9 pr-3 py-2 rounded-xl text-xs focus:outline-none focus:border-primary">
+                    </div>
+
+                    <div>
+                        <select id="filter-akses-mode" onchange="renderUserAccessTable()"
+                            class="w-full border border-gray-200 p-2 rounded-xl text-xs font-semibold bg-white focus:outline-none focus:border-primary">
+                            <option value="ALL">🌐 Semua Mode (Online &amp; Offline)</option>
+                            <option value="Online">🔵 Hanya Mode Online</option>
+                            <option value="Offline">🟠 Hanya Mode Offline</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <select id="filter-akses-status" onchange="renderUserAccessTable()"
+                            class="w-full border border-gray-200 p-2 rounded-xl text-xs font-semibold bg-white focus:outline-none focus:border-primary">
+                            <option value="ALL">⚡ Semua Status Akses</option>
+                            <option value="ACTIVE">✅ Hanya yang Aktif (ON)</option>
+                            <option value="INACTIVE">⛔ Hanya yang Diblokir (OFF)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Tabel Responsif -->
+                <div class="overflow-x-auto border border-gray-200 rounded-xl">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-100 text-gray-600 text-[11px] uppercase border-b border-gray-200">
+                                <th class="p-3.5 font-bold">Nama Siswa &amp; Kontak</th>
+                                <th class="p-3.5 font-bold">Nama Materi</th>
+                                <th class="p-3.5 font-bold text-center">Online / Offline</th>
+                                <th class="p-3.5 font-bold">Waktu &amp; Order ID</th>
+                                <th class="p-3.5 font-bold text-center">Sakelar Akses (ON/OFF)</th>
+                                <th class="p-3.5 font-bold text-center">Hapus</th>
+                            </tr>
+                        </thead>
+                        <tbody id="user-access-table-body" class="divide-y divide-gray-100 text-xs">
+                            <tr>
+                                <td colspan="6" class="p-6 text-center text-gray-400">Memuat data akses siswa...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <!-- ================= MODAL 1: EDIT MATERI & PAKET BUNDLING ================= -->
@@ -859,7 +1028,6 @@
 
             <!-- Body Modal Duplikat -->
             <div class="p-5 space-y-4">
-                <!-- Input Judul / Nama Baru -->
                 <div id="dup-title-group">
                     <label id="dup-title-label" class="block text-xs font-bold text-gray-700 uppercase mb-1">Judul /
                         Nama Baru *</label>
@@ -904,7 +1072,7 @@
                     </label>
                 </div>
 
-                <!-- Searchable Dropdown Course Tujuan (Untuk Duplikat Modul / Bab / Soal) -->
+                <!-- Searchable Dropdown Course Tujuan -->
                 <div id="dup-target-course-group" class="space-y-1">
                     <label class="block text-xs font-bold text-gray-700 uppercase">Materi / Online Course Tujuan
                         *</label>
@@ -953,6 +1121,8 @@
         let cachedCourses = [];
         let cachedModules = [];
         let cachedQuizzes = [];
+        let cachedUsers = [];
+        let cachedUserAccess = [];
         let sortableInstances = [];
         let moduleSortableInstances = [];
 
@@ -961,7 +1131,7 @@
         let selectedBundleCourseIdsEdit = [];
 
         // State untuk Modal Duplikat
-        let duplicateContext = null; // { type: 'course'|'module-group'|'module-single'|'quiz-group'|'quiz-single', payload: ... }
+        let duplicateContext = null;
 
         const CATEGORY_LABELS = {
             'syariah': 'Bimbel Syariah',
@@ -979,6 +1149,12 @@
             tashil: ['Nahwu', 'Sharaf', 'Balaghah', 'Mantiq'],
             amiyah: ['Dasar', 'Menengah', 'Lanjut']
         };
+
+        function escapeHtml(str) {
+            return String(str ?? '').replace(/[&<>"']/g, c => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[c]));
+        }
 
         // ================================================================
         // TOAST SYSTEM
@@ -1009,7 +1185,7 @@
         }
 
         // ================================================================
-        // HELPER ENCODE & PARSE BUNDLING PAKET (100% KOMPATIBEL SUPABASE)
+        // HELPER ENCODE & PARSE BUNDLING PAKET
         // ================================================================
         function encodeBundleLink(isBundle, bundledIds, externalLink) {
             const cleanLink = (externalLink || '').trim();
@@ -1076,12 +1252,15 @@
         // TAB & ACCORDION NAVIGATION
         // ================================================================
         function switchTab(tabName) {
-            ['materi', 'modul', 'soal'].forEach(t => {
+            ['materi', 'modul', 'soal', 'akses'].forEach(t => {
                 document.getElementById(`section-${t}`).classList.toggle('hidden', t !== tabName);
                 document.getElementById(`tab-${t}`).className = (t === tabName)
                     ? "pb-3 px-2 sm:px-4 font-bold text-sm border-b-2 border-primary text-primary transition-all flex items-center gap-2"
                     : "pb-3 px-2 sm:px-4 font-bold text-sm border-b-2 border-transparent text-gray-400 hover:text-gray-700 transition-all flex items-center gap-2";
             });
+            if (tabName === 'akses') {
+                renderUserAccessTable();
+            }
         }
 
         function toggleAccordion(id) {
@@ -1120,7 +1299,7 @@
             return cachedCourses.filter(c => {
                 if (c.course_id === currentEditId) return false;
                 const bInfo = parseBundleInfo(c);
-                if (bInfo.isBundle) return false; // Jangan masukkan paket ke dalam paket
+                if (bInfo.isBundle) return false;
                 const matchCat = !cat || c.category === cat;
                 const matchSub = !sub || c.subfilter === sub;
                 return matchCat && matchSub;
@@ -1143,7 +1322,7 @@
                 const chip = document.createElement('div');
                 chip.className = 'inline-flex items-center gap-1.5 bg-primary text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-sm';
                 chip.innerHTML = `
-                    <span>${title}</span>
+                    <span>${escapeHtml(title)}</span>
                     <button type="button" onclick="removeCourseFromBundle('${mode}', '${cid}')" class="hover:text-red-200 ml-1">
                         <i class="fas fa-times"></i>
                     </button>
@@ -1185,11 +1364,11 @@
                 item.innerHTML = `
                     <div>
                         <div class="font-bold text-sm flex items-center gap-2">
-                            <span>${c.title}</span>
+                            <span>${escapeHtml(c.title)}</span>
                             <span class="px-2 py-0.5 text-[10px] rounded-full ${c.mode === 'Offline' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}">${c.mode || 'Online'}</span>
                         </div>
                         <div class="text-[11px] text-gray-400 mt-0.5">
-                            Pengajar: ${c.instructor || '-'} • ${modCount} Video • ${quizCount} Soal
+                            Pengajar: ${escapeHtml(c.instructor || '-')} • ${modCount} Video • ${quizCount} Soal
                         </div>
                     </div>
                     <div class="w-6 h-6 rounded-full flex items-center justify-center ${isSelected ? 'bg-primary text-white' : 'border border-gray-300 text-transparent'}">
@@ -1308,7 +1487,7 @@
         document.getElementById('mode').addEventListener('change', generateCourseId);
 
         // ================================================================
-        // SEARCHABLE COURSE PICKER (FORM TAMBAH MODUL & SOAL)
+        // SEARCHABLE COURSE PICKER (FORM TAMBAH MODUL, SOAL, & AKSES)
         // ================================================================
         function openCoursePickerDropdown(prefix) {
             filterCoursePickerDropdown(prefix);
@@ -1341,21 +1520,60 @@
                 const bInfo = parseBundleInfo(c);
                 const badge = bInfo.isBundle
                     ? `<span class="px-1.5 py-0.5 text-[9px] rounded bg-amber-100 text-amber-800 font-bold">PAKET</span>`
-                    : `<span class="px-1.5 py-0.5 text-[9px] rounded bg-gray-100 text-gray-600 font-semibold">${c.mode || 'Online'}</span>`;
+                    : `<span class="px-1.5 py-0.5 text-[9px] rounded ${c.mode === 'Offline' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'} font-semibold">${c.mode || 'Online'}</span>`;
 
                 const div = document.createElement('div');
                 div.className = `p-2.5 text-xs cursor-pointer hover:bg-emerald-50 flex items-center justify-between ${c.course_id === selectedId ? 'bg-emerald-50 font-bold text-primary' : 'text-gray-700'}`;
                 div.onclick = () => {
                     document.getElementById(`${prefix}-course_id`).value = c.course_id;
-                    document.getElementById(`${prefix}-course-search`).value = `${c.title} (${CATEGORY_LABELS[c.category] || c.category} - ${c.subfilter || ''} - ${c.mode || 'Online'})`;
+                    document.getElementById(`${prefix}-course-search`).value = `${c.title} (${c.mode || 'Online'})`;
                     dropdown.classList.add('hidden');
                 };
                 div.innerHTML = `
                     <div class="truncate pr-2">
-                        <span class="font-bold">${c.title}</span>
+                        <span class="font-bold">${escapeHtml(c.title)}</span>
                         <span class="text-[10px] text-gray-400 ml-1">(${CATEGORY_LABELS[c.category] || c.category} • ${c.subfilter || ''})</span>
                     </div>
                     ${badge}
+                `;
+                dropdown.appendChild(div);
+            });
+        }
+
+        // Picker Siswa untuk Form Buka Akses Manual
+        function openStudentPickerDropdown() {
+            filterStudentPickerDropdown();
+            document.getElementById('student-user-dropdown').classList.remove('hidden');
+        }
+
+        function filterStudentPickerDropdown() {
+            const dropdown = document.getElementById('student-user-dropdown');
+            const query = (document.getElementById('grant-email').value || '').toLowerCase().trim();
+
+            const filtered = cachedUsers.filter(u => {
+                const text = `${u.email || ''} ${u.name || ''} ${u.whatsapp || ''}`.toLowerCase();
+                return text.includes(query);
+            });
+
+            if (filtered.length === 0) {
+                dropdown.classList.add('hidden');
+                return;
+            }
+
+            dropdown.classList.remove('hidden');
+            dropdown.innerHTML = '';
+            filtered.slice(0, 15).forEach(u => {
+                const div = document.createElement('div');
+                div.className = 'p-2.5 text-xs cursor-pointer hover:bg-emerald-50 text-gray-700';
+                div.onclick = () => {
+                    document.getElementById('grant-email').value = u.email || '';
+                    document.getElementById('grant-name').value = u.name || '';
+                    document.getElementById('grant-whatsapp').value = u.whatsapp || '';
+                    dropdown.classList.add('hidden');
+                };
+                div.innerHTML = `
+                    <div class="font-bold text-primary">${escapeHtml(u.name || 'Siswa')}</div>
+                    <div class="text-[11px] text-gray-500">${escapeHtml(u.email)} ${u.whatsapp ? `• ${escapeHtml(u.whatsapp)}` : ''}</div>
                 `;
                 dropdown.appendChild(div);
             });
@@ -1368,11 +1586,15 @@
                 const list = document.getElementById(`${m}-bundle-dropdown-list`);
                 if (wrap && list && !wrap.contains(e.target)) list.classList.add('hidden');
             });
-            ['module', 'quiz'].forEach(p => {
+            ['module', 'quiz', 'access'].forEach(p => {
                 const wrap = document.getElementById(`${p}-course-picker`);
                 const list = document.getElementById(`${p}-course-dropdown`);
                 if (wrap && list && !wrap.contains(e.target)) list.classList.add('hidden');
             });
+            const stuWrap = document.getElementById('student-user-picker');
+            const stuList = document.getElementById('student-user-dropdown');
+            if (stuWrap && stuList && !stuWrap.contains(e.target)) stuList.classList.add('hidden');
+
             const dupWrap = document.getElementById('dup-target-picker');
             const dupList = document.getElementById('dup-target-dropdown');
             if (dupWrap && dupList && !dupWrap.contains(e.target)) dupList.classList.add('hidden');
@@ -1536,7 +1758,7 @@
                                 });
                                 if (names.length > 0) {
                                     bundledListHtml = `<div class="mt-2 p-2 rounded-lg bg-amber-50/70 border border-amber-200/70 text-[11px] text-amber-900">
-                                        <strong>Isi Paket:</strong> ${names.join(' • ')}
+                                        <strong>Isi Paket:</strong> ${escapeHtml(names.join(' • '))}
                                     </div>`;
                                 }
                             } else {
@@ -1544,13 +1766,13 @@
                             }
 
                             let extraInfoHtml = '';
-                            if (course.meetings) extraInfoHtml += `<span class="text-[11px] text-gray-600"><i class="fas fa-calendar-alt text-gray-400 mr-1"></i>${course.meetings}</span>`;
-                            if (course.facility) extraInfoHtml += `<span class="text-[11px] text-gray-600"><i class="fas fa-check-circle text-gray-400 mr-1"></i>${course.facility}</span>`;
-                            if (course.quota) extraInfoHtml += `<span class="text-[11px] text-gray-600"><i class="fas fa-users text-gray-400 mr-1"></i>Kuota: ${course.quota}</span>`;
+                            if (course.meetings) extraInfoHtml += `<span class="text-[11px] text-gray-600"><i class="fas fa-calendar-alt text-gray-400 mr-1"></i>${escapeHtml(course.meetings)}</span>`;
+                            if (course.facility) extraInfoHtml += `<span class="text-[11px] text-gray-600"><i class="fas fa-check-circle text-gray-400 mr-1"></i>${escapeHtml(course.facility)}</span>`;
+                            if (course.quota) extraInfoHtml += `<span class="text-[11px] text-gray-600"><i class="fas fa-users text-gray-400 mr-1"></i>Kuota: ${escapeHtml(course.quota)}</span>`;
 
                             let priceHtml = '';
-                            if (course.price) priceHtml += `<div class="text-primary font-bold text-xs sm:text-sm whitespace-nowrap mt-1 sm:mt-0">${course.price}</div>`;
-                            if (course.price_le) priceHtml += `<div class="text-gray-500 text-[10px] whitespace-nowrap">${course.price_le}</div>`;
+                            if (course.price) priceHtml += `<div class="text-primary font-bold text-xs sm:text-sm whitespace-nowrap mt-1 sm:mt-0">${escapeHtml(course.price)}</div>`;
+                            if (course.price_le) priceHtml += `<div class="text-gray-500 text-[10px] whitespace-nowrap">${escapeHtml(course.price_le)}</div>`;
                             if (!course.price && !course.price_le) priceHtml = `<div class="text-gray-400 text-[10px] italic mt-1 sm:mt-0">Harga belum diatur</div>`;
 
                             html += `
@@ -1560,15 +1782,15 @@
                                     </div>
                                     <div class="flex-1 min-w-0">
                                         <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1">
-                                            <div class="font-bold text-gray-800 text-sm leading-tight break-words pr-2">${course.title}</div>
+                                            <div class="font-bold text-gray-800 text-sm leading-tight break-words pr-2">${escapeHtml(course.title)}</div>
                                             <div class="shrink-0 text-right sm:text-left">${priceHtml}</div>
                                         </div>
                                         <div class="text-[10px] text-gray-500 font-mono mt-1">${course.course_id}</div>
                                         
                                         <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1 mt-2">
                                             ${bundleBadgeHtml}
-                                            <span class="px-2 py-0.5 rounded text-[10px] bg-gray-100 text-gray-700 font-semibold border border-gray-200">${course.class_type || '-'}</span>
-                                            ${course.instructor ? `<span class="text-[11px] text-gray-600"><i class="fas fa-chalkboard-teacher text-gray-400 mr-1"></i>${course.instructor}</span>` : ''}
+                                            <span class="px-2 py-0.5 rounded text-[10px] bg-gray-100 text-gray-700 font-semibold border border-gray-200">${escapeHtml(course.class_type || '-')}</span>
+                                            ${course.instructor ? `<span class="text-[11px] text-gray-600"><i class="fas fa-chalkboard-teacher text-gray-400 mr-1"></i>${escapeHtml(course.instructor)}</span>` : ''}
                                             ${extraInfoHtml}
                                         </div>
 
@@ -1614,7 +1836,7 @@
         }
 
         // ================================================================
-        // 2. FETCH & RENDER MODUL VIDEO (ACCORDION + DRAG & DROP + DUPLIKAT)
+        // 2. FETCH & RENDER MODUL VIDEO
         // ================================================================
         async function fetchModules() {
             const container = document.getElementById('grouped-module-list');
@@ -1689,7 +1911,7 @@
                     <div class="w-full bg-gray-100 px-4 py-3 flex flex-wrap justify-between items-center gap-2">
                         <button class="flex items-center gap-2 text-sm font-bold text-primary text-left flex-1" onclick="toggleAccordion('mod-group-${safeCId}')">
                             <i class="fas fa-film text-accent"></i>
-                            <span>${cInfo.title} <span class="text-xs font-normal text-gray-500">(${cInfo.cat} • ${cInfo.sub} • ${cInfo.mode})</span></span>
+                            <span>${escapeHtml(cInfo.title)} <span class="text-xs font-normal text-gray-500">(${cInfo.cat} • ${cInfo.sub} • ${cInfo.mode})</span></span>
                             <span class="bg-primary/20 text-primary text-[10px] px-2 py-0.5 rounded-full ml-1 shrink-0">${mods.length} Sesi</span>
                         </button>
                         <div class="flex items-center gap-2">
@@ -1717,12 +1939,12 @@
                             </div>
                             <div class="flex-1 min-w-0">
                                 <div class="flex flex-wrap items-center justify-between gap-2">
-                                    <div class="font-bold text-gray-800 text-sm">${idx + 1}. ${mod.title}</div>
+                                    <div class="font-bold text-gray-800 text-sm">${idx + 1}. ${escapeHtml(mod.title)}</div>
                                     <span class="px-2 py-0.5 rounded text-[10px] font-bold border ${badgeClass}">${badgeText}</span>
                                 </div>
-                                ${mod.description ? `<p class="text-xs text-gray-600 mt-1">${mod.description}</p>` : ''}
+                                ${mod.description ? `<p class="text-xs text-gray-600 mt-1">${escapeHtml(mod.description)}</p>` : ''}
                                 <div class="flex flex-wrap items-center gap-3 mt-2 text-[11px] text-gray-500">
-                                    <span><i class="fab fa-youtube text-red-500 mr-1"></i>${mod.youtube_url}</span>
+                                    <span><i class="fab fa-youtube text-red-500 mr-1"></i>${escapeHtml(mod.youtube_url)}</span>
                                     <span><i class="fas fa-stopwatch text-primary mr-1"></i>Stop Time Kuis: <strong>${mod.stop_time || 0} detik</strong></span>
                                 </div>
                                 <div class="flex flex-wrap gap-2 mt-3">
@@ -1761,7 +1983,7 @@
         }
 
         // ================================================================
-        // 3. FETCH & RENDER BANK SOAL (ACCORDION + EDIT + DUPLIKAT)
+        // 3. FETCH & RENDER BANK SOAL
         // ================================================================
         async function fetchQuizzes() {
             const container = document.getElementById('grouped-quiz-list');
@@ -1801,7 +2023,6 @@
                 };
             });
 
-            // Kelompokkan berdasarkan Kategori -> Course (Bab Soal)
             const grouped = {};
             cachedQuizzes.forEach(q => {
                 const info = courseMap[q.course_id] || { cat: 'Lainnya', sub: 'Tanpa Kategori', mode: '-', title: `ID: ${q.course_id}` };
@@ -1854,7 +2075,7 @@
                         <div class="w-full bg-white px-4 py-2.5 flex flex-wrap justify-between items-center gap-2 hover:bg-gray-50 transition">
                             <button class="flex items-center gap-2 text-sm font-bold text-gray-700 text-left flex-1" onclick="toggleAccordion('${safeId}')">
                                 <i class="fas fa-book text-emerald-600"></i>
-                                <span>${firstItem.courseTitle} <span class="text-xs font-normal text-gray-400">(${firstItem.courseSub} • ${firstItem.courseMode})</span></span>
+                                <span>${escapeHtml(firstItem.courseTitle)} <span class="text-xs font-normal text-gray-400">(${firstItem.courseSub} • ${firstItem.courseMode})</span></span>
                                 <span class="bg-emerald-100 text-emerald-800 text-[10px] px-2 py-0.5 rounded-full ml-1">${quizzesInCourse.length} Soal</span>
                             </button>
                             <div class="flex items-center gap-2">
@@ -1873,12 +2094,12 @@
                         const encodedQuiz = btoa(encodeURIComponent(JSON.stringify(q)));
                         html += `
                             <div class="p-3.5 border-b border-gray-100 hover:bg-gray-50 flex flex-col gap-2">
-                                <div class="text-sm font-semibold text-gray-800">${idx + 1}. ${q.question}</div>
+                                <div class="text-sm font-semibold text-gray-800">${idx + 1}. ${escapeHtml(q.question)}</div>
                                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-[11px] text-gray-600">
-                                    <div class="bg-gray-50 p-1.5 rounded border"><strong>A:</strong> ${q.option_a || '-'}</div>
-                                    <div class="bg-gray-50 p-1.5 rounded border"><strong>B:</strong> ${q.option_b || '-'}</div>
-                                    <div class="bg-gray-50 p-1.5 rounded border"><strong>C:</strong> ${q.option_c || '-'}</div>
-                                    <div class="bg-gray-50 p-1.5 rounded border"><strong>D:</strong> ${q.option_d || '-'}</div>
+                                    <div class="bg-gray-50 p-1.5 rounded border"><strong>A:</strong> ${escapeHtml(q.option_a || '-')}</div>
+                                    <div class="bg-gray-50 p-1.5 rounded border"><strong>B:</strong> ${escapeHtml(q.option_b || '-')}</div>
+                                    <div class="bg-gray-50 p-1.5 rounded border"><strong>C:</strong> ${escapeHtml(q.option_c || '-')}</div>
+                                    <div class="bg-gray-50 p-1.5 rounded border"><strong>D:</strong> ${escapeHtml(q.option_d || '-')}</div>
                                 </div>
                                 <div class="flex flex-wrap gap-2 items-center justify-between text-xs mt-1">
                                     <span class="text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-md font-bold border border-emerald-200">Kunci Jawaban: ${q.correct_answer}</span>
@@ -1898,6 +2119,326 @@
 
             container.innerHTML = html;
         }
+
+        // ================================================================
+        // 4. KELOLA AKSES SISWA (TABEL LENGKAP + SAKELAR ON/OFF + FILTER)
+        // ================================================================
+        async function fetchUsersList() {
+            const { data, error } = await supabaseClient
+                .from('users')
+                .select('*')
+                .order('created_at', { ascending: false });
+            if (!error && data) {
+                cachedUsers = data;
+            }
+        }
+
+        async function fetchUserAccessList(showNotification = false) {
+            const tbody = document.getElementById('user-access-table-body');
+            if (tbody && cachedUserAccess.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-gray-400"><i class="fas fa-spinner fa-spin mr-2"></i>Memuat daftar akses siswa...</td></tr>';
+            }
+
+            await fetchUsersList();
+
+            const { data, error } = await supabaseClient
+                .from('user_access')
+                .select('*')
+                .order('unlocked_at', { ascending: false });
+
+            if (error) {
+                if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-red-500">Gagal memuat akses: ${error.message}</td></tr>`;
+                return;
+            }
+
+            cachedUserAccess = data || [];
+            document.getElementById('badge-tab-akses').textContent = cachedUserAccess.length;
+
+            renderUserAccessTable();
+            if (showNotification) showToast('Data akses siswa berhasil diperbarui.', 'info');
+        }
+
+        function getEnrichedAccessItems() {
+            const userByEmail = {};
+            const userById = {};
+            cachedUsers.forEach(u => {
+                if (u.email) userByEmail[u.email.toLowerCase()] = u;
+                if (u.id) userById[u.id] = u;
+            });
+
+            const courseById = {};
+            cachedCourses.forEach(c => {
+                courseById[c.course_id] = c;
+            });
+
+            return cachedUserAccess.map(row => {
+                const emailKey = (row.user_email || '').toLowerCase();
+                const uObj = userByEmail[emailKey] || userById[row.user_id] || null;
+                const cObj = courseById[row.course_id] || null;
+
+                const studentName = row.user_name || uObj?.name || 'Nama Belum Tercatat';
+                const studentEmail = row.user_email || uObj?.email || '-';
+                const studentWa = uObj?.whatsapp || '';
+
+                const courseTitle = row.course_title || cObj?.title || row.course_id || 'Materi Tidak Dikenal';
+                const courseMode = row.course_mode || cObj?.mode || 'Online';
+                const courseCategory = cObj ? `${CATEGORY_LABELS[cObj.category] || cObj.category} • ${cObj.subfilter || ''}` : '';
+
+                // Default true jika kolom is_active bernilai true atau null (untuk data lama)
+                const isActive = row.is_active !== false;
+
+                return {
+                    ...row,
+                    studentName,
+                    studentEmail,
+                    studentWa,
+                    courseTitle,
+                    courseMode,
+                    courseCategory,
+                    isActive
+                };
+            });
+        }
+
+        function renderUserAccessTable() {
+            const tbody = document.getElementById('user-access-table-body');
+            if (!tbody) return;
+
+            const enriched = getEnrichedAccessItems();
+
+            // Update Statistik Counter
+            const totalCount = enriched.length;
+            const activeCount = enriched.filter(x => x.isActive).length;
+            const inactiveCount = totalCount - activeCount;
+
+            document.getElementById('stat-total-access').textContent = totalCount;
+            document.getElementById('stat-active-access').textContent = activeCount;
+            document.getElementById('stat-inactive-access').textContent = inactiveCount;
+
+            // Filter & Search
+            const searchVal = (document.getElementById('search-akses-input')?.value || '').toLowerCase().trim();
+            const modeFilter = document.getElementById('filter-akses-mode')?.value || 'ALL';
+            const statusFilter = document.getElementById('filter-akses-status')?.value || 'ALL';
+
+            const filtered = enriched.filter(item => {
+                if (modeFilter !== 'ALL' && item.courseMode.toLowerCase() !== modeFilter.toLowerCase()) return false;
+                if (statusFilter === 'ACTIVE' && !item.isActive) return false;
+                if (statusFilter === 'INACTIVE' && item.isActive) return false;
+
+                if (searchVal) {
+                    const haystack = `${item.studentName} ${item.studentEmail} ${item.studentWa} ${item.courseTitle} ${item.course_id} ${item.order_id || ''}`.toLowerCase();
+                    if (!haystack.includes(searchVal)) return false;
+                }
+                return true;
+            });
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-gray-400">Tidak ada data akses siswa yang sesuai dengan pencarian/filter.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = '';
+
+            filtered.forEach(item => {
+                const isOnline = item.courseMode.toLowerCase() === 'online';
+                const modeBadge = isOnline
+                    ? `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700 border border-blue-200"><i class="fas fa-globe mr-1"></i>Online</span>`
+                    : `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-orange-100 text-orange-700 border border-orange-200"><i class="fas fa-building mr-1"></i>Offline</span>`;
+
+                const dateFormatted = item.unlocked_at
+                    ? new Date(item.unlocked_at).toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                    : '-';
+
+                let waLinkHtml = '';
+                if (item.studentWa) {
+                    let cleanWa = String(item.studentWa).replace(/[^0-9]/g, '');
+                    if (cleanWa.startsWith('08')) cleanWa = '62' + cleanWa.substring(1);
+                    else if (cleanWa.startsWith('01') && cleanWa.length === 11) cleanWa = '20' + cleanWa.substring(1);
+                    waLinkHtml = `<a href="https://wa.me/${cleanWa}" target="_blank" class="inline-flex items-center gap-1 text-[11px] text-emerald-600 hover:underline font-semibold mt-0.5"><i class="fab fa-whatsapp"></i> ${escapeHtml(item.studentWa)}</a>`;
+                }
+
+                // Sakelar Fisik ON / OFF
+                const toggleBtnHtml = item.isActive
+                    ? `<button type="button" onclick="toggleStudentAccess('${item.id}', '${escapeHtml(item.studentEmail)}', '${escapeHtml(item.course_id)}', true)"
+                        class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] shadow-sm transition cursor-pointer" title="Klik untuk Mematikan / Memblokir Akses">
+                        <span class="w-3.5 h-3.5 rounded-full bg-white shadow"></span>
+                        <span>ON (Aktif)</span>
+                       </button>`
+                    : `<button type="button" onclick="toggleStudentAccess('${item.id}', '${escapeHtml(item.studentEmail)}', '${escapeHtml(item.course_id)}', false)"
+                        class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-100 hover:bg-red-200 text-red-700 border border-red-300 font-bold text-[11px] transition cursor-pointer" title="Klik untuk Mengaktifkan Kembali Akses">
+                        <span>OFF (Diblokir)</span>
+                        <span class="w-3.5 h-3.5 rounded-full bg-red-600 shadow"></span>
+                       </button>`;
+
+                const tr = document.createElement('tr');
+                tr.className = `transition ${item.isActive ? 'hover:bg-gray-50 bg-white' : 'bg-red-50/40 hover:bg-red-50/70'}`;
+                tr.innerHTML = `
+                    <td class="p-3.5 align-top">
+                        <div class="font-bold text-gray-900 text-sm">${escapeHtml(item.studentName)}</div>
+                        <div class="text-[11px] text-gray-500">${escapeHtml(item.studentEmail)}</div>
+                        ${waLinkHtml}
+                    </td>
+                    <td class="p-3.5 align-top">
+                        <div class="font-bold text-primary text-xs sm:text-sm">${escapeHtml(item.courseTitle)}</div>
+                        ${item.courseCategory ? `<div class="text-[10px] text-gray-500 mt-0.5">${escapeHtml(item.courseCategory)}</div>` : ''}
+                        <div class="text-[10px] text-gray-400 font-mono mt-0.5">${escapeHtml(item.course_id)}</div>
+                    </td>
+                    <td class="p-3.5 align-middle text-center">
+                        ${modeBadge}
+                    </td>
+                    <td class="p-3.5 align-top">
+                        <div class="text-[11px] font-semibold text-gray-700">${dateFormatted}</div>
+                        <div class="text-[10px] font-mono text-gray-400 mt-0.5">${escapeHtml(item.order_id || 'MANUAL')}</div>
+                    </td>
+                    <td class="p-3.5 align-middle text-center">
+                        ${toggleBtnHtml}
+                    </td>
+                    <td class="p-3.5 align-middle text-center">
+                        <button type="button" onclick="deleteStudentAccess('${item.id}', '${escapeHtml(item.studentEmail)}', '${escapeHtml(item.course_id)}')"
+                            class="w-8 h-8 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 inline-flex items-center justify-center transition" title="Hapus Permanen Baris Akses Ini">
+                            <i class="fas fa-trash-alt text-xs"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Fungsi Sakelar ON / OFF (Mengubah nilai is_active di Supabase)
+        async function toggleStudentAccess(accessId, userEmail, courseId, currentIsActive) {
+            const newStatus = !currentIsActive;
+            try {
+                // Update semua baris yang memiliki kombinasi user_email & course_id yang sama agar jika ada baris duplikat ikut berubah serentak
+                let query = supabaseClient
+                    .from('user_access')
+                    .update({ is_active: newStatus });
+
+                if (userEmail && userEmail !== '-') {
+                    query = query.eq('user_email', userEmail).eq('course_id', courseId);
+                } else {
+                    query = query.eq('id', accessId);
+                }
+
+                const { error } = await query;
+                if (error) throw error;
+
+                // Update state lokal secara instan
+                cachedUserAccess.forEach(row => {
+                    if ((userEmail && userEmail !== '-' && row.user_email === userEmail && row.course_id === courseId) || String(row.id) === String(accessId)) {
+                        row.is_active = newStatus;
+                    }
+                });
+
+                renderUserAccessTable();
+                showToast(
+                    newStatus
+                        ? `Akses untuk ${userEmail} kembali DIAKTIFKAN (ON).`
+                        : `Akses untuk ${userEmail} berhasil DIHENTIKAN / DIBLOKIR (OFF).`,
+                    newStatus ? 'success' : 'warning'
+                );
+            } catch (err) {
+                showToast('Gagal mengubah status akses: ' + err.message, 'error');
+            }
+        }
+
+        // Hapus Permanen Baris Akses
+        async function deleteStudentAccess(accessId, userEmail, courseId) {
+            if (!confirm(`Hapus permanen data akses materi ini untuk siswa ${userEmail}?`)) return;
+            try {
+                let query = supabaseClient.from('user_access').delete();
+                if (userEmail && userEmail !== '-') {
+                    query = query.eq('user_email', userEmail).eq('course_id', courseId);
+                } else {
+                    query = query.eq('id', accessId);
+                }
+
+                const { error } = await query;
+                if (error) throw error;
+
+                showToast(`Data akses ${userEmail} berhasil dihapus.`, 'info');
+                await fetchUserAccessList();
+            } catch (err) {
+                showToast('Gagal menghapus data akses: ' + err.message, 'error');
+            }
+        }
+
+        // Form Submit: Berikan Akses Manual untuk Siswa (Cash / Transfer Manual)
+        document.getElementById('grant-access-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('grant-email').value.trim().toLowerCase();
+            const name = document.getElementById('grant-name').value.trim();
+            const whatsapp = document.getElementById('grant-whatsapp').value.trim();
+            const selectedCourseId = document.getElementById('access-course_id').value;
+
+            if (!email || !name || !selectedCourseId) {
+                showToast('Harap isi Email, Nama Siswa, dan pilih Materi yang ingin dibuka.', 'warning');
+                return;
+            }
+
+            const btn = document.getElementById('btn-grant-access');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Membuka Akses...';
+
+            try {
+                // 1. Simpan/Perbarui data siswa di tabel users
+                const { data: savedUser, error: uErr } = await supabaseClient
+                    .from('users')
+                    .upsert([{ email, name, whatsapp }], { onConflict: 'email' })
+                    .select()
+                    .single();
+
+                if (uErr) throw uErr;
+
+                // 2. Cek apakah materi yang dipilih adalah Paket Bundling
+                const selectedCourseObj = cachedCourses.find(c => c.course_id === selectedCourseId);
+                const bInfo = parseBundleInfo(selectedCourseObj);
+                const courseIdsToGrant = bInfo.isBundle
+                    ? Array.from(new Set([selectedCourseId, ...bInfo.bundledIds]))
+                    : [selectedCourseId];
+
+                const manualOrderId = 'MANUAL-' + Date.now();
+
+                for (const cid of courseIdsToGrant) {
+                    // Cek apakah sudah ada baris akses sebelumnya
+                    const existing = cachedUserAccess.find(a =>
+                        (a.user_email || '').toLowerCase() === email && a.course_id === cid
+                    );
+
+                    if (existing) {
+                        await supabaseClient
+                            .from('user_access')
+                            .update({ is_active: true })
+                            .eq('user_email', email)
+                            .eq('course_id', cid);
+                    } else {
+                        await supabaseClient
+                            .from('user_access')
+                            .insert([{
+                                user_id: savedUser?.id || null,
+                                user_email: email,
+                                course_id: cid,
+                                order_id: manualOrderId,
+                                is_active: true
+                            }]);
+                    }
+                }
+
+                showToast(`Akses materi berhasil dibuka untuk ${name} (${email})!`, 'success');
+                document.getElementById('grant-Access-form')?.reset();
+                document.getElementById('grant-email').value = '';
+                document.getElementById('grant-name').value = '';
+                document.getElementById('grant-whatsapp').value = '';
+                document.getElementById('access-course_id').value = '';
+                document.getElementById('access-course-search').value = '';
+
+                await fetchUserAccessList();
+            } catch (err) {
+                showToast('Gagal memberikan akses: ' + err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-unlock-alt mr-1"></i> Buka Akses Penuh untuk Siswa Ini';
+            }
+        });
 
         // ================================================================
         // SUBMIT FORMS (TAMBAH MATERI, MODUL, SOAL)
@@ -2103,6 +2644,7 @@
                 await fetchCourses();
                 renderGroupedModules();
                 renderGroupedQuizzes();
+                renderUserAccessTable();
             } catch (error) {
                 showToast('Gagal mengupdate materi: ' + error.message, 'error');
             } finally {
@@ -2197,7 +2739,7 @@
         }
 
         // ================================================================
-        // SISTEM DUPLIKAT (MATERI, BAB MODUL, MODUL SATUAN, BAB SOAL, SOAL SATUAN)
+        // SISTEM DUPLIKAT UNIVERSAL
         // ================================================================
         function updateDupCourseSubfilters(selectedSub = '') {
             const cat = document.getElementById('dup-course-cat').value;
@@ -2239,7 +2781,6 @@
         function renderDupTargetDropdown() {
             const dropdown = document.getElementById('dup-target-dropdown');
             const rawQuery = (document.getElementById('dup-target-search').value || '').toLowerCase().trim();
-            // Abaikan teks jika masih berisi format default "(course ini)"
             const query = rawQuery.includes('(course ini)') ? '' : rawQuery;
             const currentSourceCourseId = duplicateContext?.sourceCourseId || '';
             const selectedTargetId = document.getElementById('dup-target-course-id').value;
@@ -2267,7 +2808,7 @@
                 };
                 div.innerHTML = `
                     <div class="pr-2">
-                        <div class="font-bold text-sm">${c.title} ${isSameCourse ? '<span class="text-emerald-600 font-bold">(Course ini)</span>' : ''}</div>
+                        <div class="font-bold text-sm">${escapeHtml(c.title)} ${isSameCourse ? '<span class="text-emerald-600 font-bold">(Course ini)</span>' : ''}</div>
                         <div class="text-[11px] text-gray-400">${CATEGORY_LABELS[c.category] || c.category} • ${c.subfilter || ''} • ${c.mode || 'Online'}</div>
                     </div>
                     <span class="px-2 py-0.5 rounded text-[10px] font-bold ${c.mode === 'Offline' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}">${c.mode || 'Online'}</span>
@@ -2276,7 +2817,6 @@
             });
         }
 
-        // 1. Buka Modal Duplikat Materi (Course)
         function openDuplicateCourseModal(encodedCourse) {
             const course = JSON.parse(decodeURIComponent(atob(encodedCourse)));
             duplicateContext = { type: 'course', payload: course, sourceCourseId: course.course_id };
@@ -2299,9 +2839,7 @@
             document.getElementById('duplicate-modal').classList.remove('hidden');
         }
 
-        // 2. Buka Modal Duplikat Bab Video (Seluruh Modul pada 1 Materi - ala Mayar Screenshot)
         function openDuplicateModuleGroupModal(courseId) {
-            const course = cachedCourses.find(c => c.course_id === courseId);
             const mods = cachedModules.filter(m => m.course_id === courseId);
             duplicateContext = { type: 'module-group', payload: mods, sourceCourseId: courseId };
 
@@ -2320,7 +2858,6 @@
             document.getElementById('duplicate-modal').classList.remove('hidden');
         }
 
-        // 3. Buka Modal Duplikat 1 Modul Video
         function openDuplicateSingleModuleModal(encodedMod) {
             const mod = JSON.parse(decodeURIComponent(atob(encodedMod)));
             duplicateContext = { type: 'module-single', payload: mod, sourceCourseId: mod.course_id };
@@ -2339,7 +2876,6 @@
             document.getElementById('duplicate-modal').classList.remove('hidden');
         }
 
-        // 4. Buka Modal Duplikat Bab Soal (Semua Soal pada 1 Materi)
         function openDuplicateQuizGroupModal(courseId) {
             const quizzes = cachedQuizzes.filter(q => q.course_id === courseId);
             duplicateContext = { type: 'quiz-group', payload: quizzes, sourceCourseId: courseId };
@@ -2356,7 +2892,6 @@
             document.getElementById('duplicate-modal').classList.remove('hidden');
         }
 
-        // 5. Buka Modal Duplikat 1 Soal
         function openDuplicateSingleQuizModal(encodedQuiz) {
             const q = JSON.parse(decodeURIComponent(atob(encodedQuiz)));
             duplicateContext = { type: 'quiz-single', payload: q, sourceCourseId: q.course_id };
@@ -2600,6 +3135,7 @@
             await fetchCourses();
             await fetchModules();
             await fetchQuizzes();
+            await fetchUserAccessList();
         }
 
         init();
