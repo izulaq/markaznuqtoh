@@ -7,15 +7,14 @@ const nodemailer = require('nodemailer');
 
 const app = express();
 
-// Konfigurasi CORS longgar untuk memastikan header selalu terkirim
-app.use(cors({
-    origin: '*', // Mengizinkan semua asal domain untuk sementara waktu saat pengujian
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true
-}));
-
+// Mengizinkan akses CORS dari semua domain (termasuk markaz.nuqthahlearning.my.id)
+app.use(cors());
 app.use(express.json());
+
+// Route pengecekan status server (agar saat dibuka di browser muncul pesan aktif)
+app.get('/', (req, res) => {
+    res.json({ status: 'OK', message: 'Server Backend Nuqthah Learning Aktif!' });
+});
 
 // Inisialisasi Supabase dengan Service Role Key
 const supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
