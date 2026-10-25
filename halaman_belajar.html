@@ -530,6 +530,9 @@
         const SUPABASE_KEY = 'sb_publishable_N96gYsm_jeSntalN3qMVCA_TpXloD4u';
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+        // URL Backend Vercel yang sudah diperbaiki sesuai nama project di Vercel
+        const BACKEND_BASE_URL = 'https://markaznuqtoh.vercel.app';
+
         // State Akun Siswa (Disimpan di LocalStorage perangkat)
         let currentUser = null;
         try {
@@ -1420,7 +1423,7 @@
                     return;
                 }
 
-                const response = await fetch('https://markaznuqthah.vercel.app/api/create-transaction', {
+                const response = await fetch(`${BACKEND_BASE_URL}/api/create-transaction`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1487,7 +1490,7 @@
             btnRequest.innerHTML = '<i class="fas fa-circle-notch fa-spin mr-1"></i> Mengirim OTP...';
 
             try {
-                const res = await fetch('https://markaznuqthah.vercel.app/api/send-otp', {
+                const res = await fetch(`${BACKEND_BASE_URL}/api/send-otp`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email: emailInput })
@@ -1525,7 +1528,7 @@
             btnVerify.innerHTML = '<i class="fas fa-circle-notch fa-spin mr-1"></i> Memverifikasi...';
 
             try {
-                const res = await fetch('https://markaznuqthah.vercel.app/api/verify-otp', {
+                const res = await fetch(`${BACKEND_BASE_URL}/api/verify-otp`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email: emailInput, code: codeInput })
