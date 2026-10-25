@@ -5,9 +5,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Trial Latihan Soal - Nuqthah Learning Center</title>
+
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Midtrans Snap JS -->
+    <script src="https://app.sandbox.midtrans.com/snap/snap.js" data-client-key="Mid-client-QzcjGlEmaHlfZ81K"></script>
+
     <script>
         tailwind.config = {
             theme: {
@@ -20,23 +25,130 @@
             }
         }
     </script>
+
+    <style>
+        /* ============ TOAST ANIMATION ============ */
+        .toast-item {
+            animation: toastIn .35s cubic-bezier(.21, 1.02, .73, 1) forwards;
+        }
+
+        .toast-item.leaving {
+            animation: toastOut .28s ease forwards;
+        }
+
+        @keyframes toastIn {
+            from {
+                opacity: 0;
+                transform: translateY(-14px) scale(.97);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        @keyframes toastOut {
+            from {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+
+            to {
+                opacity: 0;
+                transform: translateY(-10px) scale(.97);
+            }
+        }
+
+        .toast-progress {
+            animation: toastProgress 4.5s linear forwards;
+        }
+
+        @keyframes toastProgress {
+            from {
+                width: 100%;
+            }
+
+            to {
+                width: 0%;
+            }
+        }
+
+        /* ============ MODAL ANIMATION ============ */
+        .modal-fade {
+            animation: modalFade .25s ease-out forwards;
+        }
+
+        @keyframes modalFade {
+            from {
+                opacity: 0;
+                transform: scale(.96) translateY(8px);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+
+        /* ============ OPTION TRANSITION ============ */
+        .option-btn {
+            transition: all .18s ease;
+        }
+
+        @keyframes spinSlow {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .spin-slow {
+            animation: spinSlow 1s linear infinite;
+        }
+    </style>
 </head>
 
 <body class="bg-emerald-900/5 text-gray-900 min-h-screen flex flex-col justify-between">
 
-    <!-- Header Nav -->
-    <nav class="bg-primary text-white shadow-md px-6 py-4 flex items-center justify-between">
-        <a href="materi.html" class="flex items-center gap-2 hover:opacity-90 font-bold text-sm">
-            <i class="fas fa-arrow-left"></i> Kembali ke Materi
+    <!-- ================= TOAST CONTAINER ================= -->
+    <div id="toast-container" aria-live="polite"
+        class="fixed top-3 right-3 left-3 sm:left-auto sm:right-5 z-[999999] flex flex-col items-end gap-2.5 pointer-events-none">
+    </div>
+
+    <!-- ================= NAV ================= -->
+    <nav class="bg-primary text-white shadow-md px-4 sm:px-6 py-3 flex items-center justify-between gap-2">
+        <a href="index.html" class="flex items-center gap-2 hover:opacity-90 font-bold text-xs sm:text-sm">
+            <i class="fas fa-arrow-left"></i>
+            <span class="hidden sm:inline">Kembali ke Materi</span>
+            <span class="sm:hidden">Materi</span>
         </a>
-        <span class="text-xs uppercase tracking-widest bg-accent px-3 py-1 rounded-full font-bold">Trial Kuis
-            Interaktif</span>
+
+        <div class="flex items-center gap-2">
+            <span
+                class="text-[10px] uppercase tracking-widest bg-accent px-2.5 py-1 rounded-full font-bold hidden sm:inline">Trial
+                Kuis</span>
+
+            <!-- Tombol Masuk (jika belum login) -->
+            <button id="nav-login-btn" onclick="openOtpModal()"
+                class="hidden text-[11px] bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-full font-bold transition">
+                <i class="fas fa-sign-in-alt mr-1"></i> Masuk
+            </button>
+
+            <!-- Badge Akun (jika sudah login) -->
+            <div id="user-account-badge"
+                class="hidden items-center gap-1.5 text-[11px] bg-white/10 px-2.5 py-1.5 rounded-full font-semibold border border-white/15">
+                <i class="fas fa-user-check text-emerald-300"></i>
+                <span id="nav-user-email" class="max-w-[90px] sm:max-w-[160px] truncate">-</span>
+                <button onclick="logoutUser()"
+                    class="text-red-300 hover:text-red-200 underline ml-0.5 font-bold">Keluar</button>
+            </div>
+        </div>
     </nav>
 
-    <!-- Main Container -->
+    <!-- ================= MAIN ================= -->
     <main class="max-w-2xl w-full mx-auto px-4 py-8 flex-grow flex flex-col justify-center">
 
-        <!-- STEP 1: PILIH KATEGORI UTAMA (Kotak Warna-Warni) -->
+        <!-- STEP 1: PILIH KATEGORI -->
         <div id="step-category" class="bg-white p-8 rounded-3xl shadow-xl border border-gray-100 text-center">
             <div
                 class="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
@@ -46,11 +158,11 @@
             <p class="text-sm text-gray-500 mb-6">Pilih bidang program studi yang ingin kamu uji pemahamannya.</p>
 
             <div id="category-cards-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
-                <!-- Diinject via JS dengan warna berbeda-beda -->
+                <!-- Diinject via JS -->
             </div>
         </div>
 
-        <!-- STEP 2: PILIH SUB-FILTER / TINGKAT -->
+        <!-- STEP 2: PILIH SUB-FILTER -->
         <div id="step-subfilter" class="bg-white p-8 rounded-3xl shadow-xl border border-gray-100 text-center hidden">
             <div
                 class="w-16 h-16 bg-accent/10 text-accent rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
@@ -59,16 +171,14 @@
             <h2 id="subfilter-title" class="text-2xl font-bold text-primary mb-2">Pilih Tingkat / Sub-Kategori</h2>
             <p class="text-sm text-gray-500 mb-6">Pilih jenjang atau fokus materi pembelajaran.</p>
 
-            <div id="subfilter-buttons-container" class="space-y-3 mb-6">
-                <!-- Diinject via JS -->
-            </div>
+            <div id="subfilter-buttons-container" class="space-y-3 mb-6"></div>
 
             <button onclick="backToCategory()" class="text-xs font-bold text-gray-400 hover:text-primary transition">
                 <i class="fas fa-arrow-left mr-1"></i> Kembali ke Pilih Kategori
             </button>
         </div>
 
-        <!-- STEP 3: PILIH MATERI SPESIFIK & MULAI KUIS -->
+        <!-- STEP 3: PILIH MATERI -->
         <div id="step-course" class="bg-white p-8 rounded-3xl shadow-xl border border-gray-100 text-center hidden">
             <div
                 class="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
@@ -85,17 +195,35 @@
             <div class="flex gap-3">
                 <button onclick="backToSubfilter()"
                     class="w-1/3 bg-gray-100 text-gray-700 font-bold py-3.5 rounded-2xl hover:bg-gray-200 transition text-xs">Kembali</button>
-                <button onclick="startQuiz()"
-                    class="w-2/3 bg-primary hover:bg-opacity-90 text-white font-bold py-3.5 rounded-2xl shadow-md transition-all text-sm tracking-wide">
+                <button id="start-quiz-btn" onclick="startQuiz()"
+                    class="w-2/3 bg-primary hover:bg-opacity-90 text-white font-bold py-3.5 rounded-2xl shadow-md transition-all text-sm tracking-wide disabled:opacity-60 disabled:cursor-not-allowed">
                     Mulai Tantangan Kuis 🚀
                 </button>
             </div>
         </div>
 
-        <!-- Area Kuis (Game Style) -->
-        <div id="quiz-container" class="bg-white p-8 rounded-3xl shadow-xl border border-gray-100 hidden">
+        <!-- ================= AREA KUIS ================= -->
+        <div id="quiz-container" class="bg-white p-6 sm:p-8 rounded-3xl shadow-xl border border-gray-100 hidden">
+
+            <!-- Banner Mode Trial -->
+            <div id="trial-banner"
+                class="hidden mb-5 bg-amber-50 border border-amber-200 rounded-2xl p-3.5 flex items-start gap-3">
+                <div
+                    class="w-8 h-8 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+                    <i class="fas fa-lock text-xs"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-[10px] font-bold text-amber-800 uppercase tracking-widest">Mode Trial</p>
+                    <p class="text-[11px] text-amber-700 leading-snug mt-0.5">Anda dapat mencoba <b>6 soal
+                            pertama</b> secara gratis. Buka akses penuh untuk seluruh soal &amp; materi video.</p>
+                </div>
+                <button onclick="openCheckoutModal()"
+                    class="shrink-0 text-[10px] font-bold bg-accent text-white px-2.5 py-1.5 rounded-lg hover:bg-opacity-90 transition">Buka
+                    Akses</button>
+            </div>
+
             <!-- Progress Bar -->
-            <div class="w-full bg-gray-100 h-3 rounded-full mb-6 overflow-hidden">
+            <div class="w-full bg-gray-100 h-3 rounded-full mb-5 overflow-hidden">
                 <div id="progress-bar" class="bg-primary h-full transition-all duration-300" style="width: 0%"></div>
             </div>
 
@@ -108,7 +236,7 @@
             <!-- Pertanyaan -->
             <h3 id="question-text" class="text-lg md:text-xl font-bold text-gray-800 mb-6 leading-relaxed"></h3>
 
-            <!-- Opsi Pilihan Ganda -->
+            <!-- Opsi -->
             <div id="options-container" class="space-y-3 mb-8"></div>
 
             <!-- Tombol Lanjut -->
@@ -118,20 +246,61 @@
             </button>
         </div>
 
-        <!-- Tampilan Selesai / Skor Akhir -->
+        <!-- ================= PANEL TERKUNCI (TRIAL HABIS) ================= -->
+        <div id="quiz-locked" class="bg-white p-8 rounded-3xl shadow-xl border border-gray-100 text-center hidden">
+            <div
+                class="w-20 h-20 bg-amber-50 text-accent rounded-full flex items-center justify-center mx-auto mb-4 text-3xl shadow-inner">
+                <i class="fas fa-lock"></i>
+            </div>
+            <h2 class="text-2xl font-bold text-primary mb-2">Batas Trial Tercapai</h2>
+            <p id="locked-desc" class="text-sm text-gray-500 mb-2 leading-relaxed">Anda telah menyelesaikan 6 soal
+                gratis.</p>
+            <p class="text-sm text-gray-600 mb-6 leading-relaxed">Buka akses penuh untuk melanjutkan sisa soal latihan
+                dan membuka seluruh materi video pembelajaran.</p>
+
+            <div class="bg-gray-50 border border-gray-100 rounded-2xl p-4 mb-6">
+                <span class="text-[10px] text-gray-400 block uppercase font-bold tracking-widest mb-1">Harga
+                    Materi</span>
+                <span id="locked-price" class="text-2xl font-extrabold text-primary">Rp 0</span>
+            </div>
+
+            <div class="flex flex-col gap-3">
+                <button onclick="openCheckoutModal()"
+                    class="w-full bg-accent text-white font-bold py-3.5 rounded-2xl shadow-md hover:bg-opacity-90 transition text-sm">
+                    <i class="fas fa-user-plus mr-1"></i> Daftar &amp; Buka Akses Penuh
+                </button>
+                <button onclick="openOtpModal()"
+                    class="w-full bg-white text-primary border border-primary/30 font-bold py-3 rounded-2xl hover:bg-gray-50 transition text-sm">
+                    Sudah Punya Akun? Masuk OTP
+                </button>
+            </div>
+
+            <button onclick="showPartialResult()"
+                class="mt-4 text-[11px] text-gray-400 underline hover:text-gray-600 transition">
+                Lihat Hasil Sementara
+            </button>
+        </div>
+
+        <!-- ================= HASIL / SKOR ================= -->
         <div id="result-container" class="bg-white p-8 rounded-3xl shadow-xl border border-gray-100 text-center hidden">
             <div
                 class="w-20 h-20 bg-amber-50 text-accent rounded-full flex items-center justify-center mx-auto mb-4 text-3xl shadow-inner">
                 🏆
             </div>
             <h2 class="text-2xl font-bold text-primary mb-1">Kuis Selesai!</h2>
-            <p id="result-message" class="text-sm text-gray-500 mb-6">Hebat! Kamu telah menyelesaikan latihan soal ini.
-            </p>
+            <p id="result-message" class="text-sm text-gray-500 mb-6 leading-relaxed">Hebat! Kamu telah menyelesaikan
+                latihan soal ini.</p>
 
-            <div class="bg-gray-50 p-6 rounded-2xl mb-6 border border-gray-100">
-                <span class="text-xs uppercase font-bold text-gray-400 block mb-1">Skor Akhir Kamu</span>
+            <div class="bg-gray-50 p-6 rounded-2xl mb-5 border border-gray-100">
+                <span class="text-[10px] uppercase font-bold text-gray-400 tracking-widest block mb-1">Skor Akhir
+                    Kamu</span>
                 <span id="final-score" class="text-4xl font-extrabold text-primary">0 / 0</span>
             </div>
+
+            <button id="result-unlock-btn" onclick="openCheckoutModal()"
+                class="hidden w-full mb-3 bg-accent text-white font-bold py-3.5 rounded-2xl shadow-md hover:bg-opacity-90 transition text-sm">
+                <i class="fas fa-unlock mr-1"></i> Buka Akses Penuh &amp; Lanjutkan Semua Soal
+            </button>
 
             <div class="flex gap-3">
                 <button onclick="resetQuiz()"
@@ -145,17 +314,149 @@
 
     </main>
 
-    <!-- Footer -->
+    <!-- ================= FOOTER ================= -->
     <footer class="text-center py-6 text-xs text-gray-400">
         © 2026 Nuqthah Learning Center • Belajar Interaktif
     </footer>
 
-    <!-- Supabase SDK -->
+    <!-- ================= MODAL CHECKOUT (DAFTAR & BAYAR) ================= -->
+    <div id="checkout-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 hidden"
+        style="z-index: 999995;">
+        <div
+            class="modal-fade bg-white w-full max-w-md rounded-2xl p-6 space-y-4 shadow-2xl relative max-h-[92vh] overflow-y-auto">
+            <div class="flex items-center justify-between border-b pb-3">
+                <div>
+                    <h3 class="font-bold text-primary text-lg">Daftar Akun &amp; Buka Akses</h3>
+                    <p class="text-xs text-gray-500 mt-0.5">Akun ini berlaku untuk semua perangkat Anda.</p>
+                </div>
+                <button onclick="closeCheckoutModal()"
+                    class="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-500 shrink-0">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <form id="checkout-form" onsubmit="handleCheckoutFormSubmit(event)" class="space-y-3.5">
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-700 uppercase mb-1 tracking-wider">Alamat Email
+                        Aktif</label>
+                    <input type="email" id="reg-email" required placeholder="contoh@email.com"
+                        class="w-full border border-gray-200 p-3 rounded-xl text-sm focus:outline-none focus:border-primary">
+                    <span class="text-[10px] text-gray-400 mt-1 block">Kode OTP akan dikirim ke email ini saat login di
+                        perangkat lain.</span>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-700 uppercase mb-1 tracking-wider">Nama
+                        Lengkap</label>
+                    <input type="text" id="reg-name" required placeholder="Masukkan nama lengkap Anda"
+                        class="w-full border border-gray-200 p-3 rounded-xl text-sm focus:outline-none focus:border-primary">
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-700 uppercase mb-1 tracking-wider">Nomor
+                        WhatsApp</label>
+                    <input type="tel" id="reg-whatsapp" required placeholder="cth: 081234567890"
+                        class="w-full border border-gray-200 p-3 rounded-xl text-sm focus:outline-none focus:border-primary">
+                </div>
+
+                <div class="bg-emerald-50 border border-emerald-100 p-3 rounded-xl flex items-center justify-between">
+                    <span class="text-xs font-semibold text-gray-600">Total Pembayaran:</span>
+                    <span id="modal-checkout-price" class="text-base font-bold text-primary">Rp 0</span>
+                </div>
+
+                <button type="submit" id="btn-submit-checkout"
+                    class="w-full bg-accent text-white font-bold py-3.5 rounded-xl text-sm shadow-md hover:bg-opacity-90 transition flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed">
+                    <i class="fas fa-credit-card"></i> Bayar Sekarang &amp; Buka Akses
+                </button>
+            </form>
+
+            <div class="border-t pt-3 text-center">
+                <p class="text-xs text-gray-500">Sudah pernah mendaftar dan membayar sebelumnya?</p>
+                <button type="button" onclick="switchCheckoutToOtp()"
+                    class="text-xs font-bold text-primary underline mt-1 hover:opacity-80">
+                    Masuk Menggunakan Email &amp; Kode OTP
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MODAL OTP ================= -->
+    <div id="otp-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 hidden"
+        style="z-index: 999996;">
+        <div
+            class="modal-fade bg-white w-full max-w-md rounded-2xl p-6 space-y-4 shadow-2xl relative max-h-[92vh] overflow-y-auto">
+            <div class="flex items-center justify-between border-b pb-3">
+                <div>
+                    <h3 class="font-bold text-primary text-lg">Masuk ke Akun Belajar</h3>
+                    <p class="text-xs text-gray-500 mt-0.5">Gunakan email yang Anda pakai saat pendaftaran materi.</p>
+                </div>
+                <button onclick="closeOtpModal()"
+                    class="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-500 shrink-0">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <!-- Langkah 1: Input Email -->
+            <div id="otp-step-email" class="space-y-4">
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-700 uppercase mb-1 tracking-wider">Email
+                        Terdaftar</label>
+                    <input type="email" id="otp-email-input" placeholder="Masukkan email pendaftaran Anda"
+                        class="w-full border border-gray-200 p-3 rounded-xl text-sm focus:outline-none focus:border-primary">
+                </div>
+                <button type="button" id="btn-request-otp" onclick="requestOtpCode()"
+                    class="w-full bg-primary text-white font-bold py-3 rounded-xl text-sm hover:bg-opacity-90 transition disabled:opacity-60 disabled:cursor-not-allowed">
+                    Minta Kode OTP
+                </button>
+            </div>
+
+            <!-- Langkah 2: Input OTP -->
+            <div id="otp-step-verify" class="space-y-4 hidden">
+                <div class="bg-amber-50 border border-amber-200 p-3 rounded-xl text-xs text-amber-800">
+                    Kode OTP 6 digit telah dikirim ke <strong id="otp-target-email-label">-</strong>.
+                </div>
+                <div>
+                    <label
+                        class="block text-[10px] font-bold text-gray-700 uppercase mb-1 text-center tracking-wider">Masukkan
+                        6 Digit Kode OTP</label>
+                    <input type="text" id="otp-code-input" maxlength="6" placeholder="••••••" inputmode="numeric"
+                        class="w-full border border-gray-200 p-3 rounded-xl text-center tracking-[0.5em] font-bold text-lg focus:outline-none focus:border-primary">
+                </div>
+                <button type="button" id="btn-verify-otp" onclick="verifyOtpCode()"
+                    class="w-full bg-accent text-white font-bold py-3 rounded-xl text-sm hover:bg-opacity-90 transition shadow-md disabled:opacity-60 disabled:cursor-not-allowed">
+                    Verifikasi &amp; Buka Akses
+                </button>
+                <button type="button" onclick="resetOtpModalSteps()"
+                    class="w-full text-xs text-gray-500 underline hover:text-gray-700 text-center block">
+                    Ganti Email atau Kirim Ulang OTP
+                </button>
+            </div>
+
+            <div class="border-t pt-3 text-center">
+                <p class="text-xs text-gray-500">Belum punya akun atau belum membeli materi ini?</p>
+                <button type="button" onclick="switchOtpToCheckout()"
+                    class="text-xs font-bold text-accent underline mt-1 hover:opacity-80">
+                    Daftar &amp; Buka Akses Penuh Sekarang
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= SUPABASE SDK ================= -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
+        /* ================================================================
+           KONFIGURASI & STATE
+        ================================================================ */
         const SUPABASE_URL = 'https://idwrkzekykarxnuoaysu.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_N96gYsm_jeSntalN3qMVCA_TpXloD4u';
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        const BACKEND_BASE_URL = 'https://markaznuqtoh.vercel.app';
+
+        /* Jumlah soal gratis untuk mode trial. Setelah user menjawab soal ke-6
+           dan masih ada soal berikutnya, user akan diarahkan untuk membuka akses. */
+        const TRIAL_LIMIT = 6;
 
         const PROGRAMS = {
             syariah: { label: 'Bimbel Syariah', subs: ['Tingkat 1', 'Tingkat 2', 'Tingkat 3'], color: 'bg-emerald-50 text-emerald-900 border-emerald-200 hover:bg-emerald-100' },
@@ -168,18 +469,187 @@
         let allCoursesData = [];
         let selectedCategory = '';
         let selectedSubfilter = '';
+        let selectedCourseObj = null;
+        let targetCourseIds = [];
+
         let currentQuestions = [];
         let currentIndex = 0;
         let score = 0;
         let selectedOption = null;
+        let hasFullAccess = false;
 
+        let currentUser = null;
+        try {
+            currentUser = JSON.parse(localStorage.getItem('nuqthah_current_user')) || null;
+        } catch (e) {
+            currentUser = null;
+        }
+
+        /* ================================================================
+           SISTEM NOTIFIKASI (TOAST)
+        ================================================================ */
+        const TOAST_STYLE = {
+            success: { icon: 'fa-check', color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100', bar: 'bg-emerald-500' },
+            error: { icon: 'fa-xmark', color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-100', bar: 'bg-red-500' },
+            warning: { icon: 'fa-exclamation', color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100', bar: 'bg-amber-500' },
+            info: { icon: 'fa-info', color: 'text-sky-600', bg: 'bg-sky-50', border: 'border-sky-100', bar: 'bg-sky-500' }
+        };
+
+        function escapeHtml(str) {
+            return String(str ?? '').replace(/[&<>"']/g, c => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[c]));
+        }
+
+        function showToast(message, type = 'info', title = '') {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+
+            const cfg = TOAST_STYLE[type] || TOAST_STYLE.info;
+            const toast = document.createElement('div');
+            toast.className = `toast-item pointer-events-auto relative w-full sm:w-[380px] bg-white rounded-2xl shadow-lg shadow-black/5 border ${cfg.border} overflow-hidden flex items-start gap-3 p-3.5`;
+
+            toast.innerHTML = `
+                <div class="w-9 h-9 rounded-xl ${cfg.bg} ${cfg.color} flex items-center justify-center shrink-0">
+                    <i class="fas ${cfg.icon} text-sm"></i>
+                </div>
+                <div class="flex-1 min-w-0 pt-0.5">
+                    ${title ? `<p class="text-[13px] font-bold text-gray-800 leading-tight">${escapeHtml(title)}</p>` : ''}
+                    <p class="text-xs text-gray-600 leading-snug mt-0.5 break-words">${escapeHtml(message)}</p>
+                </div>
+                <button type="button" class="toast-close w-6 h-6 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-400 shrink-0 transition" aria-label="Tutup notifikasi">
+                    <i class="fas fa-xmark text-[11px]"></i>
+                </button>
+                <div class="absolute bottom-0 left-0 h-[3px] ${cfg.bar} toast-progress"></div>
+            `;
+
+            container.appendChild(toast);
+
+            const timer = setTimeout(() => dismissToast(toast), 4500);
+            toast.querySelector('.toast-close').addEventListener('click', () => {
+                clearTimeout(timer);
+                dismissToast(toast);
+            });
+        }
+
+        function dismissToast(toast) {
+            if (!toast || toast.classList.contains('leaving')) return;
+            toast.classList.add('leaving');
+            setTimeout(() => toast.remove(), 300);
+        }
+
+        /* ================================================================
+           STATUS AKUN DI NAVIGASI
+        ================================================================ */
+        function updateNavUserBadge() {
+            const loginBtn = document.getElementById('nav-login-btn');
+            const accountBadge = document.getElementById('user-account-badge');
+            const emailLabel = document.getElementById('nav-user-email');
+
+            if (currentUser && currentUser.email) {
+                loginBtn.classList.add('hidden');
+                accountBadge.classList.remove('hidden');
+                accountBadge.classList.add('flex');
+                emailLabel.textContent = currentUser.email;
+            } else {
+                loginBtn.classList.remove('hidden');
+                accountBadge.classList.add('hidden');
+                accountBadge.classList.remove('flex');
+            }
+        }
+
+        function logoutUser() {
+            localStorage.removeItem('nuqthah_current_user');
+            currentUser = null;
+            hasFullAccess = false;
+            updateNavUserBadge();
+            showToast('Anda telah keluar dari akun pada perangkat ini.', 'info', 'Berhasil Keluar');
+        }
+
+        /* ================================================================
+           CEK HAK AKSES (SINKRON DENGAN HALAMAN_BELAJAR)
+        ================================================================ */
+        function saveAccessCache(courseId, email) {
+            if (!courseId || !email) return;
+            localStorage.setItem(`nuqthah_access_${courseId}`, 'granted');
+            localStorage.setItem(`nuqthah_access_${courseId}_email`, email);
+        }
+
+        async function checkCourseAccess(courseIds) {
+            if (!courseIds || courseIds.length === 0) return false;
+            if (!currentUser || !currentUser.email) return false;
+
+            // 1. Cache lokal
+            for (const cid of courseIds) {
+                const cached = localStorage.getItem(`nuqthah_access_${cid}`);
+                const cachedEmail = localStorage.getItem(`nuqthah_access_${cid}_email`);
+                if (cached === 'granted' && cachedEmail === currentUser.email) return true;
+            }
+
+            try {
+                // 2. Tabel user_access (berdasarkan user_id)
+                if (currentUser.id) {
+                    const { data } = await supabaseClient
+                        .from('user_access')
+                        .select('course_id')
+                        .in('course_id', courseIds)
+                        .eq('user_id', currentUser.id)
+                        .limit(1);
+
+                    if (data && data.length > 0) {
+                        saveAccessCache(data[0].course_id, currentUser.email);
+                        return true;
+                    }
+                }
+
+                // 3. Tabel user_access (berdasarkan user_email)
+                const { data: byEmail } = await supabaseClient
+                    .from('user_access')
+                    .select('course_id')
+                    .in('course_id', courseIds)
+                    .eq('user_email', currentUser.email)
+                    .limit(1);
+
+                if (byEmail && byEmail.length > 0) {
+                    saveAccessCache(byEmail[0].course_id, currentUser.email);
+                    return true;
+                }
+
+                // 4. Tabel transactions sukses
+                const { data: trx } = await supabaseClient
+                    .from('transactions')
+                    .select('course_id')
+                    .in('course_id', courseIds)
+                    .eq('user_email', currentUser.email)
+                    .eq('status', 'success')
+                    .limit(1);
+
+                if (trx && trx.length > 0) {
+                    saveAccessCache(trx[0].course_id, currentUser.email);
+                    return true;
+                }
+            } catch (e) {
+                console.warn('Gagal memeriksa akses:', e);
+            }
+
+            return false;
+        }
+
+        /* ================================================================
+           INIT DATA KATEGORI
+        ================================================================ */
         async function initQuizApp() {
-            const { data, error } = await supabaseClient.from('courses').select('*');
-            if (!error && data) {
-                // Saring data agar materi yang mengandung kata "paket" tidak masuk
-                allCoursesData = data.filter(c => !c.title.toLowerCase().includes('paket'));
+            try {
+                const { data, error } = await supabaseClient.from('courses').select('*');
+                if (!error && data) {
+                    // Saring agar materi "paket" tidak muncul di kuis
+                    allCoursesData = data.filter(c => !String(c.title || '').toLowerCase().includes('paket'));
+                }
+            } catch (e) {
+                console.warn('Gagal memuat data kursus:', e);
             }
             renderCategoryCards();
+            updateNavUserBadge();
         }
 
         function renderCategoryCards() {
@@ -189,6 +659,7 @@
             Object.keys(PROGRAMS).forEach(key => {
                 const prog = PROGRAMS[key];
                 const btn = document.createElement('button');
+                btn.type = 'button';
                 btn.className = `p-5 rounded-2xl border-2 ${prog.color} transition-all font-bold text-sm flex items-center justify-between shadow-sm group`;
                 btn.innerHTML = `
                     <span>${prog.label}</span>
@@ -211,6 +682,7 @@
 
             PROGRAMS[catKey].subs.forEach(sub => {
                 const btn = document.createElement('button');
+                btn.type = 'button';
                 btn.className = 'w-full p-4 rounded-xl border-2 border-gray-100 hover:border-primary bg-gray-50 hover:bg-emerald-50/20 font-bold text-sm text-gray-700 transition-all text-left flex justify-between items-center';
                 btn.innerHTML = `<span>${sub}</span><i class="fas fa-arrow-right text-xs text-gray-400"></i>`;
                 btn.onclick = () => selectSubfilter(sub);
@@ -222,8 +694,11 @@
             selectedSubfilter = sub;
             document.getElementById('step-subfilter').classList.add('hidden');
             document.getElementById('step-course').classList.remove('hidden');
-
             populateCourseDropdown();
+        }
+
+        function cleanCourseTitle(title) {
+            return String(title || '').replace(/\s*\(?(Online|Offline)\)?/gi, '').trim();
         }
 
         function populateCourseDropdown() {
@@ -234,7 +709,7 @@
 
             const uniqueMap = new Map();
             filtered.forEach(c => {
-                const cleanTitle = c.title.replace(/\s*\(?(Online|Offline)\)?/gi, '').trim();
+                const cleanTitle = cleanCourseTitle(c.title);
                 if (!uniqueMap.has(cleanTitle)) {
                     uniqueMap.set(cleanTitle, {
                         course_id: c.course_id,
@@ -266,45 +741,85 @@
             document.getElementById('step-subfilter').classList.remove('hidden');
         }
 
+        /* ================================================================
+           MULAI KUIS
+        ================================================================ */
         async function startQuiz() {
             const courseId = document.getElementById('course-select').value;
             if (!courseId) {
-                alert('Silakan pilih materi terlebih dahulu!');
+                showToast('Silakan pilih materi terlebih dahulu sebelum memulai kuis.', 'warning', 'Belum Memilih Materi');
                 return;
             }
 
-            const selectedCourseObj = allCoursesData.find(c => c.course_id === courseId);
-            let targetCourseIds = [courseId];
+            const startBtn = document.getElementById('start-quiz-btn');
+            startBtn.disabled = true;
+            startBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin mr-1"></i> Memuat Soal...';
 
-            if (selectedCourseObj) {
-                const cleanSelectedTitle = selectedCourseObj.title.replace(/\s*\(?(Online|Offline)\)?/gi, '').trim();
-                targetCourseIds = allCoursesData
-                    .filter(c => c.title.replace(/\s*\(?(Online|Offline)\)?/gi, '').trim() === cleanSelectedTitle)
-                    .map(c => c.course_id);
+            try {
+                selectedCourseObj = allCoursesData.find(c => c.course_id === courseId) || null;
+
+                if (selectedCourseObj) {
+                    const clean = cleanCourseTitle(selectedCourseObj.title);
+                    targetCourseIds = allCoursesData
+                        .filter(c => cleanCourseTitle(c.title) === clean)
+                        .map(c => c.course_id);
+                    if (!targetCourseIds.includes(courseId)) targetCourseIds.push(courseId);
+                } else {
+                    targetCourseIds = [courseId];
+                }
+
+                const { data, error } = await supabaseClient
+                    .from('quizzes')
+                    .select('*')
+                    .in('course_id', targetCourseIds);
+
+                if (error || !data || data.length === 0) {
+                    showToast('Belum ada soal latihan untuk materi ini. Silakan pilih materi lain atau hubungi admin.', 'error', 'Soal Belum Tersedia');
+                    return;
+                }
+
+                currentQuestions = data;
+                currentIndex = 0;
+                score = 0;
+                selectedOption = null;
+
+                // Cek apakah user punya akses penuh
+                hasFullAccess = await checkCourseAccess(targetCourseIds);
+
+                // Update tampilan
+                const banner = document.getElementById('trial-banner');
+                if (hasFullAccess) {
+                    banner.classList.add('hidden');
+                } else {
+                    banner.classList.remove('hidden');
+                }
+
+                document.getElementById('locked-price').textContent = selectedCourseObj?.price || 'Hubungi Admin';
+                document.getElementById('quiz-locked').classList.add('hidden');
+                document.getElementById('result-container').classList.add('hidden');
+                document.getElementById('step-course').classList.add('hidden');
+                document.getElementById('quiz-container').classList.remove('hidden');
+
+                renderQuestion();
+
+            } catch (err) {
+                console.error(err);
+                showToast('Terjadi kesalahan saat memuat soal. Silakan coba lagi.', 'error', 'Gagal Memuat');
+            } finally {
+                startBtn.disabled = false;
+                startBtn.innerHTML = 'Mulai Tantangan Kuis 🚀';
             }
-
-            const { data, error } = await supabaseClient
-                .from('quizzes')
-                .select('*')
-                .in('course_id', targetCourseIds);
-
-            if (error || !data || data.length === 0) {
-                alert('Belum ada soal latihan untuk materi ini. Silakan tambahkan melalui Dashboard Admin.');
-                return;
-            }
-
-            currentQuestions = data;
-            currentIndex = 0;
-            score = 0;
-
-            document.getElementById('step-course').classList.add('hidden');
-            document.getElementById('result-container').classList.add('hidden');
-            document.getElementById('quiz-container').classList.remove('hidden');
-
-            renderQuestion();
         }
 
+        /* ================================================================
+           RENDER SOAL
+        ================================================================ */
         function renderQuestion() {
+            if (currentIndex >= currentQuestions.length) {
+                showResult();
+                return;
+            }
+
             selectedOption = null;
             document.getElementById('next-btn').classList.add('hidden');
 
@@ -313,29 +828,26 @@
 
             document.getElementById('question-counter').textContent = `Soal ${currentIndex + 1} dari ${total}`;
             document.getElementById('score-badge').textContent = `Skor: ${score}`;
-            document.getElementById('progress-bar').style.width = `${((currentIndex) / total) * 100}%`;
-            document.getElementById('question-text').textContent = q.question;
+            document.getElementById('progress-bar').style.width = `${(currentIndex / total) * 100}%`;
+            document.getElementById('question-text').textContent = q.question || '';
 
             const optsContainer = document.getElementById('options-container');
             optsContainer.innerHTML = '';
 
-            const options = [
-                { key: 'A', text: q.option_a },
-                { key: 'B', text: q.option_b },
-                { key: 'C', text: q.option_c },
-                { key: 'D', text: q.option_d }
-            ];
+            ['a', 'b', 'c', 'd'].forEach((key) => {
+                const text = q[`option_${key}`] || q[`option_-${key}`];
+                if (!text) return;
 
-            options.forEach(opt => {
-                if (!opt.text) return;
+                const label = key.toUpperCase();
                 const btn = document.createElement('button');
-                btn.dataset.key = opt.key;
-                btn.className = 'option-btn w-full text-left p-4 rounded-2xl border-2 border-gray-100 hover:border-primary/50 bg-gray-50 hover:bg-emerald-50/30 transition-all font-medium text-sm flex items-center gap-3 group';
+                btn.type = 'button';
+                btn.dataset.key = label;
+                btn.className = 'option-btn w-full text-left p-4 rounded-2xl border-2 border-gray-100 hover:border-primary/40 bg-gray-50 hover:bg-emerald-50/30 font-medium text-sm flex items-center gap-3 group';
                 btn.innerHTML = `
-                    <span class="w-8 h-8 rounded-xl bg-white border border-gray-200 group-hover:border-primary group-hover:bg-primary group-hover:text-white flex items-center justify-center font-bold text-xs transition-colors flex-shrink-0">${opt.key}</span>
-                    <span class="flex-grow">${opt.text}</span>
+                    <span class="opt-key w-8 h-8 rounded-xl bg-white border border-gray-200 group-hover:border-primary group-hover:bg-primary group-hover:text-white flex items-center justify-center font-bold text-xs transition-colors shrink-0">${label}</span>
+                    <span class="flex-grow">${escapeHtml(text)}</span>
                 `;
-                btn.onclick = () => selectAnswer(opt.key, btn);
+                btn.onclick = () => selectAnswer(label, btn);
                 optsContainer.appendChild(btn);
             });
         }
@@ -345,16 +857,21 @@
 
             const allBtns = document.getElementById('options-container').querySelectorAll('.option-btn');
             allBtns.forEach(btn => {
-                btn.className = 'option-btn w-full text-left p-4 rounded-2xl border-2 border-gray-100 hover:border-primary/50 bg-gray-50 hover:bg-emerald-50/30 transition-all font-medium text-sm flex items-center gap-3 group';
-                btn.querySelector('span').className = 'w-8 h-8 rounded-xl bg-white border border-gray-200 group-hover:border-primary group-hover:bg-primary group-hover:text-white flex items-center justify-center font-bold text-xs transition-colors flex-shrink-0';
+                btn.className = 'option-btn w-full text-left p-4 rounded-2xl border-2 border-gray-100 hover:border-primary/40 bg-gray-50 hover:bg-emerald-50/30 font-medium text-sm flex items-center gap-3 group';
+                const k = btn.querySelector('.opt-key');
+                if (k) k.className = 'opt-key w-8 h-8 rounded-xl bg-white border border-gray-200 group-hover:border-primary group-hover:bg-primary group-hover:text-white flex items-center justify-center font-bold text-xs transition-colors shrink-0';
             });
 
-            btnElement.className = 'option-btn w-full text-left p-4 rounded-2xl border-2 border-red-400 bg-red-50 text-red-900 font-medium text-sm flex items-center gap-3 shadow-sm';
-            btnElement.querySelector('span').className = 'w-8 h-8 rounded-xl bg-red-500 text-white flex items-center justify-center font-bold text-xs flex-shrink-0';
+            btnElement.className = 'option-btn w-full text-left p-4 rounded-2xl border-2 border-primary bg-primary/5 text-primary font-semibold text-sm flex items-center gap-3 shadow-sm';
+            const keyEl = btnElement.querySelector('.opt-key');
+            if (keyEl) keyEl.className = 'opt-key w-8 h-8 rounded-xl bg-primary text-white flex items-center justify-center font-bold text-xs shrink-0';
 
             document.getElementById('next-btn').classList.remove('hidden');
         }
 
+        /* ================================================================
+           ALUR KUIS + GERBANG TRIAL
+        ================================================================ */
         function nextQuestion() {
             if (selectedOption === null) return;
 
@@ -362,10 +879,19 @@
             if (selectedOption === q.correct_answer) {
                 score++;
             }
-
             document.getElementById('score-badge').textContent = `Skor: ${score}`;
 
-            currentIndex++;
+            const nextIndex = currentIndex + 1;
+
+            // Gerbang trial: setelah soal ke-6 dijawab & masih ada soal berikutnya
+            if (!hasFullAccess && nextIndex >= TRIAL_LIMIT && nextIndex < currentQuestions.length) {
+                currentIndex = nextIndex;
+                showQuizLocked();
+                return;
+            }
+
+            currentIndex = nextIndex;
+
             if (currentIndex < currentQuestions.length) {
                 renderQuestion();
             } else {
@@ -373,28 +899,361 @@
             }
         }
 
-        function showResult() {
+        function showQuizLocked() {
             document.getElementById('quiz-container').classList.add('hidden');
-            document.getElementById('result-container').classList.remove('hidden');
-            document.getElementById('final-score').textContent = `${score} / ${currentQuestions.length}`;
+            document.getElementById('result-container').classList.add('hidden');
+            document.getElementById('quiz-locked').classList.remove('hidden');
 
-            const percentage = (score / currentQuestions.length) * 100;
+            const answered = Math.min(currentIndex, currentQuestions.length);
+            const remaining = currentQuestions.length - answered;
+
+            document.getElementById('locked-desc').innerHTML =
+                `Anda telah menyelesaikan <b>${answered}</b> soal gratis dengan skor sementara <b>${score}</b>. ` +
+                `Masih ada <b>${remaining} soal</b> yang menunggu untuk diselesaikan.`;
+
+            document.getElementById('locked-price').textContent = selectedCourseObj?.price || 'Hubungi Admin';
+
+            // Arahkan langsung ke form daftar akun & buka akses
+            setTimeout(() => {
+                if (!hasFullAccess) openCheckoutModal();
+            }, 400);
+        }
+
+        function resumeQuizAfterAccess() {
+            hasFullAccess = true;
+
+            document.getElementById('trial-banner').classList.add('hidden');
+            document.getElementById('quiz-locked').classList.add('hidden');
+            document.getElementById('result-container').classList.add('hidden');
+            document.getElementById('step-category').classList.add('hidden');
+            document.getElementById('step-subfilter').classList.add('hidden');
+            document.getElementById('step-course').classList.add('hidden');
+            document.getElementById('quiz-container').classList.remove('hidden');
+
+            if (currentIndex < currentQuestions.length) {
+                renderQuestion();
+            } else {
+                showResult();
+            }
+        }
+
+        /* ================================================================
+           HASIL KUIS
+        ================================================================ */
+        function showResult(isPartial = false) {
+            document.getElementById('quiz-container').classList.add('hidden');
+            document.getElementById('quiz-locked').classList.add('hidden');
+            document.getElementById('result-container').classList.remove('hidden');
+
+            const answered = isPartial
+                ? Math.min(currentIndex, currentQuestions.length)
+                : currentQuestions.length;
+
+            document.getElementById('final-score').textContent = `${score} / ${answered}`;
+
+            const pct = answered > 0 ? (score / answered) * 100 : 0;
             const msg = document.getElementById('result-message');
-            if (percentage === 100) {
-                msg.textContent = 'Luar Biasa! Kamu menguasai materi ini dengan sempurna! 🎉';
-            } else if (percentage >= 70) {
+
+            if (isPartial) {
+                msg.innerHTML = `Anda telah menjawab <b>${answered} dari ${currentQuestions.length}</b> soal. Buka akses penuh untuk menyelesaikan seluruh soal latihan.`;
+            } else if (pct === 100) {
+                msg.textContent = 'Luar biasa! Kamu menguasai materi ini dengan sempurna! 🎉';
+            } else if (pct >= 70) {
                 msg.textContent = 'Kerja bagus! Pemahaman materimu sudah sangat baik. 👍';
             } else {
                 msg.textContent = 'Terus tingkatkan belajarmu! Coba baca materinya kembali dan ulangi kuisnya. 📚';
             }
+
+            document.getElementById('result-unlock-btn').classList.toggle('hidden', !isPartial);
+        }
+
+        function showPartialResult() {
+            showResult(true);
         }
 
         function resetQuiz() {
+            selectedCourseObj = null;
+            targetCourseIds = [];
+            currentQuestions = [];
+            currentIndex = 0;
+            score = 0;
+            selectedOption = null;
+            hasFullAccess = false;
+
             document.getElementById('result-container').classList.add('hidden');
+            document.getElementById('quiz-locked').classList.add('hidden');
+            document.getElementById('quiz-container').classList.add('hidden');
+            document.getElementById('step-course').classList.add('hidden');
+            document.getElementById('step-subfilter').classList.add('hidden');
             document.getElementById('step-category').classList.remove('hidden');
         }
 
-        initQuizApp();
+        /* ================================================================
+           MODAL: CHECKOUT / DAFTAR & BAYAR
+        ================================================================ */
+        function openCheckoutModal() {
+            if (currentUser) {
+                document.getElementById('reg-email').value = currentUser.email || '';
+                document.getElementById('reg-name').value = currentUser.name || '';
+                document.getElementById('reg-whatsapp').value = currentUser.whatsapp || '';
+            }
+            document.getElementById('modal-checkout-price').textContent = selectedCourseObj?.price || '-';
+            document.getElementById('checkout-modal').classList.remove('hidden');
+        }
+
+        function closeCheckoutModal() {
+            document.getElementById('checkout-modal').classList.add('hidden');
+        }
+
+        async function handleCheckoutFormSubmit(e) {
+            e.preventDefault();
+
+            const email = document.getElementById('reg-email').value.trim().toLowerCase();
+            const name = document.getElementById('reg-name').value.trim();
+            const whatsapp = document.getElementById('reg-whatsapp').value.trim();
+            const submitBtn = document.getElementById('btn-submit-checkout');
+
+            if (!email || !name || !whatsapp) {
+                showToast('Harap lengkapi semua kolom pendaftaran.', 'warning', 'Data Belum Lengkap');
+                return;
+            }
+
+            if (!selectedCourseObj) {
+                showToast('Data materi tidak ditemukan. Silakan pilih materi kembali dari awal.', 'error', 'Materi Tidak Ditemukan');
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Memproses Akun...';
+
+            try {
+                // 1. Simpan / perbarui akun
+                const { data: savedUser, error: userErr } = await supabaseClient
+                    .from('users')
+                    .upsert([{ email, name, whatsapp }], { onConflict: 'email' })
+                    .select()
+                    .single();
+
+                if (userErr) throw new Error('Gagal menyimpan data akun: ' + userErr.message);
+
+                currentUser = savedUser || { email, name, whatsapp };
+                localStorage.setItem('nuqthah_current_user', JSON.stringify(currentUser));
+                updateNavUserBadge();
+
+                // 2. Cek apakah email ini sudah punya akses
+                const alreadyHasAccess = await checkCourseAccess(targetCourseIds);
+
+                if (alreadyHasAccess) {
+                    closeCheckoutModal();
+                    showToast('Email ini sudah memiliki akses penuh. Silakan masuk dengan kode OTP untuk verifikasi.', 'info', 'Akses Sudah Aktif');
+                    openOtpModal();
+                    document.getElementById('otp-email-input').value = email;
+                    return;
+                }
+
+                // 3. Lanjut pembayaran Midtrans
+                await triggerMidtransPayment(currentUser);
+
+            } catch (err) {
+                console.error(err);
+                showToast(err.message || 'Terjadi kesalahan saat memproses pendaftaran.', 'error', 'Gagal Memproses');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-credit-card"></i> Bayar Sekarang &amp; Buka Akses';
+            }
+        }
+
+        async function triggerMidtransPayment(userObj) {
+            const userToUse = userObj || currentUser;
+            if (!userToUse || !userToUse.email) {
+                openCheckoutModal();
+                return;
+            }
+            if (!selectedCourseObj) {
+                showToast('Data materi tidak ditemukan.', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${BACKEND_BASE_URL}/api/create-transaction`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        course_id: selectedCourseObj.course_id,
+                        price: selectedCourseObj.price,
+                        user_id: userToUse.id || null,
+                        user_email: userToUse.email
+                    })
+                });
+
+                const data = await response.json();
+                if (!data.token) throw new Error(data.error || 'Gagal mendapatkan token pembayaran.');
+
+                closeCheckoutModal();
+
+                window.snap.pay(data.token, {
+                    onSuccess: async function () {
+                        // Catat akses ke database agar sinkron di semua perangkat
+                        try {
+                            await supabaseClient.from('transactions')
+                                .update({ status: 'success' })
+                                .eq('order_id', data.order_id);
+
+                            await supabaseClient.from('user_access').insert([{
+                                user_id: userToUse.id || null,
+                                user_email: userToUse.email,
+                                course_id: selectedCourseObj.course_id,
+                                order_id: data.order_id
+                            }]);
+                        } catch (dbErr) {
+                            console.warn('Info sinkronisasi akses:', dbErr);
+                        }
+
+                        saveAccessCache(selectedCourseObj.course_id, userToUse.email);
+
+                        showToast('Pembayaran berhasil! Seluruh soal dan materi kini terbuka untuk akun Anda.', 'success', 'Alhamdulillah');
+                        resumeQuizAfterAccess();
+                    },
+                    onPending: function () {
+                        showToast('Pembayaran Anda sedang menunggu penyelesaian. Akses terbuka otomatis setelah pembayaran dikonfirmasi.', 'warning', 'Menunggu Pembayaran');
+                    },
+                    onError: function () {
+                        showToast('Pembayaran gagal dilakukan. Silakan coba kembali.', 'error', 'Pembayaran Gagal');
+                    }
+                });
+
+            } catch (err) {
+                console.error(err);
+                showToast('Terjadi kesalahan koneksi ke server pembayaran.', 'error', 'Koneksi Gagal');
+            }
+        }
+
+        /* ================================================================
+           MODAL: LOGIN OTP
+        ================================================================ */
+        function openOtpModal() {
+            resetOtpModalSteps();
+            document.getElementById('otp-modal').classList.remove('hidden');
+        }
+
+        function closeOtpModal() {
+            document.getElementById('otp-modal').classList.add('hidden');
+        }
+
+        function switchCheckoutToOtp() {
+            closeCheckoutModal();
+            openOtpModal();
+        }
+
+        function switchOtpToCheckout() {
+            closeOtpModal();
+            openCheckoutModal();
+        }
+
+        function resetOtpModalSteps() {
+            document.getElementById('otp-step-email').classList.remove('hidden');
+            document.getElementById('otp-step-verify').classList.add('hidden');
+            document.getElementById('otp-code-input').value = '';
+        }
+
+        async function requestOtpCode() {
+            const emailInput = document.getElementById('otp-email-input').value.trim().toLowerCase();
+            const btnRequest = document.getElementById('btn-request-otp');
+
+            if (!emailInput) {
+                showToast('Silakan masukkan alamat email pendaftaran Anda.', 'warning', 'Email Kosong');
+                return;
+            }
+
+            btnRequest.disabled = true;
+            btnRequest.innerHTML = '<i class="fas fa-circle-notch fa-spin mr-1"></i> Mengirim OTP...';
+
+            try {
+                const res = await fetch(`${BACKEND_BASE_URL}/api/send-otp`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: emailInput })
+                });
+                const data = await res.json();
+
+                if (!res.ok || !data.success) {
+                    throw new Error(data.error || 'Gagal mengirim kode OTP.');
+                }
+
+                document.getElementById('otp-target-email-label').textContent = emailInput;
+                document.getElementById('otp-step-email').classList.add('hidden');
+                document.getElementById('otp-step-verify').classList.remove('hidden');
+
+                showToast('Kode OTP telah dikirim ke email Anda.', 'success', 'OTP Terkirim');
+
+            } catch (err) {
+                showToast(err.message || 'Gagal mengirim kode OTP.', 'error', 'Gagal Mengirim OTP');
+            } finally {
+                btnRequest.disabled = false;
+                btnRequest.innerHTML = 'Minta Kode OTP';
+            }
+        }
+
+        async function verifyOtpCode() {
+            const emailInput = document.getElementById('otp-email-input').value.trim().toLowerCase();
+            const codeInput = document.getElementById('otp-code-input').value.trim();
+            const btnVerify = document.getElementById('btn-verify-otp');
+
+            if (!codeInput || codeInput.length < 6) {
+                showToast('Silakan masukkan 6 digit kode OTP dengan benar.', 'warning', 'Kode OTP Tidak Valid');
+                return;
+            }
+
+            btnVerify.disabled = true;
+            btnVerify.innerHTML = '<i class="fas fa-circle-notch fa-spin mr-1"></i> Memverifikasi...';
+
+            try {
+                const res = await fetch(`${BACKEND_BASE_URL}/api/verify-otp`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: emailInput, code: codeInput })
+                });
+                const data = await res.json();
+
+                if (!res.ok || !data.success) {
+                    throw new Error(data.error || 'Kode OTP tidak valid.');
+                }
+
+                currentUser = data.user;
+                localStorage.setItem('nuqthah_current_user', JSON.stringify(currentUser));
+                updateNavUserBadge();
+
+                const hasAccess = await checkCourseAccess(targetCourseIds);
+                closeOtpModal();
+
+                if (hasAccess) {
+                    hasFullAccess = true;
+                    showToast(`Selamat datang kembali, ${currentUser.name || 'Siswa'}! Akses penuh Anda telah dibuka.`, 'success', 'Berhasil Masuk');
+
+                    // Jika user sedang dalam sesi kuis, lanjutkan otomatis
+                    if (currentQuestions.length > 0) {
+                        resumeQuizAfterAccess();
+                    }
+                } else {
+                    showToast(`Halo ${currentUser.name || 'Siswa'}, akun ini belum memiliki akses ke materi ini. Silakan daftar & buka akses.`, 'info', 'Akses Belum Aktif');
+                    openCheckoutModal();
+                }
+
+            } catch (err) {
+                showToast(err.message || 'Kode OTP tidak valid.', 'error', 'Verifikasi Gagal');
+            } finally {
+                btnVerify.disabled = false;
+                btnVerify.innerHTML = 'Verifikasi &amp; Buka Akses';
+            }
+        }
+
+        /* ================================================================
+           BOOTSTRAP
+        ================================================================ */
+        document.addEventListener('DOMContentLoaded', () => {
+            updateNavUserBadge();
+            initQuizApp();
+        });
     </script>
 </body>
 

@@ -246,10 +246,68 @@
             text-transform: uppercase;
             opacity: 0.85;
         }
+
+        /* ============ TOAST ============ */
+        .toast-item {
+            animation: toastIn .35s cubic-bezier(.21, 1.02, .73, 1) forwards;
+        }
+
+        .toast-item.leaving {
+            animation: toastOut .28s ease forwards;
+        }
+
+        @keyframes toastIn {
+            from {
+                opacity: 0;
+                transform: translateY(-14px) scale(.97);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        @keyframes toastOut {
+            from {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+
+            to {
+                opacity: 0;
+                transform: translateY(-10px) scale(.97);
+            }
+        }
+
+        .toast-progress {
+            animation: toastProgress 4.5s linear forwards;
+        }
+
+        @keyframes toastProgress {
+            from {
+                width: 100%;
+            }
+
+            to {
+                width: 0%;
+            }
+        }
+
+        /* ============ PURCHASED BADGE ============ */
+        .purchased-item {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.04) 0%, rgba(255, 255, 255, 1) 100%);
+            border-color: rgba(16, 185, 129, 0.25) !important;
+        }
     </style>
 </head>
 
 <body class="bg-white text-gray-900 overflow-x-hidden">
+
+    <!-- ================= TOAST CONTAINER ================= -->
+    <div id="toast-container" aria-live="polite"
+        class="fixed top-3 right-3 left-3 sm:left-auto sm:right-5 z-[99999999] flex flex-col items-end gap-2.5 pointer-events-none">
+    </div>
 
     <!-- PAGE LOADING OVERLAY -->
     <div id="page-loading-overlay">
@@ -267,10 +325,9 @@
         </a>
 
         <div class="flex items-center gap-2 md:gap-3">
-            <!-- Tombol Trial Quiz yang mengarah ke latihansoal.html -->
             <a href="latihansoal.html"
                 class="bg-accent text-white px-4 py-1.5 rounded-lg font-bold text-xs md:text-sm hover:bg-opacity-90 transition-all shadow-sm">
-                <i class="fas fa-lightbulb"></i> Free Trial Quiz
+                Trial Quiz
             </a>
             <button id="materimu-toggle-btn" onclick="toggleDrawer()"
                 class="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-colors relative cursor-pointer">
@@ -279,6 +336,11 @@
                 <span id="materimu-badge"
                     class="absolute -top-1 -right-1 bg-accent text-white text-[10px] w-5 h-5 flex items-center justify-center rounded-full border border-primary leading-none">0</span>
             </button>
+
+            <!-- Auth State UI -->
+            <div id="nav-auth-container" class="flex items-center ml-1">
+                <!-- Diisi oleh JavaScript -->
+            </div>
         </div>
     </nav>
 
@@ -321,17 +383,18 @@
             </div>
         </div>
 
-        <div id="drawer-content" class="flex-grow overflow-y-auto p-4 space-y-4">
+        <div id="drawer-content" class="flex-grow overflow-y-auto p-4 space-y-3">
             <div id="drawer-empty" class="h-full flex flex-col items-center justify-center text-center p-8 opacity-40">
                 <i class="far fa-bookmark text-5xl mb-4 text-primary"></i>
                 <p class="text-sm font-medium">Belum ada materi yang disimpan.</p>
+                <p class="text-[11px] mt-1 text-gray-500">Materi yang Anda beli akan otomatis muncul di sini.</p>
             </div>
         </div>
 
         <div class="p-4 border-t border-gray-100 bg-gray-50">
             <button id="clear-all-btn" onclick="clearAllMaterials()"
                 class="w-full py-3 text-xs text-gray-400 hover:text-red-600 transition-colors font-semibold uppercase tracking-widest flex items-center justify-center gap-2">
-                <i class="far fa-trash-can"></i> Kosongkan Daftar
+                <i class="far fa-trash-can"></i> Kosongkan Materi Tersimpan
             </button>
         </div>
     </div>
@@ -412,7 +475,6 @@
                     </button>
                 </div>
             </div>
-            <!-- Kartu Materi akan dirender di sini oleh JS -->
         </div>
     </main>
 
@@ -452,11 +514,11 @@
 
     <!-- Edit Modal untuk Materimu -->
     <div id="edit-modal" class="fixed inset-0 flex items-center justify-center p-4 hidden modal-container"
-        style="z-index: 99999999;">
+        style="z-index: 9999999;">
         <div id="edit-modal-overlay" onclick="closeEditModal()"
             class="absolute inset-0 bg-black/70 backdrop-blur-sm modal-overlay"></div>
         <div class="modal-content relative bg-white w-full max-w-md rounded-2xl shadow-2xl border border-white/20 modal-fade-in p-6 space-y-4"
-            style="z-index: 99999999;">
+            style="z-index: 9999999;">
             <div class="bg-primary p-4 text-white rounded-xl">
                 <h3 class="text-lg font-bold text-center">Edit Materi Tersimpan</h3>
             </div>
@@ -480,6 +542,29 @@
         </div>
     </div>
 
+    <!-- Confirm Modal (pengganti confirm()) -->
+    <div id="confirm-modal" class="fixed inset-0 flex items-center justify-center p-4 hidden"
+        style="z-index: 99999998;">
+        <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" onclick="closeConfirmModal()"></div>
+        <div class="relative bg-white w-full max-w-sm rounded-2xl shadow-2xl p-6 space-y-4 modal-fade-in">
+            <div class="text-center">
+                <div
+                    class="w-14 h-14 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-3">
+                    <i class="fas fa-exclamation-triangle text-xl"></i>
+                </div>
+                <h3 id="confirm-title" class="text-base font-bold text-gray-800">Konfirmasi</h3>
+                <p id="confirm-message" class="text-xs text-gray-500 mt-1 leading-relaxed"></p>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="closeConfirmModal()"
+                    class="flex-1 bg-gray-100 text-gray-700 font-bold py-2.5 rounded-xl text-xs hover:bg-gray-200 transition">Batal</button>
+                <button id="confirm-ok-btn"
+                    class="flex-1 bg-red-500 text-white font-bold py-2.5 rounded-xl text-xs hover:bg-red-600 transition">Ya,
+                    Lanjutkan</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Supabase Library -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -493,11 +578,135 @@
         const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
 
         const LOCAL_KEY = 'nuqthah_materimu_local';
+        const DEFAULT_IMG = 'https://userkv.r2.mayar.id/landing-page/assets/nuqthah-kind-kingdom-2402/d50a2464_fdggdd.png';
 
         let currentUser = null;
         let savedItems = [];
         let isLoggedIn = false;
         let allCourses = [];
+        let purchasedCourseIds = new Set();
+        let confirmCallback = null;
+
+        // ================================================================
+        // TOAST SYSTEM
+        // ================================================================
+        const TOAST_STYLE = {
+            success: { icon: 'fa-check', color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100', bar: 'bg-emerald-500' },
+            error: { icon: 'fa-xmark', color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-100', bar: 'bg-red-500' },
+            warning: { icon: 'fa-exclamation', color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100', bar: 'bg-amber-500' },
+            info: { icon: 'fa-info', color: 'text-sky-600', bg: 'bg-sky-50', border: 'border-sky-100', bar: 'bg-sky-500' }
+        };
+
+        function escapeHtml(str) {
+            return String(str ?? '').replace(/[&<>"']/g, c => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[c]));
+        }
+
+        function showToast(message, type = 'info', title = '') {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+
+            const cfg = TOAST_STYLE[type] || TOAST_STYLE.info;
+            const toast = document.createElement('div');
+            toast.className = `toast-item pointer-events-auto relative w-full sm:w-[380px] bg-white rounded-2xl shadow-lg shadow-black/5 border ${cfg.border} overflow-hidden flex items-start gap-3 p-3.5`;
+
+            toast.innerHTML = `
+                <div class="w-9 h-9 rounded-xl ${cfg.bg} ${cfg.color} flex items-center justify-center shrink-0">
+                    <i class="fas ${cfg.icon} text-sm"></i>
+                </div>
+                <div class="flex-1 min-w-0 pt-0.5">
+                    ${title ? `<p class="text-[13px] font-bold text-gray-800 leading-tight">${escapeHtml(title)}</p>` : ''}
+                    <p class="text-xs text-gray-600 leading-snug mt-0.5 break-words">${escapeHtml(message)}</p>
+                </div>
+                <button type="button" class="toast-close w-6 h-6 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-400 shrink-0 transition" aria-label="Tutup">
+                    <i class="fas fa-xmark text-[11px]"></i>
+                </button>
+                <div class="absolute bottom-0 left-0 h-[3px] ${cfg.bar} toast-progress"></div>
+            `;
+
+            container.appendChild(toast);
+
+            const timer = setTimeout(() => dismissToast(toast), 4500);
+            toast.querySelector('.toast-close').addEventListener('click', () => {
+                clearTimeout(timer);
+                dismissToast(toast);
+            });
+        }
+
+        function dismissToast(toast) {
+            if (!toast || toast.classList.contains('leaving')) return;
+            toast.classList.add('leaving');
+            setTimeout(() => toast.remove(), 300);
+        }
+
+        // ================================================================
+        // CONFIRM MODAL
+        // ================================================================
+        function showConfirmModal(title, message, onConfirm, okText = 'Ya, Lanjutkan') {
+            document.getElementById('confirm-title').textContent = title;
+            document.getElementById('confirm-message').textContent = message;
+            document.getElementById('confirm-ok-btn').textContent = okText;
+            confirmCallback = onConfirm;
+            document.getElementById('confirm-modal').classList.remove('hidden');
+        }
+
+        function closeConfirmModal() {
+            document.getElementById('confirm-modal').classList.add('hidden');
+            confirmCallback = null;
+        }
+
+        document.getElementById('confirm-ok-btn').addEventListener('click', async () => {
+            const cb = confirmCallback;
+            closeConfirmModal();
+            if (typeof cb === 'function') await cb();
+        });
+
+        // ================================================================
+        // NAVIGATION AUTH STATE
+        // ================================================================
+        function updateAuthUI() {
+            const container = document.getElementById('nav-auth-container');
+            if (!container) return;
+
+            if (isLoggedIn && currentUser && currentUser.email) {
+                container.innerHTML = `
+                    <div class="flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-lg border border-white/15">
+                        <span class="text-xs text-white max-w-[100px] truncate hidden sm:inline">${currentUser.email}</span>
+                        <button onclick="logoutUser()" class="text-red-300 hover:text-red-200 text-xs font-bold transition">Keluar</button>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = `
+                    <span class="text-xs text-gray-300 hidden sm:inline">Belum Masuk</span>
+                `;
+            }
+        }
+
+        function logoutUser() {
+            localStorage.removeItem('nuqthah_current_user');
+
+            // Hapus semua cache akses materi
+            Object.keys(localStorage).forEach(key => {
+                if (key.startsWith('nuqthah_access_') || key.startsWith('nuqthah_resume_')) {
+                    localStorage.removeItem(key);
+                }
+            });
+
+            // Logout dari Supabase Auth jika ada
+            supabaseClient.auth.signOut().catch(() => { });
+
+            currentUser = null;
+            isLoggedIn = false;
+            sessionStorage.removeItem('nuqthah_welcome_shown');
+
+            updateAuthUI();
+            showToast('Anda telah keluar dari akun.', 'info', 'Berhasil Keluar');
+
+            // Refresh UI untuk menghapus badge "TERBUKA"
+            loadSavedMaterials();
+            renderCoursesToDOM();
+        }
 
         // ================================================================
         // DRAWER UI
@@ -525,7 +734,7 @@
         }
 
         // ================================================================
-        // DATA RETRIEVAL (LOCAL & CLOUD)
+        // DATA RETRIEVAL
         // ================================================================
         function getLocalItems() {
             try { return JSON.parse(localStorage.getItem(LOCAL_KEY) || '[]'); } catch (e) { return []; }
@@ -536,9 +745,8 @@
 
         async function checkSession() {
             try {
-                // Cek sesi dari sistem login OTP halaman_belajar jika ada
                 const otpUser = JSON.parse(localStorage.getItem('nuqthah_current_user') || 'null');
-                if (otpUser && otpUser.id) {
+                if (otpUser && (otpUser.id || otpUser.email)) {
                     currentUser = otpUser;
                     isLoggedIn = true;
                     return;
@@ -549,6 +757,44 @@
                     isLoggedIn = true;
                 }
             } catch (err) { console.error('Session check error:', err); }
+        }
+
+        // Ambil daftar course_id yang sudah dibeli user (dari user_access & transactions)
+        async function fetchPurchasedCourseIds() {
+            const ids = new Set();
+            if (!currentUser) return ids;
+
+            try {
+                const queries = [];
+
+                if (currentUser.id) {
+                    queries.push(
+                        supabaseClient.from('user_access').select('course_id').eq('user_id', currentUser.id)
+                            .then(r => (r.data || []).forEach(row => row.course_id && ids.add(row.course_id)))
+                            .catch(() => { })
+                    );
+                }
+
+                if (currentUser.email) {
+                    queries.push(
+                        supabaseClient.from('user_access').select('course_id').eq('user_email', currentUser.email)
+                            .then(r => (r.data || []).forEach(row => row.course_id && ids.add(row.course_id)))
+                            .catch(() => { })
+                    );
+                    queries.push(
+                        supabaseClient.from('transactions').select('course_id')
+                            .eq('user_email', currentUser.email).eq('status', 'success')
+                            .then(r => (r.data || []).forEach(row => row.course_id && ids.add(row.course_id)))
+                            .catch(() => { })
+                    );
+                }
+
+                await Promise.all(queries);
+            } catch (e) {
+                console.warn('Gagal memuat daftar pembelian:', e);
+            }
+
+            return ids;
         }
 
         async function loadSavedMaterials() {
@@ -562,36 +808,77 @@
                             .select('id, course_id, title, link, image')
                             .eq('user_id', currentUser.id)
                             .order('created_at', { ascending: false });
-
-                        if (!error && data) {
-                            dbItems = data;
-                        }
+                        if (!error && data) dbItems = data;
                     } catch (e) {
-                        console.warn("Koneksi ke DB gagal, memuat dari LocalStorage.", e);
+                        console.warn('Koneksi ke DB gagal, memuat dari LocalStorage.', e);
                     }
                 }
 
+                // Ambil course yang sudah dibeli dari database (jika login)
+                purchasedCourseIds = await fetchPurchasedCourseIds();
+
+                // Ambil detail course untuk yang dibeli
+                let purchasedCourses = [];
+                const purchasedIdsArr = Array.from(purchasedCourseIds).filter(id => !id.startsWith('manual-'));
+                if (purchasedIdsArr.length > 0) {
+                    try {
+                        const { data: courses } = await supabaseClient
+                            .from('courses')
+                            .select('course_id, title, image')
+                            .in('course_id', purchasedIdsArr);
+                        purchasedCourses = courses || [];
+                    } catch (e) {
+                        console.warn('Gagal memuat detail course yang dibeli:', e);
+                    }
+                }
+
+                // Susun local items
                 const localItems = getLocalItems().map(item => ({
                     id: item.id,
                     course_id: item.course_id,
                     title: item.title,
                     link: item.link || `halaman_belajar.html?course_id=${item.course_id}`,
-                    image: item.image || 'https://userkv.r2.mayar.id/landing-page/assets/nuqthah-kind-kingdom-2402/d50a2464_fdggdd.png'
+                    image: item.image || DEFAULT_IMG,
+                    purchased: purchasedCourseIds.has(item.course_id) // Hanya true jika ada di DB
                 }));
 
+                // Merge berlapis: local → db → purchased (purchased prioritas tertinggi)
                 const mergedMap = new Map();
+
                 localItems.forEach(item => mergedMap.set(item.course_id, item));
+
                 dbItems.forEach(item => {
+                    const existing = mergedMap.get(item.course_id);
                     mergedMap.set(item.course_id, {
                         id: item.id,
                         course_id: item.course_id,
-                        title: item.title || 'Materi',
-                        link: item.link || `halaman_belajar.html?course_id=${item.course_id}`,
-                        image: item.image || 'https://userkv.r2.mayar.id/landing-page/assets/nuqthah-kind-kingdom-2402/d50a2464_fdggdd.png'
+                        title: item.title || existing?.title || 'Materi',
+                        link: item.link || existing?.link || `halaman_belajar.html?course_id=${item.course_id}`,
+                        image: item.image || existing?.image || DEFAULT_IMG,
+                        // Paksa status berdasarkan database, abaikan existing?.purchased
+                        purchased: purchasedCourseIds.has(item.course_id)
                     });
                 });
 
-                savedItems = Array.from(mergedMap.values());
+                purchasedCourses.forEach(c => {
+                    const existing = mergedMap.get(c.course_id);
+                    mergedMap.set(c.course_id, {
+                        id: existing?.id || ('access-' + c.course_id),
+                        course_id: c.course_id,
+                        title: existing?.title || c.title || 'Materi',
+                        link: `halaman_belajar.html?course_id=${c.course_id}`, // paksa link ke halaman belajar
+                        image: c.image || existing?.image || DEFAULT_IMG,
+                        purchased: true
+                    });
+                });
+
+                // Urutkan: purchased di atas
+                savedItems = Array.from(mergedMap.values()).sort((a, b) => {
+                    if (a.purchased && !b.purchased) return -1;
+                    if (!a.purchased && b.purchased) return 1;
+                    return 0;
+                });
+
                 updateMaterimuUI();
             } catch (err) {
                 console.error('Load saved materials error:', err);
@@ -601,30 +888,31 @@
         }
 
         // ================================================================
-        // SAVE LOGIC (+)
+        // SAVE / REMOVE / UPDATE
         // ================================================================
         async function saveToMaterimu(courseId) {
             if (savedItems.find(m => m.course_id === courseId)) {
+                showToast('Materi ini sudah ada di daftar Materimu.', 'info', 'Sudah Tersimpan');
                 toggleDrawer();
                 return;
             }
 
             const course = allCourses.find(c => c.course_id === courseId);
-            if (!course) return alert('Data materi tidak ditemukan.');
+            if (!course) {
+                showToast('Data materi tidak ditemukan.', 'error', 'Gagal Menyimpan');
+                return;
+            }
 
             const title = course.title;
-            // Tetap mengarah ke sistem halaman_belajar.html
             const link = `halaman_belajar.html?course_id=${course.course_id}`;
-            const image = course.image || 'https://userkv.r2.mayar.id/landing-page/assets/nuqthah-kind-kingdom-2402/d50a2464_fdggdd.png';
+            const image = course.image || DEFAULT_IMG;
 
             if (currentUser && currentUser.id) {
                 try {
                     const { error } = await supabaseClient.from('saved_materials').insert({
                         user_id: currentUser.id,
                         course_id: courseId,
-                        title: title,
-                        link: link,
-                        image: image
+                        title, link, image
                     });
                     if (error && error.code !== '23505') {
                         console.warn('Penyimpanan DB dilewati, menggunakan LocalStorage.');
@@ -641,42 +929,57 @@
             }
 
             await loadSavedMaterials();
+            showToast('Materi berhasil disimpan ke daftar Anda.', 'success', 'Tersimpan');
             toggleDrawer();
         }
 
         async function removeFromMaterimu(recordId) {
             try {
                 const itemToRemove = savedItems.find(i => i.id === recordId);
+                if (!itemToRemove) return;
+
+                if (itemToRemove.purchased) {
+                    showToast('Materi yang sudah dibeli tidak dapat dihapus dari daftar.', 'warning', 'Tidak Dapat Dihapus');
+                    return;
+                }
 
                 if (currentUser && currentUser.id) {
                     try {
                         await supabaseClient.from('saved_materials').delete().eq('id', recordId).eq('user_id', currentUser.id);
-                    } catch (e) { console.warn("DB delete failed", e); }
+                    } catch (e) { console.warn('DB delete failed', e); }
                 }
 
-                if (itemToRemove) {
-                    const local = getLocalItems().filter(i => i.course_id !== itemToRemove.course_id);
-                    setLocalItems(local);
-                } else {
-                    const local = getLocalItems().filter(i => i.id !== recordId);
-                    setLocalItems(local);
-                }
+                const local = getLocalItems().filter(i => i.course_id !== itemToRemove.course_id);
+                setLocalItems(local);
 
                 await loadSavedMaterials();
-            } catch (err) { console.error('Remove error:', err); }
+                showToast('Materi dihapus dari daftar tersimpan.', 'info', 'Terhapus');
+            } catch (err) {
+                console.error('Remove error:', err);
+            }
         }
 
-        async function clearAllMaterials() {
-            if (!confirm('Kosongkan daftar materimu?')) return;
-            try {
-                if (currentUser && currentUser.id) {
+        function clearAllMaterials() {
+            showConfirmModal(
+                'Kosongkan Materi Tersimpan?',
+                'Materi yang Anda simpan manual akan dihapus dari daftar. Materi yang sudah dibeli tetap muncul karena merupakan bukti kepemilikan akses Anda.',
+                async () => {
                     try {
-                        await supabaseClient.from('saved_materials').delete().eq('user_id', currentUser.id);
-                    } catch (e) { console.warn("DB clear failed", e); }
-                }
-                setLocalItems([]);
-                await loadSavedMaterials();
-            } catch (err) { console.error('Clear error:', err); }
+                        if (currentUser && currentUser.id) {
+                            try {
+                                await supabaseClient.from('saved_materials').delete().eq('user_id', currentUser.id);
+                            } catch (e) { console.warn('DB clear failed', e); }
+                        }
+                        setLocalItems([]);
+                        await loadSavedMaterials();
+                        showToast('Materi tersimpan berhasil dikosongkan.', 'success', 'Berhasil');
+                    } catch (err) {
+                        console.error('Clear error:', err);
+                        showToast('Gagal mengosongkan daftar.', 'error', 'Terjadi Kesalahan');
+                    }
+                },
+                'Ya, Kosongkan'
+            );
         }
 
         async function saveManualMaterial() {
@@ -685,7 +988,11 @@
             const title = nameInput.value.trim();
             const link = linkInput.value.trim();
 
-            if (!title || !link) { alert('Nama dan Link harus diisi.'); return; }
+            if (!title || !link) {
+                showToast('Nama dan Link materi harus diisi.', 'warning', 'Data Belum Lengkap');
+                return;
+            }
+
             const courseId = 'manual-' + Date.now();
 
             if (currentUser && currentUser.id) {
@@ -693,29 +1000,38 @@
                     await supabaseClient.from('saved_materials').insert({
                         user_id: currentUser.id, course_id: courseId, title, link, image: null
                     });
-                } catch (e) { console.warn("DB save manual failed", e); }
+                } catch (e) { console.warn('DB save manual failed', e); }
             }
 
             const local = getLocalItems();
             local.unshift({ id: 'local-' + Date.now(), course_id: courseId, title, link, image: null });
             setLocalItems(local);
 
-            nameInput.value = ''; linkInput.value = '';
+            nameInput.value = '';
+            linkInput.value = '';
             toggleManualForm();
             await loadSavedMaterials();
+            showToast('Materi berhasil ditambahkan ke daftar.', 'success', 'Tersimpan');
         }
 
         async function updateMaterial(recordId, newTitle, newLink) {
-            if (currentUser && currentUser.id) {
-                try {
-                    await supabaseClient.from('saved_materials').update({ title: newTitle, link: newLink }).eq('id', recordId).eq('user_id', currentUser.id);
-                } catch (e) { console.warn("DB update failed", e); }
+            const item = savedItems.find(i => i.id === recordId);
+            if (item && item.purchased) {
+                showToast('Materi yang sudah dibeli tidak dapat diubah.', 'warning', 'Tidak Dapat Diubah');
+                return;
             }
 
-            const itemToUpdate = savedItems.find(i => i.id === recordId);
-            if (itemToUpdate) {
+            if (currentUser && currentUser.id) {
+                try {
+                    await supabaseClient.from('saved_materials')
+                        .update({ title: newTitle, link: newLink })
+                        .eq('id', recordId).eq('user_id', currentUser.id);
+                } catch (e) { console.warn('DB update failed', e); }
+            }
+
+            if (item) {
                 const local = getLocalItems();
-                const idx = local.findIndex(i => i.course_id === itemToUpdate.course_id);
+                const idx = local.findIndex(i => i.course_id === item.course_id);
                 if (idx > -1) {
                     local[idx].title = newTitle;
                     local[idx].link = newLink;
@@ -724,8 +1040,12 @@
             }
 
             await loadSavedMaterials();
+            showToast('Perubahan materi berhasil disimpan.', 'success', 'Diperbarui');
         }
 
+        // ================================================================
+        // RENDER MATERIMU UI
+        // ================================================================
         function updateMaterimuUI() {
             const drawerBadge = document.getElementById('materimu-badge');
             const drawerCountBadge = document.getElementById('drawer-count-badge');
@@ -733,41 +1053,66 @@
             const emptyState = document.getElementById('drawer-empty');
 
             const count = savedItems.length;
+            const purchasedCount = savedItems.filter(i => i.purchased).length;
+
             if (drawerBadge) drawerBadge.textContent = count;
-            if (drawerCountBadge) drawerCountBadge.textContent = count;
-
-            if (drawerContent) {
-                if (emptyState) emptyState.style.display = count > 0 ? 'none' : 'flex';
-                drawerContent.querySelectorAll('.saved-item').forEach(el => el.remove());
-
-                savedItems.forEach(item => {
-                    const itemDiv = document.createElement('div');
-                    itemDiv.className = 'saved-item bg-white border border-gray-100 rounded-xl p-3 flex gap-3 shadow-sm fade-in relative overflow-hidden';
-                    const thumbSrc = item.image || 'https://userkv.r2.mayar.id/landing-page/assets/nuqthah-kind-kingdom-2402/d50a2464_fdggdd.png';
-                    const targetLink = item.link && item.link !== '#' ? item.link : `halaman_belajar.html?course_id=${item.course_id}`;
-                    const safeTitle = String(item.title).replace(/'/g, "\\'");
-                    const safeLink = String(targetLink).replace(/'/g, "\\'");
-
-                    itemDiv.innerHTML = `
-                        <div class="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-gray-50">
-                            <img src="${thumbSrc}" class="w-full h-full object-cover" alt="${item.title}">
-                        </div>
-                        <div class="flex-grow flex flex-col justify-between py-0.5 relative">
-                            <h4 class="text-[11px] font-bold text-gray-800 line-clamp-2 leading-tight pr-12">${item.title}</h4>
-                            <div class="flex items-center gap-2 mt-2">
-                                <button onclick="window.location.href='${safeLink}'" class="px-2 py-1 bg-primary text-white text-[10px] font-bold rounded flex-grow cursor-pointer hover:bg-opacity-90">LANJUT BELAJAR</button>
-                                <button onclick="openEditModal('${item.id}', '${safeTitle}', '${safeLink}')" class="w-6 h-6 text-blue-500 flex items-center justify-center transition-colors hover:text-blue-700 cursor-pointer"><i class="fas fa-pen"></i></button>
-                                <button onclick="removeFromMaterimu('${item.id}')" class="w-6 h-6 text-red-500 flex items-center justify-center transition-colors hover:text-red-700 cursor-pointer"><i class="far fa-trash-can"></i></button>
-                            </div>
-                        </div>
-                    `;
-                    drawerContent.appendChild(itemDiv);
-                });
+            if (drawerCountBadge) {
+                drawerCountBadge.textContent = purchasedCount > 0
+                    ? `${purchasedCount} Terbuka`
+                    : count;
             }
+
+            if (!drawerContent) return;
+
+            if (emptyState) emptyState.style.display = count > 0 ? 'none' : 'flex';
+            drawerContent.querySelectorAll('.saved-item').forEach(el => el.remove());
+
+            savedItems.forEach(item => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = `saved-item bg-white border rounded-xl p-3 flex gap-3 shadow-sm fade-in relative overflow-hidden ${item.purchased ? 'purchased-item' : 'border-gray-100'}`;
+
+                const thumbSrc = item.image || DEFAULT_IMG;
+                const targetLink = item.link && item.link !== '#' ? item.link : `halaman_belajar.html?course_id=${item.course_id}`;
+                const safeTitle = String(item.title).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                const safeLink = String(targetLink).replace(/'/g, "\\'");
+                const safeId = String(item.id).replace(/'/g, "\\'");
+
+                const badgeHtml = item.purchased
+                    ? `<span class="inline-flex items-center gap-1 text-[8px] bg-emerald-500 text-white px-1.5 py-0.5 rounded font-bold uppercase tracking-wider"><i class="fas fa-check text-[7px]"></i> Terbuka</span>`
+                    : '';
+
+                const actionButtons = item.purchased
+                    ? `<button onclick="window.location.href='${safeLink}'" class="px-2 py-1 bg-primary text-white text-[10px] font-bold rounded flex-grow cursor-pointer hover:bg-opacity-90">LANJUT BELAJAR</button>`
+                    : `<button onclick="window.location.href='${safeLink}'" class="px-2 py-1 bg-primary text-white text-[10px] font-bold rounded flex-grow cursor-pointer hover:bg-opacity-90">LANJUT BELAJAR</button>
+                       <button onclick="openEditModal('${safeId}', '${safeTitle}', '${safeLink}')" class="w-6 h-6 text-blue-500 flex items-center justify-center transition-colors hover:text-blue-700 cursor-pointer"><i class="fas fa-pen text-[11px]"></i></button>
+                       <button onclick="removeFromMaterimu('${safeId}')" class="w-6 h-6 text-red-500 flex items-center justify-center transition-colors hover:text-red-700 cursor-pointer"><i class="far fa-trash-can text-[11px]"></i></button>`;
+
+                itemDiv.innerHTML = `
+                    <div class="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-gray-50 relative">
+                        <img src="${thumbSrc}" class="w-full h-full object-cover" alt="${safeTitle}">
+                        ${item.purchased ? '<div class="absolute -top-1 -right-1 w-5 h-5 bg-emerald-500 text-white rounded-full flex items-center justify-center shadow-md border-2 border-white"><i class="fas fa-check text-[8px]"></i></div>' : ''}
+                    </div>
+                    <div class="flex-grow flex flex-col justify-between py-0.5 min-w-0">
+                        <div>
+                            <div class="flex items-center gap-1 mb-0.5">${badgeHtml}</div>
+                            <h4 class="text-[11px] font-bold text-gray-800 line-clamp-2 leading-tight">${safeTitle}</h4>
+                        </div>
+                        <div class="flex items-center gap-2 mt-2">
+                            ${actionButtons}
+                        </div>
+                    </div>
+                `;
+                drawerContent.appendChild(itemDiv);
+            });
         }
 
         let editRecordId = null;
         function openEditModal(recordId, title, link) {
+            const item = savedItems.find(i => i.id === recordId);
+            if (item && item.purchased) {
+                showToast('Materi yang sudah dibeli tidak dapat diubah.', 'warning', 'Tidak Dapat Diubah');
+                return;
+            }
             editRecordId = recordId;
             document.getElementById('edit-name').value = title;
             document.getElementById('edit-link').value = link;
@@ -782,7 +1127,10 @@
         async function saveEdit() {
             const newTitle = document.getElementById('edit-name').value.trim();
             const newLink = document.getElementById('edit-link').value.trim();
-            if (!newTitle || !newLink) { alert('Nama dan Link harus diisi.'); return; }
+            if (!newTitle || !newLink) {
+                showToast('Nama dan Link materi harus diisi.', 'warning', 'Data Belum Lengkap');
+                return;
+            }
             if (editRecordId) {
                 await updateMaterial(editRecordId, newTitle, newLink);
                 closeEditModal();
@@ -823,7 +1171,8 @@
                 cardDiv.setAttribute('data-mode', course.mode || 'Online');
                 cardDiv.style.display = 'none';
 
-                // Detail informasi lengkap seperti di coba materi.html
+                const isPurchased = purchasedCourseIds.has(course.course_id);
+
                 let meetingHtml = course.meetings ? `<div class="flex items-center"><i class="fa-solid fa-plus-minus mr-2 text-primary w-3 text-center"></i><span>${course.meetings}</span></div>` : '';
                 let facilityHtml = course.facility ? `<div class="flex items-center"><i class="fas fa-book-open mr-2 text-primary w-3 text-center"></i><span>${course.facility}</span></div>` : '';
                 let quotaHtml = course.quota ? `<div class="flex items-center"><i class="fas fa-users mr-2 text-primary w-3 text-center"></i><span>${course.quota}</span></div>` : '';
@@ -841,25 +1190,28 @@
                     priceHtml = `<span class="text-primary font-bold text-sm">Hubungi Admin</span>`;
                 }
 
+                // Badge untuk yang sudah dibeli
+                const purchasedRibbon = isPurchased
+                    ? `<div class="absolute top-2 left-2 z-20 bg-emerald-500 text-white px-2 py-0.5 rounded-full text-[10px] font-bold shadow-sm uppercase flex items-center gap-1"><i class="fas fa-check text-[8px]"></i> Terbuka</div>`
+                    : `<div class="absolute top-2 left-2 z-20 bg-white/90 backdrop-blur-sm text-primary px-2 py-0.5 rounded-full text-[10px] font-bold shadow-sm uppercase">${course.mode || 'Online'}</div>`;
+
                 cardDiv.innerHTML = `
                     <div class="relative overflow-hidden group aspect-[4/3]">
-                        <img src="${course.image || 'https://userkv.r2.mayar.id/landing-page/assets/nuqthah-kind-kingdom-2402/d50a2464_fdggdd.png'}"
-                            alt="${course.title}"
+                        <img src="${course.image || DEFAULT_IMG}"
+                            alt="${escapeHtml(course.title)}"
                             class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105">
-                        <div class="absolute top-2 left-2 z-20 bg-white/90 backdrop-blur-sm text-primary px-2 py-0.5 rounded-full text-[10px] font-bold shadow-sm uppercase">
-                            ${course.mode || 'Online'}
-                        </div>
+                        ${purchasedRibbon}
                         <button onclick="saveToMaterimu('${course.course_id}')" title="Simpan ke Materimu"
                             class="absolute top-2 right-2 z-20 w-8 h-8 bg-white text-primary rounded-md flex items-center justify-center shadow-md hover:bg-gray-100 transition-colors font-bold text-lg cursor-pointer">
                             <i class="fas fa-plus"></i>
                         </button>
                     </div>
                     <div class="p-4 flex flex-col flex-grow">
-                        <h3 class="text-sm font-bold text-gray-800 leading-tight mb-2 card-title-min-h">${course.title}</h3>
+                        <h3 class="text-sm font-bold text-gray-800 leading-tight mb-2 card-title-min-h">${escapeHtml(course.title)}</h3>
                         <div class="flex flex-col gap-0.5 mb-3 text-[10px] text-gray-600">
-                            <div class="flex items-center"><i class="fas fa-user-tie mr-2 text-accent w-3 text-center"></i><strong>${course.instructor || 'Pengajar Nuqthah'}</strong></div>
+                            <div class="flex items-center"><i class="fas fa-user-tie mr-2 text-accent w-3 text-center"></i><strong>${escapeHtml(course.instructor || 'Pengajar Nuqthah')}</strong></div>
                             ${meetingHtml}
-                            <div class="flex items-center"><i class="fas fa-laptop mr-2 text-primary w-3 text-center"></i><span>${course.class_type || 'E-LEARNING'}</span></div>
+                            <div class="flex items-center"><i class="fas fa-laptop mr-2 text-primary w-3 text-center"></i><span>${escapeHtml(course.class_type || 'E-LEARNING')}</span></div>
                             ${facilityHtml}
                             ${quotaHtml}
                         </div>
@@ -867,10 +1219,9 @@
                             <div class="flex flex-col mb-2">
                                 ${priceHtml}
                             </div>
-                            <!-- Tetap mengarah ke halaman_belajar.html sesuai sistem yang sudah berjalan -->
                             <a href="halaman_belajar.html?course_id=${course.course_id}"
                                 class="w-full py-2 bg-primary hover:bg-opacity-90 text-white text-[11px] font-bold rounded-lg transition-all flex items-center justify-center gap-1 cursor-pointer">
-                                Mulai Belajar &amp; Preview <i class="fas fa-arrow-right text-[8px]"></i>
+                                ${isPurchased ? 'Lanjut Belajar' : 'Mulai Belajar & Preview'} <i class="fas fa-arrow-right text-[8px]"></i>
                             </a>
                         </div>
                     </div>
@@ -882,7 +1233,7 @@
         }
 
         // ================================================================
-        // NAVIGATION & FILTER SYSTEM
+        // NAVIGATION & FILTER
         // ================================================================
         const PROGRAMS = {
             syariah: { label: 'Bimbel Syariah', subs: ['Tingkat 1', 'Tingkat 2', 'Tingkat 3'] },
@@ -990,12 +1341,32 @@
         // ================================================================
         document.addEventListener('DOMContentLoaded', async () => {
             const overlay = document.getElementById('page-loading-overlay');
+
             await checkSession();
             await loadSavedMaterials();
             await fetchDynamicCourses();
 
             renderSubFilters();
             renderOnlineOfflineFilter();
+            updateAuthUI(); // Render status login di pojok kanan atas
+
+            // Selamat datang kembali (Hanya Muncul Sekali Per Sesi Login)
+            if (isLoggedIn && currentUser) {
+                if (!sessionStorage.getItem('nuqthah_welcome_shown')) {
+                    const purchasedTotal = savedItems.filter(i => i.purchased).length;
+                    if (purchasedTotal > 0) {
+                        setTimeout(() => {
+                            showToast(
+                                `Anda memiliki ${purchasedTotal} materi dengan akses penuh. Buka menu "Materimu" untuk langsung melanjutkan belajar.`,
+                                'success', `Selamat datang, ${currentUser.name || 'Siswa'}!`
+                            );
+                        }, 800);
+                    }
+                    sessionStorage.setItem('nuqthah_welcome_shown', 'true');
+                }
+            } else {
+                sessionStorage.removeItem('nuqthah_welcome_shown');
+            }
 
             if (overlay) {
                 overlay.classList.add('hidden');

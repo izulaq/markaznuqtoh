@@ -25,7 +25,7 @@
         }
     </script>
     <style>
-        /* Kontainer Video Responsif 16:9 & Fullscreen Friendly */
+        /* ============ VIDEO PLAYER ============ */
         .nuqthah-player-wrapper {
             position: relative;
             width: 100%;
@@ -37,7 +37,6 @@
             -webkit-user-select: none;
         }
 
-        /* Native Fullscreen Desktop & Android */
         .nuqthah-player-wrapper:fullscreen,
         .nuqthah-player-wrapper:-webkit-full-screen {
             border-radius: 0 !important;
@@ -47,7 +46,6 @@
             aspect-ratio: auto !important;
         }
 
-        /* Fallback Pseudo-Fullscreen untuk iOS Safari / Mobile Browser */
         .nuqthah-player-wrapper.is-pseudo-fullscreen {
             position: fixed !important;
             inset: 0 !important;
@@ -59,14 +57,12 @@
             background-color: #000 !important;
         }
 
-        /* IFrame YouTube hanya sebagai mesin render visual */
         .video-iframe-layer {
             position: absolute;
             inset: 0;
             width: 100%;
             height: 100%;
             pointer-events: none;
-            /* Mencegah klik langsung ke tautan YouTube */
         }
 
         .video-iframe-layer iframe {
@@ -75,7 +71,6 @@
             border: 0;
         }
 
-        /* Kustomisasi Slider Timeline & Volume */
         .custom-range {
             -webkit-appearance: none;
             appearance: none;
@@ -119,7 +114,6 @@
             transition: transform 0.15s ease;
         }
 
-        /* Transisi Auto-Hide Controls */
         .player-controls-bar {
             transition: opacity 0.3s ease, transform 0.3s ease;
         }
@@ -133,10 +127,79 @@
         .controls-hidden {
             cursor: none;
         }
+
+        /* ============ TOAST ============ */
+        .toast-item {
+            animation: toastIn .35s cubic-bezier(.21, 1.02, .73, 1) forwards;
+        }
+
+        .toast-item.leaving {
+            animation: toastOut .28s ease forwards;
+        }
+
+        @keyframes toastIn {
+            from {
+                opacity: 0;
+                transform: translateY(-14px) scale(.97);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        @keyframes toastOut {
+            from {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+
+            to {
+                opacity: 0;
+                transform: translateY(-10px) scale(.97);
+            }
+        }
+
+        .toast-progress {
+            animation: toastProgress 4.5s linear forwards;
+        }
+
+        @keyframes toastProgress {
+            from {
+                width: 100%;
+            }
+
+            to {
+                width: 0%;
+            }
+        }
+
+        /* ============ MODAL ANIMATION ============ */
+        .modal-fade {
+            animation: modalFade .25s ease-out forwards;
+        }
+
+        @keyframes modalFade {
+            from {
+                opacity: 0;
+                transform: scale(.96) translateY(8px);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
     </style>
 </head>
 
 <body class="bg-gray-50 text-gray-900 font-sans">
+
+    <!-- ================= TOAST CONTAINER ================= -->
+    <div id="toast-container" aria-live="polite"
+        class="fixed top-3 right-3 left-3 sm:left-auto sm:right-5 z-[999999] flex flex-col items-end gap-2.5 pointer-events-none">
+    </div>
 
     <!-- Top Navigation -->
     <nav class="bg-primary text-white px-4 sm:px-6 py-3 flex flex-wrap justify-between items-center gap-2 shadow-md">
@@ -145,13 +208,11 @@
         </a>
 
         <div class="flex items-center gap-2">
-            <!-- Tombol Masuk OTP (Muncul jika belum login) -->
             <button id="nav-login-btn" onclick="openOtpModal()"
                 class="hidden text-[11px] sm:text-xs bg-accent hover:bg-opacity-90 text-white px-3 py-1.5 rounded-full font-bold transition shadow-sm">
                 <i class="fas fa-sign-in-alt mr-1"></i> Masuk Akun
             </button>
 
-            <!-- Info Akun Aktif & Tombol Keluar (Muncul jika sudah login) -->
             <div id="user-account-badge"
                 class="hidden items-center gap-2 text-[11px] sm:text-xs bg-white/10 px-3 py-1.5 rounded-full font-semibold border border-white/15">
                 <i class="fas fa-user-check text-emerald-300"></i>
@@ -162,7 +223,6 @@
                 </button>
             </div>
 
-            <!-- Badge Status Akses Materi -->
             <div id="user-status-badge"
                 class="text-[11px] sm:text-xs bg-white/10 px-3 py-1.5 rounded-full font-semibold">
                 Memuat Status Akses...
@@ -173,10 +233,10 @@
     <!-- Main Container -->
     <main class="max-w-6xl mx-auto p-3 sm:p-4 md:p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        <!-- Kolom Kiri: Pemutar Video Custom & Informasi Pengajar -->
+        <!-- Kolom Kiri -->
         <div class="lg:col-span-2 space-y-6">
 
-            <!-- Judul Modul Sesi yang Diputar (Dari Admin) -->
+            <!-- Judul Modul Sesi -->
             <div
                 class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between gap-2">
                 <div class="min-w-0">
@@ -191,38 +251,32 @@
                 </div>
             </div>
 
-            <!-- ================= CUSTOM VIDEO PLAYER NUQTHAH LEARNING ================= -->
+            <!-- CUSTOM VIDEO PLAYER -->
             <div id="nuqthah-player-container" class="nuqthah-player-wrapper shadow-lg group">
 
-                <!-- Layer 1: YouTube IFrame Render -->
                 <div class="video-iframe-layer">
                     <div id="youtube-player"></div>
                 </div>
 
-                <!-- Layer 2: Watermark Identitas Nuqthah -->
                 <div
                     class="absolute top-3 left-3 sm:top-4 sm:left-4 z-20 bg-black/60 backdrop-blur-md px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full text-white text-[10px] sm:text-xs font-bold border border-white/10 pointer-events-none flex items-center gap-1.5">
                     <span class="w-2 h-2 rounded-full bg-emerald-400"></span> Nuqthah Learning
                 </div>
 
-                <!-- Layer 3: Area Interaksi Layar (Klik untuk Play/Pause & Double Click Fullscreen) -->
                 <div id="video-click-area"
                     class="absolute inset-0 z-10 flex items-center justify-center cursor-pointer">
 
-                    <!-- Indikator Loading / Buffering -->
                     <div id="player-loader"
                         class="hidden flex-col items-center gap-2 bg-black/60 p-4 rounded-2xl backdrop-blur-sm">
                         <i class="fas fa-circle-notch fa-spin text-white text-2xl sm:text-3xl"></i>
                         <span class="text-white text-xs font-semibold">Memuat Video...</span>
                     </div>
 
-                    <!-- Tombol Play Besar di Tengah (Muncul Saat Dijeda / Awal) -->
                     <button id="center-play-btn" type="button" aria-label="Putar Video"
                         class="w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-full bg-primary/95 text-white flex items-center justify-center shadow-2xl border-2 border-white/20 transform transition duration-200 hover:scale-110">
                         <i class="fas fa-play text-xl sm:text-2xl md:text-3xl ml-1"></i>
                     </button>
 
-                    <!-- Pesan Error Video -->
                     <div id="player-error"
                         class="hidden flex-col items-center justify-center text-center p-6 bg-black/90 inset-0 absolute z-30">
                         <i class="fas fa-exclamation-triangle text-amber-400 text-3xl sm:text-4xl mb-3"></i>
@@ -236,42 +290,34 @@
                     </div>
                 </div>
 
-                <!-- Layer 4: Custom Control Toolbar Bawah (Responsif Penuh di Mobile & Desktop) -->
                 <div id="player-controls"
                     class="player-controls-bar absolute bottom-0 left-0 right-0 z-20 bg-gradient-to-t from-black/95 via-black/80 to-transparent pt-6 pb-2 sm:pb-3 px-2 sm:px-4 flex flex-col gap-1.5 sm:gap-2.5">
 
-                    <!-- Progress Bar / Timeline -->
                     <div class="w-full flex items-center">
                         <input id="progress-slider" type="range" min="0" max="100" step="0.1" value="0"
                             aria-label="Timeline Video" class="custom-range w-full"
                             style="background: linear-gradient(to right, #234B36 0%, rgba(255,255,255,0.25) 0%);">
                     </div>
 
-                    <!-- Baris Tombol Kontrol Responsif -->
                     <div class="flex items-center justify-between text-white w-full gap-1 sm:gap-2">
 
-                        <!-- Kiri: Play/Pause, Skip -10s/+10s, Volume, Timestamp -->
                         <div class="flex items-center gap-0.5 sm:gap-2 min-w-0 flex-1 overflow-hidden">
 
-                            <!-- Play / Pause -->
                             <button id="btn-play-pause" type="button" title="Putar / Jeda (Spasi)"
                                 class="w-7 h-7 sm:w-9 sm:h-9 shrink-0 rounded-lg hover:bg-white/15 active:bg-white/25 flex items-center justify-center transition">
                                 <i id="icon-play-pause" class="fas fa-play text-xs sm:text-sm"></i>
                             </button>
 
-                            <!-- Mundur 10 Detik -->
                             <button id="btn-skip-back" type="button" title="Mundur 10 Detik (Panah Kiri)"
                                 class="px-1.5 h-7 sm:w-9 sm:h-9 shrink-0 rounded-lg hover:bg-white/15 active:bg-white/25 flex items-center justify-center transition text-[10px] sm:text-xs font-bold">
                                 <i class="fas fa-undo-alt mr-0.5"></i>10
                             </button>
 
-                            <!-- Maju 10 Detik -->
                             <button id="btn-skip-forward" type="button" title="Maju 10 Detik (Panah Kanan)"
                                 class="px-1.5 h-7 sm:w-9 sm:h-9 shrink-0 rounded-lg hover:bg-white/15 active:bg-white/25 flex items-center justify-center transition text-[10px] sm:text-xs font-bold">
                                 10<i class="fas fa-redo-alt ml-0.5"></i>
                             </button>
 
-                            <!-- Kontrol Volume (Slider tampil di layar >= 640px agar di HP tidak mendorong tombol Fullscreen) -->
                             <div class="flex items-center gap-1 sm:gap-1.5 shrink-0">
                                 <button id="btn-mute" type="button" title="Suara / Bisu (M)"
                                     class="w-7 h-7 sm:w-9 sm:h-9 shrink-0 rounded-lg hover:bg-white/15 active:bg-white/25 flex items-center justify-center transition">
@@ -282,17 +328,14 @@
                                     style="background: linear-gradient(to right, #234B36 100%, rgba(255,255,255,0.25) 100%);">
                             </div>
 
-                            <!-- Timestamp -->
                             <div class="text-[10px] sm:text-xs font-mono text-gray-200 ml-0.5 sm:ml-1 truncate">
                                 <span id="time-current">00:00</span> <span class="text-gray-400">/</span> <span
                                     id="time-duration">00:00</span>
                             </div>
                         </div>
 
-                        <!-- Kanan: Kecepatan Putar, Rotate & Fullscreen (Selalu Terlihat di Semua Layar) -->
                         <div class="flex items-center gap-1 sm:gap-2 shrink-0 ml-1">
 
-                            <!-- Playback Speed -->
                             <select id="speed-select" aria-label="Kecepatan Putar" title="Kecepatan Putar"
                                 class="bg-primary hover:bg-primary/90 text-white text-[10px] sm:text-xs font-bold h-7 sm:h-8 px-1.5 sm:px-2.5 rounded-lg border border-white/20 focus:outline-none cursor-pointer">
                                 <option value="0.5">0.5×</option>
@@ -304,25 +347,21 @@
                                 <option value="2">2×</option>
                             </select>
 
-                            <!-- Tombol Rotate Landscape -->
                             <button id="btn-rotate" type="button" title="Putar Layar Lanskap" aria-label="Putar Layar"
                                 class="w-7 h-7 sm:w-9 sm:h-9 shrink-0 rounded-lg bg-white/10 hover:bg-white/20 active:bg-white/30 flex items-center justify-center transition border border-white/20">
                                 <i class="fas fa-mobile-alt fa-rotate-90 text-xs sm:text-sm"></i>
                             </button>
 
-                            <!-- Fullscreen Button -->
                             <button id="btn-fullscreen" type="button" title="Layar Penuh (F)" aria-label="Layar Penuh"
                                 class="w-7 h-7 sm:w-9 sm:h-9 shrink-0 rounded-lg bg-white/10 hover:bg-white/20 active:bg-white/30 flex items-center justify-center transition border border-white/20">
                                 <i id="icon-fullscreen" class="fas fa-expand text-xs sm:text-sm"></i>
                             </button>
                         </div>
-
                     </div>
                 </div>
             </div>
-            <!-- ================= END CUSTOM VIDEO PLAYER ================= -->
 
-            <!-- Detail Materi & Profil Pengajar -->
+            <!-- Detail Materi & Pengajar -->
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
                 <div>
                     <span id="course-category-badge"
@@ -348,7 +387,35 @@
                 </div>
             </div>
 
-            <!-- PAYWALL CONTAINER -->
+            <!-- ================= LATIHAN SOAL SECTION ================= -->
+            <div id="practice-section" class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+                <div class="flex items-center justify-between gap-2">
+                    <div class="flex items-center gap-3">
+                        <div
+                            class="w-10 h-10 rounded-xl bg-accent/10 text-accent flex items-center justify-center shrink-0">
+                            <i class="fas fa-brain"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <h3 class="font-bold text-gray-800 text-base leading-tight">Latihan Soal</h3>
+                            <p class="text-xs text-gray-500">Uji pemahaman Anda dengan soal interaktif</p>
+                        </div>
+                    </div>
+                    <span id="quiz-count-badge"
+                        class="text-[10px] bg-gray-100 text-gray-500 px-3 py-1 rounded-full font-bold uppercase tracking-wider shrink-0">
+                        Memuat...
+                    </span>
+                </div>
+
+                <div id="practice-content">
+                    <!-- Rendered via JS -->
+                    <div class="text-center py-6 text-gray-400">
+                        <i class="fas fa-circle-notch fa-spin text-2xl mb-2 opacity-50"></i>
+                        <p class="text-xs">Memuat soal latihan...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PAYWALL -->
             <div id="paywall-container"
                 class="hidden bg-gradient-to-br from-primary/10 to-accent/10 border border-primary/20 p-6 rounded-2xl text-center space-y-4 shadow-sm">
                 <div
@@ -358,7 +425,7 @@
                 <h3 class="text-xl font-bold text-primary">Materi Ini Terkunci</h3>
                 <p id="paywall-desc" class="text-sm text-gray-600 max-w-md mx-auto">
                     Anda sedang berada di mode Free Trial. Daftarkan akun dan selesaikan pembayaran untuk membuka
-                    seluruh video sesi, penjelasan mendalam, dan bank soal latihan secara penuh.
+                    seluruh video sesi, penjelasan mendalam, dan latihan soal interaktif secara penuh.
                 </p>
                 <div class="flex flex-col sm:flex-row items-center justify-center gap-3 pt-1">
                     <button onclick="openCheckoutModal()"
@@ -373,7 +440,7 @@
             </div>
         </div>
 
-        <!-- Kolom Kanan: Daftar Modul Sesi Video & Navigasi -->
+        <!-- Kolom Kanan: Daftar Modul -->
         <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4 h-fit">
             <h3 class="font-bold text-gray-800 text-base border-b pb-3 flex items-center gap-2">
                 <i class="fas fa-list text-primary"></i> Daftar Sesi Pembelajaran
@@ -384,40 +451,44 @@
         </div>
     </main>
 
-    <!-- ================= MODAL 1: FORM PENDAFTARAN AKUN & PEMBAYARAN ================= -->
+    <!-- ================= MODAL 1: CHECKOUT ================= -->
     <div id="checkout-modal"
         class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 hidden"
         style="z-index: 99995;">
-        <div class="bg-white w-full max-w-md rounded-2xl p-6 space-y-5 shadow-2xl relative">
+        <div
+            class="modal-fade bg-white w-full max-w-md rounded-2xl p-6 space-y-5 shadow-2xl relative max-h-[92vh] overflow-y-auto">
             <div class="flex items-center justify-between border-b pb-3">
                 <div>
-                    <h3 class="font-bold text-primary text-lg">Daftar Akun & Buka Akses</h3>
-                    <p class="text-xs text-gray-500">Akun ini digunakan untuk mengakses materi di semua perangkat Anda.
-                    </p>
+                    <h3 class="font-bold text-primary text-lg">Daftar Akun &amp; Buka Akses</h3>
+                    <p class="text-xs text-gray-500 mt-0.5">Akun ini digunakan untuk mengakses materi di semua
+                        perangkat Anda.</p>
                 </div>
                 <button onclick="closeCheckoutModal()"
-                    class="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-500">
+                    class="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-500 shrink-0">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
 
             <form id="checkout-form" onsubmit="handleCheckoutFormSubmit(event)" class="space-y-4">
                 <div>
-                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Alamat Email Aktif</label>
+                    <label class="block text-[10px] font-bold text-gray-700 uppercase mb-1 tracking-wider">Alamat
+                        Email Aktif</label>
                     <input type="email" id="reg-email" required placeholder="contoh@email.com"
                         class="w-full border border-gray-200 p-3 rounded-xl text-sm focus:outline-none focus:border-primary">
-                    <span class="text-[10px] text-gray-400 mt-0.5 block">Kode OTP akan dikirimkan ke email ini saat Anda
+                    <span class="text-[10px] text-gray-400 mt-1 block">Kode OTP akan dikirimkan ke email ini saat Anda
                         login di perangkat lain.</span>
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Nama Lengkap</label>
+                    <label class="block text-[10px] font-bold text-gray-700 uppercase mb-1 tracking-wider">Nama
+                        Lengkap</label>
                     <input type="text" id="reg-name" required placeholder="Masukkan nama lengkap Anda"
                         class="w-full border border-gray-200 p-3 rounded-xl text-sm focus:outline-none focus:border-primary">
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Nomor WhatsApp</label>
+                    <label class="block text-[10px] font-bold text-gray-700 uppercase mb-1 tracking-wider">Nomor
+                        WhatsApp</label>
                     <input type="tel" id="reg-whatsapp" required placeholder="cth: 081234567890"
                         class="w-full border border-gray-200 p-3 rounded-xl text-sm focus:outline-none focus:border-primary">
                 </div>
@@ -428,8 +499,8 @@
                 </div>
 
                 <button type="submit" id="btn-submit-checkout"
-                    class="w-full bg-accent text-white font-bold py-3.5 rounded-xl text-sm shadow-md hover:bg-opacity-90 transition flex items-center justify-center gap-2">
-                    <i class="fas fa-credit-card"></i> Bayar Sekarang & Buka Materi
+                    class="w-full bg-accent text-white font-bold py-3.5 rounded-xl text-sm shadow-md hover:bg-opacity-90 transition flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed">
+                    <i class="fas fa-credit-card"></i> Bayar Sekarang &amp; Buka Materi
                 </button>
             </form>
 
@@ -437,54 +508,55 @@
                 <p class="text-xs text-gray-500">Sudah pernah mendaftar dan membayar sebelumnya?</p>
                 <button type="button" onclick="switchCheckoutToOtp()"
                     class="text-xs font-bold text-primary underline mt-1 hover:opacity-80">
-                    Masuk Menggunakan Email & Kode OTP
+                    Masuk Menggunakan Email &amp; Kode OTP
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- ================= MODAL 2: LOGIN LINTAS PERANGKAT DENGAN KODE OTP ================= -->
+    <!-- ================= MODAL 2: OTP ================= -->
     <div id="otp-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 hidden"
         style="z-index: 99996;">
-        <div class="bg-white w-full max-w-md rounded-2xl p-6 space-y-5 shadow-2xl relative">
+        <div
+            class="modal-fade bg-white w-full max-w-md rounded-2xl p-6 space-y-5 shadow-2xl relative max-h-[92vh] overflow-y-auto">
             <div class="flex items-center justify-between border-b pb-3">
                 <div>
                     <h3 class="font-bold text-primary text-lg">Masuk ke Akun Belajar</h3>
-                    <p class="text-xs text-gray-500">Gunakan email yang Anda pakai saat pendaftaran materi.</p>
+                    <p class="text-xs text-gray-500 mt-0.5">Gunakan email yang Anda pakai saat pendaftaran materi.</p>
                 </div>
                 <button onclick="closeOtpModal()"
-                    class="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-500">
+                    class="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-500 shrink-0">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
 
-            <!-- Langkah 1: Input Email untuk Meminta OTP -->
             <div id="otp-step-email" class="space-y-4">
                 <div>
-                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Email Terdaftar</label>
+                    <label class="block text-[10px] font-bold text-gray-700 uppercase mb-1 tracking-wider">Email
+                        Terdaftar</label>
                     <input type="email" id="otp-email-input" placeholder="Masukkan email pendaftaran Anda"
                         class="w-full border border-gray-200 p-3 rounded-xl text-sm focus:outline-none focus:border-primary">
                 </div>
                 <button type="button" id="btn-request-otp" onclick="requestOtpCode()"
-                    class="w-full bg-primary text-white font-bold py-3 rounded-xl text-sm hover:bg-opacity-90 transition">
+                    class="w-full bg-primary text-white font-bold py-3 rounded-xl text-sm hover:bg-opacity-90 transition disabled:opacity-60 disabled:cursor-not-allowed">
                     Minta Kode OTP
                 </button>
             </div>
 
-            <!-- Langkah 2: Input 6 Digit Kode OTP -->
             <div id="otp-step-verify" class="space-y-4 hidden">
                 <div class="bg-amber-50 border border-amber-200 p-3 rounded-xl text-xs text-amber-800">
                     Kode OTP 6 digit telah dikirimkan ke <strong id="otp-target-email-label">-</strong>.
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1 text-center">Masukkan 6 Digit
-                        Kode OTP</label>
-                    <input type="text" id="otp-code-input" maxlength="6" placeholder="••••••"
+                    <label
+                        class="block text-[10px] font-bold text-gray-700 uppercase mb-1 text-center tracking-wider">Masukkan
+                        6 Digit Kode OTP</label>
+                    <input type="text" id="otp-code-input" maxlength="6" placeholder="••••••" inputmode="numeric"
                         class="w-full border border-gray-200 p-3 rounded-xl text-center tracking-[0.5em] font-bold text-lg focus:outline-none focus:border-primary">
                 </div>
                 <button type="button" id="btn-verify-otp" onclick="verifyOtpCode()"
-                    class="w-full bg-accent text-white font-bold py-3 rounded-xl text-sm hover:bg-opacity-90 transition shadow-md">
-                    Verifikasi & Buka Akses Materi
+                    class="w-full bg-accent text-white font-bold py-3 rounded-xl text-sm hover:bg-opacity-90 transition shadow-md disabled:opacity-60 disabled:cursor-not-allowed">
+                    Verifikasi &amp; Buka Akses Materi
                 </button>
                 <button type="button" onclick="resetOtpModalSteps()"
                     class="w-full text-xs text-gray-500 underline hover:text-gray-700 text-center block">
@@ -496,16 +568,16 @@
                 <p class="text-xs text-gray-500">Belum punya akun atau belum membeli materi ini?</p>
                 <button type="button" onclick="switchOtpToCheckout()"
                     class="text-xs font-bold text-accent underline mt-1 hover:opacity-80">
-                    Daftar & Buka Akses Penuh Sekarang
+                    Daftar &amp; Buka Akses Penuh Sekarang
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- MODAL KUIS INTERAKTIF -->
+    <!-- ================= MODAL 3: QUIZ TENGAH VIDEO (stop_time) ================= -->
     <div id="quiz-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 hidden"
         style="z-index: 99999;">
-        <div class="bg-white w-full max-w-lg rounded-2xl p-6 space-y-4 shadow-2xl">
+        <div class="modal-fade bg-white w-full max-w-lg rounded-2xl p-6 space-y-4 shadow-2xl">
             <div class="flex items-center justify-between border-b pb-2">
                 <h3 class="font-bold text-primary text-base"><i class="fas fa-brain mr-2"></i>Kuis Pemahaman Materi</h3>
                 <span class="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-bold">Wajib Dijawab</span>
@@ -523,17 +595,114 @@
         </div>
     </div>
 
+    <!-- ================= MODAL 4: LATIHAN SOAL LENGKAP (REDESIGN) ================= -->
+    <div id="practice-quiz-modal"
+        class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 hidden"
+        style="z-index: 999997;">
+
+        <!-- Modal Container -->
+        <div
+            class="modal-fade bg-white w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden">
+
+            <!-- Header -->
+            <div class="bg-primary text-white p-4 sm:p-5 flex items-center justify-between shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
+                        <i class="fas fa-brain text-sm"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-sm sm:text-base leading-tight">Latihan Soal Interaktif</h3>
+                        <p class="text-[10px] sm:text-xs text-primary-200">Uji pemahaman materi Anda</p>
+                    </div>
+                </div>
+                <button onclick="closePracticeQuiz()"
+                    class="w-8 h-8 rounded-full hover:bg-white/20 flex items-center justify-center transition">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="bg-gray-50 px-4 sm:px-6 py-3 border-b shrink-0">
+                <div class="w-full bg-gray-200 h-2.5 rounded-full overflow-hidden">
+                    <div id="pq-progress" class="bg-primary h-full transition-all duration-300" style="width:0%"></div>
+                </div>
+                <div
+                    class="flex justify-between items-center text-[10px] sm:text-xs font-bold text-gray-400 uppercase tracking-wider mt-2">
+                    <span id="pq-counter">Soal 1 dari 1</span>
+                    <span id="pq-score" class="text-accent">Skor: 0</span>
+                </div>
+            </div>
+
+            <!-- ====== VIEW: QUESTIONS ====== -->
+            <div id="pq-question-view" class="flex flex-col flex-1 overflow-hidden">
+
+                <!-- Scrollable Body -->
+                <div class="p-4 sm:p-6 space-y-5 overflow-y-auto flex-1 custom-scrollbar"
+                    style="scrollbar-width: thin;">
+                    <h3 id="pq-question" class="text-base sm:text-lg font-bold text-gray-800 leading-relaxed"></h3>
+                    <div id="pq-options" class="space-y-3"></div>
+                    <div id="pq-feedback" class="hidden text-xs font-bold text-center p-3 rounded-xl leading-snug">
+                    </div>
+                </div>
+
+                <!-- Footer Action -->
+                <div class="p-4 sm:p-5 border-t bg-gray-50 shrink-0 mt-auto">
+                    <button id="pq-next-btn" onclick="nextPracticeQuestion()" disabled
+                        class="w-full bg-gray-300 text-white font-bold py-3.5 rounded-xl cursor-not-allowed transition-all text-sm sm:text-base flex items-center justify-center gap-2">
+                        Lanjut <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- ====== VIEW: RESULT ====== -->
+            <div id="pq-result-view"
+                class="hidden flex-col flex-1 overflow-y-auto p-6 text-center justify-center space-y-5">
+                <div
+                    class="w-24 h-24 bg-amber-50 text-accent rounded-full flex items-center justify-center mx-auto text-5xl shadow-inner">
+                    🏆
+                </div>
+                <div>
+                    <h2 class="text-2xl font-bold text-primary mb-2">Latihan Selesai!</h2>
+                    <p id="pq-result-message" class="text-sm text-gray-500 leading-relaxed max-w-sm mx-auto">Kerja bagus
+                        telah menyelesaikan latihan soal ini.</p>
+                </div>
+
+                <div class="bg-gray-50 p-5 rounded-2xl border border-gray-100 max-w-xs mx-auto w-full">
+                    <span class="text-[10px] uppercase font-bold text-gray-400 tracking-widest block mb-1">Skor
+                        Akhir</span>
+                    <span id="pq-final-score" class="text-4xl font-extrabold text-primary">0 / 0</span>
+                </div>
+
+                <div class="flex gap-3 max-w-sm mx-auto w-full pt-2">
+                    <button onclick="closePracticeQuiz()"
+                        class="flex-1 bg-gray-100 text-gray-700 font-bold py-3.5 rounded-xl hover:bg-gray-200 transition text-sm">
+                        Tutup
+                    </button>
+                    <button onclick="restartPracticeQuiz()"
+                        class="flex-1 bg-primary text-white font-bold py-3.5 rounded-xl hover:bg-opacity-90 transition text-sm shadow-md">
+                        Ulangi Latihan
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
     <!-- Supabase SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
+        /* ================================================================
+           KONFIGURASI
+        ================================================================ */
         const SUPABASE_URL = 'https://idwrkzekykarxnuoaysu.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_N96gYsm_jeSntalN3qMVCA_TpXloD4u';
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // URL Backend Vercel yang sudah diperbaiki sesuai nama project di Vercel
         const BACKEND_BASE_URL = 'https://markaznuqtoh.vercel.app';
 
-        // State Akun Siswa (Disimpan di LocalStorage perangkat)
+        /* ================================================================
+           STATE
+        ================================================================ */
         let currentUser = null;
         try {
             currentUser = JSON.parse(localStorage.getItem('nuqthah_current_user')) || null;
@@ -541,7 +710,6 @@
             currentUser = null;
         }
 
-        // State Utama Pembelajaran & Player
         let player = null;
         let isYtApiReady = false;
         let pendingVideoInit = null;
@@ -549,11 +717,16 @@
         let activeModuleIndex = 0;
         let isUserHasAccess = false;
         let courseData = null;
-        let currentQuizData = null;
-        let selectedOption = null;
+        let currentQuizData = null; // mid-video quiz
+        let selectedOption = null; // mid-video quiz
         let quizTriggeredForCurrentModule = false;
 
-        // Timer & Interval Tunggal (Bebas Memory Leak)
+        /* Practice quiz state */
+        let courseQuizzes = [];
+        let pqIndex = 0;
+        let pqScore = 0;
+        let pqSelected = null;
+
         let playerSyncInterval = null;
         let controlsHideTimeout = null;
         let isDraggingTimeline = false;
@@ -561,7 +734,7 @@
         const urlParams = new URLSearchParams(window.location.search);
         const courseId = urlParams.get('course_id');
 
-        // Referensi Elemen UI Player
+        /* Player UI refs */
         const playerContainer = document.getElementById('nuqthah-player-container');
         const videoClickArea = document.getElementById('video-click-area');
         const centerPlayBtn = document.getElementById('center-play-btn');
@@ -583,27 +756,62 @@
         const iconFullscreen = document.getElementById('icon-fullscreen');
         const btnRotate = document.getElementById('btn-rotate');
 
-        // Callback Resmi YouTube IFrame API
-        window.onYouTubeIframeAPIReady = function () {
-            isYtApiReady = true;
-            if (pendingVideoInit) {
-                createOrLoadYtPlayer(pendingVideoInit.videoId, pendingVideoInit.resumeTime);
-                pendingVideoInit = null;
-            }
+        /* ================================================================
+           TOAST SYSTEM
+        ================================================================ */
+        const TOAST_STYLE = {
+            success: { icon: 'fa-check', color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100', bar: 'bg-emerald-500' },
+            error: { icon: 'fa-xmark', color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-100', bar: 'bg-red-500' },
+            warning: { icon: 'fa-exclamation', color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100', bar: 'bg-amber-500' },
+            info: { icon: 'fa-info', color: 'text-sky-600', bg: 'bg-sky-50', border: 'border-sky-100', bar: 'bg-sky-500' }
         };
 
-        document.addEventListener('DOMContentLoaded', async () => {
-            if (!courseId) {
-                alert('Course ID tidak ditemukan.');
-                window.location.href = 'index.html';
-                return;
-            }
-            updateNavUserBadge();
-            setupCustomPlayerEvents();
-            await initializePageData();
-        });
+        function escapeHtml(str) {
+            return String(str ?? '').replace(/[&<>"']/g, c => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[c]));
+        }
 
-        // Perbarui Tampilan Navigasi Atas Sesuai Status Login
+        function showToast(message, type = 'info', title = '') {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+
+            const cfg = TOAST_STYLE[type] || TOAST_STYLE.info;
+            const toast = document.createElement('div');
+            toast.className = `toast-item pointer-events-auto relative w-full sm:w-[380px] bg-white rounded-2xl shadow-lg shadow-black/5 border ${cfg.border} overflow-hidden flex items-start gap-3 p-3.5`;
+
+            toast.innerHTML = `
+                <div class="w-9 h-9 rounded-xl ${cfg.bg} ${cfg.color} flex items-center justify-center shrink-0">
+                    <i class="fas ${cfg.icon} text-sm"></i>
+                </div>
+                <div class="flex-1 min-w-0 pt-0.5">
+                    ${title ? `<p class="text-[13px] font-bold text-gray-800 leading-tight">${escapeHtml(title)}</p>` : ''}
+                    <p class="text-xs text-gray-600 leading-snug mt-0.5 break-words">${escapeHtml(message)}</p>
+                </div>
+                <button type="button" class="toast-close w-6 h-6 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-400 shrink-0 transition" aria-label="Tutup">
+                    <i class="fas fa-xmark text-[11px]"></i>
+                </button>
+                <div class="absolute bottom-0 left-0 h-[3px] ${cfg.bar} toast-progress"></div>
+            `;
+
+            container.appendChild(toast);
+
+            const timer = setTimeout(() => dismissToast(toast), 4500);
+            toast.querySelector('.toast-close').addEventListener('click', () => {
+                clearTimeout(timer);
+                dismissToast(toast);
+            });
+        }
+
+        function dismissToast(toast) {
+            if (!toast || toast.classList.contains('leaving')) return;
+            toast.classList.add('leaving');
+            setTimeout(() => toast.remove(), 300);
+        }
+
+        /* ================================================================
+           NAV AKUN
+        ================================================================ */
         function updateNavUserBadge() {
             const loginBtn = document.getElementById('nav-login-btn');
             const accountBadge = document.getElementById('user-account-badge');
@@ -622,23 +830,28 @@
         }
 
         function logoutUser() {
-            if (!confirm('Apakah Anda yakin ingin keluar dari akun ini di perangkat ini?')) return;
             localStorage.removeItem('nuqthah_current_user');
             localStorage.removeItem(`nuqthah_access_${courseId}`);
             window.location.reload();
         }
 
-        // Cek apakah user yang login memiliki akses penuh ke materi ini di Supabase
+        /* ================================================================
+           CEK AKSES
+        ================================================================ */
+        function saveAccessCache(cId, email) {
+            if (!cId || !email) return;
+            localStorage.setItem(`nuqthah_access_${cId}`, 'granted');
+            localStorage.setItem(`nuqthah_access_${cId}_email`, email);
+        }
+
         async function verifyUserCourseAccess() {
             if (!currentUser || !currentUser.email) return false;
 
-            // 1. Cek cache akses lokal untuk email yang sama
             const localAccessEmail = localStorage.getItem(`nuqthah_access_${courseId}_email`);
             if (localStorage.getItem(`nuqthah_access_${courseId}`) === 'granted' && localAccessEmail === currentUser.email) {
                 return true;
             }
 
-            // 2. Cek ke tabel user_access di Supabase (Berdasarkan user_id atau user_email)
             try {
                 if (currentUser.id) {
                     const { data: accById } = await supabaseClient
@@ -648,8 +861,7 @@
                         .eq('user_id', currentUser.id)
                         .limit(1);
                     if (accById && accById.length > 0) {
-                        localStorage.setItem(`nuqthah_access_${courseId}`, 'granted');
-                        localStorage.setItem(`nuqthah_access_${courseId}_email`, currentUser.email);
+                        saveAccessCache(courseId, currentUser.email);
                         return true;
                     }
                 }
@@ -661,12 +873,10 @@
                     .eq('user_email', currentUser.email)
                     .limit(1);
                 if (accByEmail && accByEmail.length > 0) {
-                    localStorage.setItem(`nuqthah_access_${courseId}`, 'granted');
-                    localStorage.setItem(`nuqthah_access_${courseId}_email`, currentUser.email);
+                    saveAccessCache(courseId, currentUser.email);
                     return true;
                 }
 
-                // 3. Cek juga ke tabel transactions yang berstatus 'success'
                 const { data: trxSuccess } = await supabaseClient
                     .from('transactions')
                     .select('*')
@@ -675,8 +885,7 @@
                     .eq('status', 'success')
                     .limit(1);
                 if (trxSuccess && trxSuccess.length > 0) {
-                    localStorage.setItem(`nuqthah_access_${courseId}`, 'granted');
-                    localStorage.setItem(`nuqthah_access_${courseId}_email`, currentUser.email);
+                    saveAccessCache(courseId, currentUser.email);
                     return true;
                 }
             } catch (e) {
@@ -685,6 +894,28 @@
 
             return false;
         }
+
+        /* ================================================================
+           INIT HALAMAN
+        ================================================================ */
+        window.onYouTubeIframeAPIReady = function () {
+            isYtApiReady = true;
+            if (pendingVideoInit) {
+                createOrLoadYtPlayer(pendingVideoInit.videoId, pendingVideoInit.resumeTime);
+                pendingVideoInit = null;
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (!courseId) {
+                showToast('Course ID tidak ditemukan. Mengalihkan ke katalog materi...', 'error', 'Kesalahan');
+                setTimeout(() => window.location.href = 'index.html', 1600);
+                return;
+            }
+            updateNavUserBadge();
+            setupCustomPlayerEvents();
+            await initializePageData();
+        });
 
         async function initializePageData() {
             try {
@@ -700,7 +931,6 @@
                 document.getElementById('paywall-price').textContent = course.price;
                 document.getElementById('modal-checkout-price').textContent = course.price;
 
-                // Cek Hak Akses Berdasarkan Akun Siswa
                 isUserHasAccess = await verifyUserCourseAccess();
 
                 if (isUserHasAccess) {
@@ -711,6 +941,7 @@
                     document.getElementById('paywall-container').classList.remove('hidden');
                 }
 
+                // Muat modul video
                 const { data: modules, error: mErr } = await supabaseClient
                     .from('modules').select('*').eq('course_id', courseId).order('position', { ascending: true });
 
@@ -724,12 +955,18 @@
                     document.getElementById('current-module-title').textContent = 'Belum ada sesi';
                 }
 
+                // Muat kuis latihan
+                await loadPracticeQuizzes();
+
             } catch (err) {
                 console.error(err);
-                alert(err.message);
+                showToast(err.message || 'Terjadi kesalahan saat memuat materi.', 'error', 'Gagal Memuat');
             }
         }
 
+        /* ================================================================
+           MODUL VIDEO
+        ================================================================ */
         function renderModulesList() {
             const container = document.getElementById('modules-list');
             container.innerHTML = '';
@@ -747,7 +984,7 @@
                             ${index + 1}
                         </div>
                         <div>
-                            <h4 class="text-xs font-bold text-gray-800 line-clamp-1">${mod.title}</h4>
+                            <h4 class="text-xs font-bold text-gray-800 line-clamp-1">${escapeHtml(mod.title)}</h4>
                             <span class="text-[10px] text-gray-400">${mod.is_free_trial ? 'Free Trial' : 'Berbayar'}</span>
                         </div>
                     </div>
@@ -788,7 +1025,6 @@
                 document.getElementById('paywall-container').classList.add('hidden');
             }
 
-            // Reset UI Error & Loader
             playerError.classList.add('hidden');
             playerError.classList.remove('flex');
             showLoader(true);
@@ -823,7 +1059,6 @@
                 return;
             }
 
-            // Gunakan 1 instance player saja agar efisien & bebas konflik
             if (player && typeof player.loadVideoById === 'function') {
                 player.loadVideoById({
                     videoId: videoId,
@@ -838,13 +1073,13 @@
                 videoId: videoId,
                 playerVars: {
                     'autoplay': 0,
-                    'controls': 0,        // Hilangkan kontrol bawaan YouTube
-                    'disablekb': 1,       // Gunakan shortcut keyboard kustom Nuqthah
-                    'fs': 0,              // Gunakan tombol fullscreen kustom Nuqthah
-                    'rel': 0,             // Batasi video terkait hanya dari kanal yang sama
-                    'modestbranding': 1,  // Kurangi branding YouTube
-                    'iv_load_policy': 3,  // Sembunyikan anotasi video
-                    'playsinline': 1,     // Putar inline di iOS / Mobile
+                    'controls': 0,
+                    'disablekb': 1,
+                    'fs': 0,
+                    'rel': 0,
+                    'modestbranding': 1,
+                    'iv_load_policy': 3,
+                    'playsinline': 1,
                     'start': Math.floor(resumeTime > 2 ? resumeTime : 0)
                 },
                 events: {
@@ -935,7 +1170,6 @@
                 const currentTime = player.getCurrentTime() || 0;
                 const duration = player.getDuration() || 0;
 
-                // 1. Update Progress Timeline & Timestamp
                 if (!isDraggingTimeline && duration > 0) {
                     const percent = (currentTime / duration) * 100;
                     progressSlider.value = percent;
@@ -944,13 +1178,11 @@
                     timeDurationEl.textContent = formatTime(duration);
                 }
 
-                // 2. Simpan Resume Playback ke localStorage
                 const currentMod = currentModules[activeModuleIndex];
                 if (currentMod && currentTime > 3) {
                     localStorage.setItem(getResumeKey(currentMod.id || activeModuleIndex), Math.floor(currentTime));
                 }
 
-                // 3. Cek Stop Time untuk Kuis Interaktif
                 if (currentMod) {
                     const targetStop = currentMod.stop_time || 0;
                     if (targetStop > 0 && !quizTriggeredForCurrentModule && currentTime >= targetStop) {
@@ -984,10 +1216,7 @@
             const hrs = Math.floor(sec / 3600);
             const mins = Math.floor((sec % 3600) / 60);
             const remSecs = sec % 60;
-
-            if (hrs > 0) {
-                return `${hrs}:${String(mins).padStart(2, '0')}:${String(remSecs).padStart(2, '0')}`;
-            }
+            if (hrs > 0) return `${hrs}:${String(mins).padStart(2, '0')}:${String(remSecs).padStart(2, '0')}`;
             return `${String(mins).padStart(2, '0')}:${String(remSecs).padStart(2, '0')}`;
         }
 
@@ -996,7 +1225,6 @@
             sliderEl.style.background = `linear-gradient(to right, #234B36 ${clamped}%, rgba(255,255,255,0.25) ${clamped}%)`;
         }
 
-        // Fungsi Kontrol Utama Player
         function togglePlayPause() {
             if (!player || typeof player.getPlayerState !== 'function') return;
             const state = player.getPlayerState();
@@ -1047,7 +1275,6 @@
             }
         }
 
-        // Fullscreen Lintas Perangkat (Desktop, Android, & iOS Safari) + Auto Landscape di Mobile
         async function toggleFullscreen() {
             const isNativeFs = document.fullscreenElement || document.webkitFullscreenElement;
             const isPseudoFs = playerContainer.classList.contains('is-pseudo-fullscreen');
@@ -1073,11 +1300,8 @@
                 }
             } else {
                 if (isNativeFs) {
-                    if (document.exitFullscreen) {
-                        await document.exitFullscreen();
-                    } else if (document.webkitExitFullscreen) {
-                        await document.webkitExitFullscreen();
-                    }
+                    if (document.exitFullscreen) await document.exitFullscreen();
+                    else if (document.webkitExitFullscreen) await document.webkitExitFullscreen();
                 }
                 if (isPseudoFs) {
                     playerContainer.classList.remove('is-pseudo-fullscreen');
@@ -1090,7 +1314,6 @@
             }
         }
 
-        // Fungsi Rotate Screen (Khusus Smartphone Portrait ke Landscape)
         async function forceLandscape() {
             const isNativeFs = document.fullscreenElement || document.webkitFullscreenElement;
             const isPseudoFs = playerContainer.classList.contains('is-pseudo-fullscreen');
@@ -1107,15 +1330,13 @@
                         await screen.orientation.lock('portrait');
                     }
                 } catch (err) {
-                    console.warn('Gagal mengunci orientasi:', err);
-                    alert('Browser Anda tidak mengizinkan penguncian orientasi otomatis. Silakan putar perangkat Anda secara manual.');
+                    showToast('Browser Anda tidak mengizinkan penguncian orientasi otomatis. Putar perangkat secara manual.', 'warning', 'Orientasi Tidak Didukung');
                 }
             } else {
-                alert('Browser Anda tidak mendukung fitur putar layar otomatis. Silakan putar perangkat Anda secara manual.');
+                showToast('Browser Anda tidak mendukung fitur putar layar otomatis. Putar perangkat secara manual.', 'info', 'Fitur Tidak Didukung');
             }
         }
 
-        // Auto-Hide Controls saat Video Diputar
         function showControls() {
             playerContainer.classList.remove('controls-hidden');
             if (controlsHideTimeout) clearTimeout(controlsHideTimeout);
@@ -1165,8 +1386,7 @@
                 if (player && typeof player.getDuration === 'function') {
                     const dur = player.getDuration() || 0;
                     const pct = parseFloat(e.target.value);
-                    const targetTime = (pct / 100) * dur;
-                    player.seekTo(targetTime, true);
+                    player.seekTo((pct / 100) * dur, true);
                 }
                 isDraggingTimeline = false;
                 scheduleHideControls();
@@ -1177,9 +1397,7 @@
                 updateRangeBackground(volumeSlider, vol);
                 if (player && typeof player.setVolume === 'function') {
                     player.setVolume(vol);
-                    if (vol > 0 && player.isMuted()) {
-                        player.unMute();
-                    }
+                    if (vol > 0 && player.isMuted()) player.unMute();
                     updateVolumeIcon(vol, vol === 0);
                 }
             });
@@ -1230,9 +1448,13 @@
                 const quizModal = document.getElementById('quiz-modal');
                 const checkoutModal = document.getElementById('checkout-modal');
                 const otpModal = document.getElementById('otp-modal');
-                if ((quizModal && !quizModal.classList.contains('hidden')) ||
+                const pqModal = document.getElementById('practice-quiz-modal');
+                const anyModalOpen =
+                    (quizModal && !quizModal.classList.contains('hidden')) ||
                     (checkoutModal && !checkoutModal.classList.contains('hidden')) ||
-                    (otpModal && !otpModal.classList.contains('hidden'))) return;
+                    (otpModal && !otpModal.classList.contains('hidden')) ||
+                    (pqModal && !pqModal.classList.contains('hidden'));
+                if (anyModalOpen) return;
 
                 if (e.code === 'Space') {
                     e.preventDefault();
@@ -1262,7 +1484,9 @@
             });
         }
 
-        // ================= SISTEM KUIS INTERAKTIF =================
+        /* ================================================================
+           KUIS TENGAH VIDEO (stop_time)
+        ================================================================ */
         async function triggerQuiz(cId) {
             const { data: quizzes, error } = await supabaseClient
                 .from('quizzes').select('*').eq('course_id', cId);
@@ -1286,7 +1510,7 @@
                 label.className = 'flex items-center gap-3 p-3 rounded-xl border border-gray-200 hover:bg-gray-50 cursor-pointer transition text-sm';
                 label.innerHTML = `
                     <input type="radio" name="quiz_opt" value="${opt}" onclick="selectQuizOption('${opt}')" class="text-primary focus:ring-primary">
-                    <span class="font-bold mr-2">${opt}.</span> <span>${optText}</span>
+                    <span class="font-bold mr-2">${opt}.</span> <span>${escapeHtml(optText)}</span>
                 `;
                 optContainer.appendChild(label);
             });
@@ -1322,10 +1546,224 @@
             }
         }
 
-        // ================= SISTEM PENDAFTARAN AKUN, PEMBAYARAN MIDTRANS & LOGIN OTP =================
+        /* ================================================================
+           LATIHAN SOAL (INTERNAL MODAL)
+        ================================================================ */
+        async function loadPracticeQuizzes() {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('quizzes').select('*').eq('course_id', courseId);
 
+                if (error || !data) {
+                    courseQuizzes = [];
+                } else {
+                    courseQuizzes = data;
+                }
+            } catch (e) {
+                console.warn('Gagal memuat soal latihan:', e);
+                courseQuizzes = [];
+            }
+            renderPracticeSection();
+        }
+
+        function renderPracticeSection() {
+            const container = document.getElementById('practice-content');
+            const badge = document.getElementById('quiz-count-badge');
+
+            badge.textContent = `${courseQuizzes.length} Soal`;
+
+            /* === Belum punya akses === */
+            if (!isUserHasAccess) {
+                container.innerHTML = `
+                    <div class="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-5 text-center">
+                        <div class="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-3">
+                            <i class="fas fa-lock"></i>
+                        </div>
+                        <p class="text-sm font-bold text-amber-800 mb-1">Latihan Soal Terkunci</p>
+                        <p class="text-xs text-amber-700 mb-4 max-w-sm mx-auto leading-relaxed">
+                            Buka akses penuh untuk mengerjakan <b>${courseQuizzes.length} soal latihan interaktif</b>
+                            beserta seluruh video pembelajaran untuk materi ini.
+                        </p>
+                        <button onclick="openCheckoutModal()"
+                            class="bg-accent text-white font-bold px-6 py-2.5 rounded-xl text-xs shadow-md hover:bg-opacity-90 transition inline-flex items-center gap-1.5">
+                            <i class="fas fa-unlock"></i> Buka Akses Sekarang
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            /* === Belum ada soal === */
+            if (courseQuizzes.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-6 text-gray-400">
+                        <i class="fas fa-file-circle-question text-3xl mb-2 opacity-50"></i>
+                        <p class="text-xs">Belum ada soal latihan untuk materi ini.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            /* === Sudah punya akses & ada soal === */
+            container.innerHTML = `
+                <div class="bg-emerald-50 border border-emerald-100 rounded-xl p-4">
+                    <div class="flex items-center justify-between gap-3">
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-bold text-emerald-800 flex items-center gap-1.5">
+                                <i class="fas fa-circle-check text-emerald-600"></i> Latihan Soal Terbuka
+                            </p>
+                            <p class="text-xs text-emerald-600 mt-0.5">${courseQuizzes.length} soal siap dikerjakan untuk menguji pemahaman Anda.</p>
+                        </div>
+                        <button onclick="startPracticeQuiz()"
+                            class="shrink-0 bg-primary text-white font-bold px-4 py-2.5 rounded-xl text-xs shadow-md hover:bg-opacity-90 transition inline-flex items-center gap-1.5">
+                            <i class="fas fa-play"></i> Mulai
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function startPracticeQuiz() {
+            if (!isUserHasAccess) {
+                openCheckoutModal();
+                return;
+            }
+            if (courseQuizzes.length === 0) {
+                showToast('Belum ada soal latihan untuk materi ini.', 'warning', 'Soal Belum Tersedia');
+                return;
+            }
+
+            pqIndex = 0;
+            pqScore = 0;
+            pqSelected = null;
+
+            document.getElementById('pq-question-view').classList.remove('hidden');
+            document.getElementById('pq-question-view').classList.add('flex');
+            document.getElementById('pq-result-view').classList.add('hidden');
+            document.getElementById('pq-result-view').classList.remove('flex');
+
+            document.getElementById('practice-quiz-modal').classList.remove('hidden');
+            renderPracticeQuestion();
+        }
+
+        function closePracticeQuiz() {
+            document.getElementById('practice-quiz-modal').classList.add('hidden');
+        }
+
+        function restartPracticeQuiz() {
+            startPracticeQuiz();
+        }
+
+        function renderPracticeQuestion() {
+            if (pqIndex >= courseQuizzes.length) {
+                showPracticeResult();
+                return;
+            }
+
+            pqSelected = null;
+            const q = courseQuizzes[pqIndex];
+            const total = courseQuizzes.length;
+
+            document.getElementById('pq-counter').textContent = `Soal ${pqIndex + 1} dari ${total}`;
+            document.getElementById('pq-score').textContent = `Skor: ${pqScore}`;
+            document.getElementById('pq-progress').style.width = `${((pqIndex + 1) / total) * 100}%`;
+            document.getElementById('pq-question').textContent = q.question || '';
+
+            const feedback = document.getElementById('pq-feedback');
+            feedback.classList.add('hidden');
+            feedback.textContent = '';
+
+            const optsContainer = document.getElementById('pq-options');
+            optsContainer.innerHTML = '';
+
+            ['a', 'b', 'c', 'd'].forEach((key) => {
+                const text = q[`option_${key}`] || q[`option_-${key}`];
+                if (!text) return;
+
+                const label = key.toUpperCase();
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.dataset.key = label;
+                btn.className = 'pq-option w-full text-left p-4 rounded-xl border-2 border-gray-100 hover:border-primary/40 bg-gray-50 hover:bg-emerald-50/30 font-medium text-sm flex items-center gap-3 group transition-all';
+                btn.innerHTML = `
+                    <span class="pq-key w-8 h-8 rounded-lg bg-white border border-gray-200 group-hover:border-primary group-hover:bg-primary group-hover:text-white flex items-center justify-center font-bold text-xs transition-colors shrink-0">${label}</span>
+                    <span class="flex-grow leading-relaxed text-gray-700">${escapeHtml(text)}</span>
+                `;
+                btn.onclick = () => selectPracticeAnswer(label, btn);
+                optsContainer.appendChild(btn);
+            });
+
+            const nextBtn = document.getElementById('pq-next-btn');
+            nextBtn.disabled = true;
+            nextBtn.className = 'w-full bg-gray-300 text-white font-bold py-3.5 rounded-xl cursor-not-allowed transition-all text-sm sm:text-base flex items-center justify-center gap-2';
+            nextBtn.innerHTML = (pqIndex === courseQuizzes.length - 1) ? 'Lihat Hasil <i class="fas fa-flag-checkered"></i>' : 'Lanjut <i class="fas fa-arrow-right"></i>';
+
+            // Scroll body to top
+            const body = document.querySelector('#pq-question-view .overflow-y-auto');
+            if (body) body.scrollTop = 0;
+        }
+
+        function selectPracticeAnswer(ansKey, btnElement) {
+            pqSelected = ansKey;
+
+            const allBtns = document.getElementById('pq-options').querySelectorAll('.pq-option');
+            allBtns.forEach(btn => {
+                btn.className = 'pq-option w-full text-left p-4 rounded-xl border-2 border-gray-100 hover:border-primary/40 bg-gray-50 hover:bg-emerald-50/30 font-medium text-sm flex items-center gap-3 group transition-all';
+                const k = btn.querySelector('.pq-key');
+                if (k) k.className = 'pq-key w-8 h-8 rounded-lg bg-white border border-gray-200 group-hover:border-primary group-hover:bg-primary group-hover:text-white flex items-center justify-center font-bold text-xs transition-colors shrink-0';
+            });
+
+            btnElement.className = 'pq-option w-full text-left p-4 rounded-xl border-2 border-primary bg-primary/5 text-primary font-semibold text-sm flex items-center gap-3 shadow-sm transition-all';
+            const keyEl = btnElement.querySelector('.pq-key');
+            if (keyEl) keyEl.className = 'pq-key w-8 h-8 rounded-lg bg-primary text-white flex items-center justify-center font-bold text-xs shrink-0';
+
+            const nextBtn = document.getElementById('pq-next-btn');
+            nextBtn.disabled = false;
+            nextBtn.className = 'w-full bg-primary text-white font-bold py-3.5 rounded-xl hover:bg-opacity-90 transition-all text-sm sm:text-base flex items-center justify-center gap-2 shadow-md';
+        }
+
+        function nextPracticeQuestion() {
+            if (pqSelected === null) return;
+
+            const q = courseQuizzes[pqIndex];
+            if (pqSelected === q.correct_answer) {
+                pqScore++;
+            }
+            document.getElementById('pq-score').textContent = `Skor: ${pqScore}`;
+
+            pqIndex++;
+            if (pqIndex < courseQuizzes.length) {
+                renderPracticeQuestion();
+            } else {
+                showPracticeResult();
+            }
+        }
+
+        function showPracticeResult() {
+            const total = courseQuizzes.length;
+            const pct = total > 0 ? (pqScore / total) * 100 : 0;
+
+            document.getElementById('pq-final-score').textContent = `${pqScore} / ${total}`;
+
+            const msg = document.getElementById('pq-result-message');
+            if (pct === 100) {
+                msg.textContent = 'Luar biasa! Kamu menguasai materi ini dengan sempurna! 🎉';
+            } else if (pct >= 70) {
+                msg.textContent = 'Kerja bagus! Pemahaman materimu sudah sangat baik. 👍';
+            } else {
+                msg.textContent = 'Terus tingkatkan belajarmu! Coba baca kembali materinya dan ulangi kuisnya. 📚';
+            }
+
+            document.getElementById('pq-question-view').classList.add('hidden');
+            document.getElementById('pq-question-view').classList.remove('flex');
+            document.getElementById('pq-result-view').classList.remove('hidden');
+            document.getElementById('pq-result-view').classList.add('flex');
+        }
+
+        /* ================================================================
+           CHECKOUT / DAFTAR AKUN
+        ================================================================ */
         function openCheckoutModal() {
-            // Jika user sudah login di perangkat ini, isi otomatis formnya
             if (currentUser) {
                 document.getElementById('reg-email').value = currentUser.email || '';
                 document.getElementById('reg-name').value = currentUser.name || '';
@@ -1363,24 +1801,23 @@
             document.getElementById('otp-code-input').value = '';
         }
 
-        // Handle Submit Form Pendaftaran -> Simpan Akun -> Buka Midtrans Snap
         async function handleCheckoutFormSubmit(e) {
             e.preventDefault();
+
             const email = document.getElementById('reg-email').value.trim().toLowerCase();
             const name = document.getElementById('reg-name').value.trim();
             const whatsapp = document.getElementById('reg-whatsapp').value.trim();
             const submitBtn = document.getElementById('btn-submit-checkout');
 
             if (!email || !name || !whatsapp) {
-                alert('Harap lengkapi semua kolom pendaftaran.');
+                showToast('Harap lengkapi semua kolom pendaftaran.', 'warning', 'Data Belum Lengkap');
                 return;
             }
 
             submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Memproses Akun & Pembayaran...';
+            submitBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Memproses Akun &amp; Pembayaran...';
 
             try {
-                // 1. Simpan atau perbarui data akun di tabel users Supabase
                 const { data: savedUser, error: userErr } = await supabaseClient
                     .from('users')
                     .upsert([{ email, name, whatsapp }], { onConflict: 'email' })
@@ -1393,36 +1830,34 @@
                 localStorage.setItem('nuqthah_current_user', JSON.stringify(currentUser));
                 updateNavUserBadge();
 
-                // 2. Cek apakah email ini sebenarnya sudah pernah membeli materi ini sebelumnya
                 const alreadyHasAccess = await verifyUserCourseAccess();
                 if (alreadyHasAccess) {
                     closeCheckoutModal();
-                    alert('Akun email ini sudah memiliki akses penuh ke materi ini! Silakan masuk menggunakan Kode OTP.');
+                    showToast('Email ini sudah memiliki akses penuh. Silakan masuk dengan kode OTP untuk verifikasi.', 'info', 'Akses Sudah Aktif');
                     openOtpModal();
                     document.getElementById('otp-email-input').value = email;
                     return;
                 }
 
-                // 3. Panggil Midtrans Snap
                 await triggerMidtransPayment(currentUser);
 
             } catch (err) {
                 console.error(err);
-                alert(err.message || 'Terjadi kesalahan saat memproses pendaftaran.');
+                showToast(err.message || 'Terjadi kesalahan saat memproses pendaftaran.', 'error', 'Gagal Memproses');
             } finally {
                 submitBtn.disabled = false;
-                submitBtn.innerHTML = '<i class="fas fa-credit-card"></i> Bayar Sekarang & Buka Materi';
+                submitBtn.innerHTML = '<i class="fas fa-credit-card"></i> Bayar Sekarang &amp; Buka Materi';
             }
         }
 
         async function triggerMidtransPayment(userObj) {
-            try {
-                const userToUse = userObj || currentUser;
-                if (!userToUse || !userToUse.email) {
-                    openCheckoutModal();
-                    return;
-                }
+            const userToUse = userObj || currentUser;
+            if (!userToUse || !userToUse.email) {
+                openCheckoutModal();
+                return;
+            }
 
+            try {
                 const response = await fetch(`${BACKEND_BASE_URL}/api/create-transaction`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1440,8 +1875,7 @@
                 closeCheckoutModal();
 
                 window.snap.pay(data.token, {
-                    onSuccess: async function (result) {
-                        // Catat akses ke database Supabase agar langsung sinkron di semua perangkat
+                    onSuccess: async function () {
                         try {
                             await supabaseClient.from('transactions')
                                 .update({ status: 'success' })
@@ -1457,32 +1891,33 @@
                             console.warn('Info sinkronisasi akses:', dbErr);
                         }
 
-                        localStorage.setItem(`nuqthah_access_${courseId}`, 'granted');
-                        localStorage.setItem(`nuqthah_access_${courseId}_email`, userToUse.email);
-                        alert("Pembayaran Berhasil! Seluruh materi sekarang terbuka untuk akun Anda.");
-                        window.location.reload();
+                        saveAccessCache(courseId, userToUse.email);
+                        showToast('Pembayaran berhasil! Seluruh materi dan latihan soal kini terbuka.', 'success', 'Alhamdulillah');
+                        setTimeout(() => window.location.reload(), 1400);
                     },
-                    onPending: function (result) {
-                        alert("Menunggu penyelesaian pembayaran Anda.");
+                    onPending: function () {
+                        showToast('Pembayaran Anda menunggu penyelesaian. Akses terbuka otomatis setelah dikonfirmasi.', 'warning', 'Menunggu Pembayaran');
                     },
-                    onError: function (result) {
-                        alert("Pembayaran gagal dilakukan.");
+                    onError: function () {
+                        showToast('Pembayaran gagal dilakukan. Silakan coba kembali.', 'error', 'Pembayaran Gagal');
                     }
                 });
 
             } catch (err) {
                 console.error(err);
-                alert('Terjadi kesalahan koneksi ke server pembayaran.');
+                showToast('Terjadi kesalahan koneksi ke server pembayaran.', 'error', 'Koneksi Gagal');
             }
         }
 
-        // Langkah 1 OTP: Minta Kode OTP ke Server Backend
+        /* ================================================================
+           OTP
+        ================================================================ */
         async function requestOtpCode() {
             const emailInput = document.getElementById('otp-email-input').value.trim().toLowerCase();
             const btnRequest = document.getElementById('btn-request-otp');
 
             if (!emailInput) {
-                alert('Silakan masukkan alamat email pendaftaran Anda.');
+                showToast('Silakan masukkan alamat email pendaftaran Anda.', 'warning', 'Email Kosong');
                 return;
             }
 
@@ -1505,22 +1940,23 @@
                 document.getElementById('otp-step-email').classList.add('hidden');
                 document.getElementById('otp-step-verify').classList.remove('hidden');
 
+                showToast('Kode OTP telah dikirim ke email Anda.', 'success', 'OTP Terkirim');
+
             } catch (err) {
-                alert(err.message);
+                showToast(err.message || 'Gagal mengirim kode OTP.', 'error', 'Gagal Mengirim');
             } finally {
                 btnRequest.disabled = false;
                 btnRequest.innerHTML = 'Minta Kode OTP';
             }
         }
 
-        // Langkah 2 OTP: Verifikasi 6 Digit Kode OTP ke Server Backend
         async function verifyOtpCode() {
             const emailInput = document.getElementById('otp-email-input').value.trim().toLowerCase();
             const codeInput = document.getElementById('otp-code-input').value.trim();
             const btnVerify = document.getElementById('btn-verify-otp');
 
             if (!codeInput || codeInput.length < 6) {
-                alert('Silakan masukkan 6 digit kode OTP dengan benar.');
+                showToast('Silakan masukkan 6 digit kode OTP dengan benar.', 'warning', 'Kode Tidak Valid');
                 return;
             }
 
@@ -1539,27 +1975,26 @@
                     throw new Error(data.error || 'Kode OTP tidak valid.');
                 }
 
-                // Simpan sesi user yang berhasil login
                 currentUser = data.user;
                 localStorage.setItem('nuqthah_current_user', JSON.stringify(currentUser));
                 updateNavUserBadge();
 
-                // Cek apakah akun ini memiliki akses penuh ke materi ini
                 const hasAccess = await verifyUserCourseAccess();
                 closeOtpModal();
 
                 if (hasAccess) {
-                    alert(`Selamat datang kembali, ${currentUser.name}! Akses materi Anda telah dibuka.`);
+                    showToast(`Selamat datang kembali, ${currentUser.name || 'Siswa'}! Akses materi Anda telah dibuka.`, 'success', 'Berhasil Masuk');
+                    setTimeout(() => window.location.reload(), 1400);
                 } else {
-                    alert(`Halo ${currentUser.name}, Anda berhasil masuk, namun akun ini belum tercatat membeli materi ini. Silakan lanjutkan pembayaran untuk membuka akses penuh.`);
+                    showToast(`Halo ${currentUser.name || 'Siswa'}, akun ini belum tercatat membeli materi ini. Silakan lanjutkan pembayaran.`, 'info', 'Akses Belum Aktif');
+                    openCheckoutModal();
                 }
-                window.location.reload();
 
             } catch (err) {
-                alert(err.message);
+                showToast(err.message || 'Kode OTP tidak valid.', 'error', 'Verifikasi Gagal');
             } finally {
                 btnVerify.disabled = false;
-                btnVerify.innerHTML = 'Verifikasi & Buka Akses Materi';
+                btnVerify.innerHTML = 'Verifikasi &amp; Buka Akses Materi';
             }
         }
     </script>
