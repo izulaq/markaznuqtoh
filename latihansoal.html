@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trial Latihan Soal - Nuqthah Learning Center</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#2E5E4E',
+                        accent: '#C9A227',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+
+<body class="bg-emerald-900/5 text-gray-900 min-h-screen flex flex-col justify-between">
+
+    <!-- Header Nav -->
+    <nav class="bg-primary text-white shadow-md px-6 py-4 flex items-center justify-between">
+        <a href="materi.html" class="flex items-center gap-2 hover:opacity-90 font-bold text-sm">
+            <i class="fas fa-arrow-left"></i> Kembali ke Materi
+        </a>
+        <span class="text-xs uppercase tracking-widest bg-accent px-3 py-1 rounded-full font-bold">Trial Kuis
+            Interaktif</span>
+    </nav>
+
+    <!-- Main Container -->
+    <main class="max-w-2xl w-full mx-auto px-4 py-8 flex-grow flex flex-col justify-center">
+
+        <!-- STEP 1: PILIH KATEGORI UTAMA (Kotak Warna-Warni) -->
+        <div id="step-category" class="bg-white p-8 rounded-3xl shadow-xl border border-gray-100 text-center">
+            <div
+                class="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+                <i class="fas fa-layer-group"></i>
+            </div>
+            <h2 class="text-2xl font-bold text-primary mb-2">Pilih Kategori Latihan Soal</h2>
+            <p class="text-sm text-gray-500 mb-6">Pilih bidang program studi yang ingin kamu uji pemahamannya.</p>
+
+            <div id="category-cards-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
+                <!-- Diinject via JS dengan warna berbeda-beda -->
+            </div>
+        </div>
+
+        <!-- STEP 2: PILIH SUB-FILTER / TINGKAT -->
+        <div id="step-subfilter" class="bg-white p-8 rounded-3xl shadow-xl border border-gray-100 text-center hidden">
+            <div
+                class="w-16 h-16 bg-accent/10 text-accent rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+                <i class="fas fa-filter"></i>
+            </div>
+            <h2 id="subfilter-title" class="text-2xl font-bold text-primary mb-2">Pilih Tingkat / Sub-Kategori</h2>
+            <p class="text-sm text-gray-500 mb-6">Pilih jenjang atau fokus materi pembelajaran.</p>
+
+            <div id="subfilter-buttons-container" class="space-y-3 mb-6">
+                <!-- Diinject via JS -->
+            </div>
+
+            <button onclick="backToCategory()" class="text-xs font-bold text-gray-400 hover:text-primary transition">
+                <i class="fas fa-arrow-left mr-1"></i> Kembali ke Pilih Kategori
+            </button>
+        </div>
+
+        <!-- STEP 3: PILIH MATERI SPESIFIK & MULAI KUIS -->
+        <div id="step-course" class="bg-white p-8 rounded-3xl shadow-xl border border-gray-100 text-center hidden">
+            <div
+                class="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+                <i class="fas fa-book"></i>
+            </div>
+            <h2 class="text-2xl font-bold text-primary mb-2">Pilih Materi Spesifik</h2>
+            <p class="text-sm text-gray-500 mb-6">Pilih modul materi spesifik yang tersedia (Non-Paket).</p>
+
+            <select id="course-select"
+                class="w-full border border-gray-200 p-3.5 rounded-2xl text-sm focus:outline-none focus:border-primary bg-gray-50 mb-6 font-semibold">
+                <option value="">-- Pilih Materi --</option>
+            </select>
+
+            <div class="flex gap-3">
+                <button onclick="backToSubfilter()"
+                    class="w-1/3 bg-gray-100 text-gray-700 font-bold py-3.5 rounded-2xl hover:bg-gray-200 transition text-xs">Kembali</button>
+                <button onclick="startQuiz()"
+                    class="w-2/3 bg-primary hover:bg-opacity-90 text-white font-bold py-3.5 rounded-2xl shadow-md transition-all text-sm tracking-wide">
+                    Mulai Tantangan Kuis 🚀
+                </button>
+            </div>
+        </div>
+
+        <!-- Area Kuis (Game Style) -->
+        <div id="quiz-container" class="bg-white p-8 rounded-3xl shadow-xl border border-gray-100 hidden">
+            <!-- Progress Bar -->
+            <div class="w-full bg-gray-100 h-3 rounded-full mb-6 overflow-hidden">
+                <div id="progress-bar" class="bg-primary h-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+
+            <div
+                class="flex justify-between items-center text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
+                <span id="question-counter">Soal 1 dari 5</span>
+                <span id="score-badge" class="text-accent">Skor: 0</span>
+            </div>
+
+            <!-- Pertanyaan -->
+            <h3 id="question-text" class="text-lg md:text-xl font-bold text-gray-800 mb-6 leading-relaxed"></h3>
+
+            <!-- Opsi Pilihan Ganda -->
+            <div id="options-container" class="space-y-3 mb-8"></div>
+
+            <!-- Tombol Lanjut -->
+            <button id="next-btn" onclick="nextQuestion()"
+                class="w-full bg-primary text-white font-bold py-3.5 rounded-2xl shadow-md hidden hover:bg-opacity-95 transition-all">
+                Lanjut <i class="fas fa-arrow-right ml-1"></i>
+            </button>
+        </div>
+
+        <!-- Tampilan Selesai / Skor Akhir -->
+        <div id="result-container" class="bg-white p-8 rounded-3xl shadow-xl border border-gray-100 text-center hidden">
+            <div
+                class="w-20 h-20 bg-amber-50 text-accent rounded-full flex items-center justify-center mx-auto mb-4 text-3xl shadow-inner">
+                🏆
+            </div>
+            <h2 class="text-2xl font-bold text-primary mb-1">Kuis Selesai!</h2>
+            <p id="result-message" class="text-sm text-gray-500 mb-6">Hebat! Kamu telah menyelesaikan latihan soal ini.
+            </p>
+
+            <div class="bg-gray-50 p-6 rounded-2xl mb-6 border border-gray-100">
+                <span class="text-xs uppercase font-bold text-gray-400 block mb-1">Skor Akhir Kamu</span>
+                <span id="final-score" class="text-4xl font-extrabold text-primary">0 / 0</span>
+            </div>
+
+            <div class="flex gap-3">
+                <button onclick="resetQuiz()"
+                    class="flex-1 bg-gray-100 text-gray-700 font-bold py-3 rounded-xl hover:bg-gray-200 transition text-xs">Pilih
+                    Kategori Lain</button>
+                <button onclick="startQuiz()"
+                    class="flex-1 bg-primary text-white font-bold py-3 rounded-xl hover:bg-opacity-90 transition text-xs">Ulangi
+                    Kuis</button>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="text-center py-6 text-xs text-gray-400">
+        © 2026 Nuqthah Learning Center • Belajar Interaktif
+    </footer>
+
+    <!-- Supabase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        const SUPABASE_URL = 'https://idwrkzekykarxnuoaysu.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_N96gYsm_jeSntalN3qMVCA_TpXloD4u';
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        const PROGRAMS = {
+            syariah: { label: 'Bimbel Syariah', subs: ['Tingkat 1', 'Tingkat 2', 'Tingkat 3'], color: 'bg-emerald-50 text-emerald-900 border-emerald-200 hover:bg-emerald-100' },
+            ushul: { label: 'Bimbel Ushuludin', subs: ['Tingkat 1', 'Tingkat 2', 'Tingkat 3'], color: 'bg-amber-50 text-amber-900 border-amber-200 hover:bg-amber-100' },
+            tafaqquh: { label: 'Tafaqquh', subs: ['Fiqih', 'Ushul Fiqh', 'Tauhid'], color: 'bg-blue-50 text-blue-900 border-blue-200 hover:bg-blue-100' },
+            tashil: { label: 'Ilmu Alat', subs: ['Nahwu', 'Sharaf', 'Balaghah', 'Mantiq'], color: 'bg-purple-50 text-purple-900 border-purple-200 hover:bg-purple-100' },
+            amiyah: { label: 'Amiyah Mesir', subs: ['Dasar', 'Menengah', 'Lanjut'], color: 'bg-rose-50 text-rose-900 border-rose-200 hover:bg-rose-100' }
+        };
+
+        let allCoursesData = [];
+        let selectedCategory = '';
+        let selectedSubfilter = '';
+        let currentQuestions = [];
+        let currentIndex = 0;
+        let score = 0;
+        let selectedOption = null;
+
+        async function initQuizApp() {
+            const { data, error } = await supabaseClient.from('courses').select('*');
+            if (!error && data) {
+                // Saring data agar materi yang mengandung kata "paket" tidak masuk
+                allCoursesData = data.filter(c => !c.title.toLowerCase().includes('paket'));
+            }
+            renderCategoryCards();
+        }
+
+        function renderCategoryCards() {
+            const grid = document.getElementById('category-cards-grid');
+            grid.innerHTML = '';
+
+            Object.keys(PROGRAMS).forEach(key => {
+                const prog = PROGRAMS[key];
+                const btn = document.createElement('button');
+                btn.className = `p-5 rounded-2xl border-2 ${prog.color} transition-all font-bold text-sm flex items-center justify-between shadow-sm group`;
+                btn.innerHTML = `
+                    <span>${prog.label}</span>
+                    <i class="fas fa-chevron-right text-xs opacity-60 group-hover:translate-x-1 transition-transform"></i>
+                `;
+                btn.onclick = () => selectCategory(key);
+                grid.appendChild(btn);
+            });
+        }
+
+        function selectCategory(catKey) {
+            selectedCategory = catKey;
+            document.getElementById('step-category').classList.add('hidden');
+            document.getElementById('step-subfilter').classList.remove('hidden');
+
+            document.getElementById('subfilter-title').textContent = `Tingkat / Sub: ${PROGRAMS[catKey].label}`;
+
+            const subContainer = document.getElementById('subfilter-buttons-container');
+            subContainer.innerHTML = '';
+
+            PROGRAMS[catKey].subs.forEach(sub => {
+                const btn = document.createElement('button');
+                btn.className = 'w-full p-4 rounded-xl border-2 border-gray-100 hover:border-primary bg-gray-50 hover:bg-emerald-50/20 font-bold text-sm text-gray-700 transition-all text-left flex justify-between items-center';
+                btn.innerHTML = `<span>${sub}</span><i class="fas fa-arrow-right text-xs text-gray-400"></i>`;
+                btn.onclick = () => selectSubfilter(sub);
+                subContainer.appendChild(btn);
+            });
+        }
+
+        function selectSubfilter(sub) {
+            selectedSubfilter = sub;
+            document.getElementById('step-subfilter').classList.add('hidden');
+            document.getElementById('step-course').classList.remove('hidden');
+
+            populateCourseDropdown();
+        }
+
+        function populateCourseDropdown() {
+            const select = document.getElementById('course-select');
+            select.innerHTML = '<option value="">-- Pilih Materi Spesifik --</option>';
+
+            const filtered = allCoursesData.filter(c => c.category === selectedCategory && c.subfilter === selectedSubfilter);
+
+            const uniqueMap = new Map();
+            filtered.forEach(c => {
+                const cleanTitle = c.title.replace(/\s*\(?(Online|Offline)\)?/gi, '').trim();
+                if (!uniqueMap.has(cleanTitle)) {
+                    uniqueMap.set(cleanTitle, {
+                        course_id: c.course_id,
+                        title: cleanTitle
+                    });
+                }
+            });
+
+            if (uniqueMap.size === 0) {
+                select.innerHTML = '<option value="">Belum ada materi untuk kategori ini</option>';
+                return;
+            }
+
+            uniqueMap.forEach((item) => {
+                const opt = document.createElement('option');
+                opt.value = item.course_id;
+                opt.textContent = item.title;
+                select.appendChild(opt);
+            });
+        }
+
+        function backToCategory() {
+            document.getElementById('step-subfilter').classList.add('hidden');
+            document.getElementById('step-category').classList.remove('hidden');
+        }
+
+        function backToSubfilter() {
+            document.getElementById('step-course').classList.add('hidden');
+            document.getElementById('step-subfilter').classList.remove('hidden');
+        }
+
+        async function startQuiz() {
+            const courseId = document.getElementById('course-select').value;
+            if (!courseId) {
+                alert('Silakan pilih materi terlebih dahulu!');
+                return;
+            }
+
+            const selectedCourseObj = allCoursesData.find(c => c.course_id === courseId);
+            let targetCourseIds = [courseId];
+
+            if (selectedCourseObj) {
+                const cleanSelectedTitle = selectedCourseObj.title.replace(/\s*\(?(Online|Offline)\)?/gi, '').trim();
+                targetCourseIds = allCoursesData
+                    .filter(c => c.title.replace(/\s*\(?(Online|Offline)\)?/gi, '').trim() === cleanSelectedTitle)
+                    .map(c => c.course_id);
+            }
+
+            const { data, error } = await supabaseClient
+                .from('quizzes')
+                .select('*')
+                .in('course_id', targetCourseIds);
+
+            if (error || !data || data.length === 0) {
+                alert('Belum ada soal latihan untuk materi ini. Silakan tambahkan melalui Dashboard Admin.');
+                return;
+            }
+
+            currentQuestions = data;
+            currentIndex = 0;
+            score = 0;
+
+            document.getElementById('step-course').classList.add('hidden');
+            document.getElementById('result-container').classList.add('hidden');
+            document.getElementById('quiz-container').classList.remove('hidden');
+
+            renderQuestion();
+        }
+
+        function renderQuestion() {
+            selectedOption = null;
+            document.getElementById('next-btn').classList.add('hidden');
+
+            const q = currentQuestions[currentIndex];
+            const total = currentQuestions.length;
+
+            document.getElementById('question-counter').textContent = `Soal ${currentIndex + 1} dari ${total}`;
+            document.getElementById('score-badge').textContent = `Skor: ${score}`;
+            document.getElementById('progress-bar').style.width = `${((currentIndex) / total) * 100}%`;
+            document.getElementById('question-text').textContent = q.question;
+
+            const optsContainer = document.getElementById('options-container');
+            optsContainer.innerHTML = '';
+
+            const options = [
+                { key: 'A', text: q.option_a },
+                { key: 'B', text: q.option_b },
+                { key: 'C', text: q.option_c },
+                { key: 'D', text: q.option_d }
+            ];
+
+            options.forEach(opt => {
+                if (!opt.text) return;
+                const btn = document.createElement('button');
+                btn.dataset.key = opt.key;
+                btn.className = 'option-btn w-full text-left p-4 rounded-2xl border-2 border-gray-100 hover:border-primary/50 bg-gray-50 hover:bg-emerald-50/30 transition-all font-medium text-sm flex items-center gap-3 group';
+                btn.innerHTML = `
+                    <span class="w-8 h-8 rounded-xl bg-white border border-gray-200 group-hover:border-primary group-hover:bg-primary group-hover:text-white flex items-center justify-center font-bold text-xs transition-colors flex-shrink-0">${opt.key}</span>
+                    <span class="flex-grow">${opt.text}</span>
+                `;
+                btn.onclick = () => selectAnswer(opt.key, btn);
+                optsContainer.appendChild(btn);
+            });
+        }
+
+        function selectAnswer(ansKey, btnElement) {
+            selectedOption = ansKey;
+
+            const allBtns = document.getElementById('options-container').querySelectorAll('.option-btn');
+            allBtns.forEach(btn => {
+                btn.className = 'option-btn w-full text-left p-4 rounded-2xl border-2 border-gray-100 hover:border-primary/50 bg-gray-50 hover:bg-emerald-50/30 transition-all font-medium text-sm flex items-center gap-3 group';
+                btn.querySelector('span').className = 'w-8 h-8 rounded-xl bg-white border border-gray-200 group-hover:border-primary group-hover:bg-primary group-hover:text-white flex items-center justify-center font-bold text-xs transition-colors flex-shrink-0';
+            });
+
+            btnElement.className = 'option-btn w-full text-left p-4 rounded-2xl border-2 border-red-400 bg-red-50 text-red-900 font-medium text-sm flex items-center gap-3 shadow-sm';
+            btnElement.querySelector('span').className = 'w-8 h-8 rounded-xl bg-red-500 text-white flex items-center justify-center font-bold text-xs flex-shrink-0';
+
+            document.getElementById('next-btn').classList.remove('hidden');
+        }
+
+        function nextQuestion() {
+            if (selectedOption === null) return;
+
+            const q = currentQuestions[currentIndex];
+            if (selectedOption === q.correct_answer) {
+                score++;
+            }
+
+            document.getElementById('score-badge').textContent = `Skor: ${score}`;
+
+            currentIndex++;
+            if (currentIndex < currentQuestions.length) {
+                renderQuestion();
+            } else {
+                showResult();
+            }
+        }
+
+        function showResult() {
+            document.getElementById('quiz-container').classList.add('hidden');
+            document.getElementById('result-container').classList.remove('hidden');
+            document.getElementById('final-score').textContent = `${score} / ${currentQuestions.length}`;
+
+            const percentage = (score / currentQuestions.length) * 100;
+            const msg = document.getElementById('result-message');
+            if (percentage === 100) {
+                msg.textContent = 'Luar Biasa! Kamu menguasai materi ini dengan sempurna! 🎉';
+            } else if (percentage >= 70) {
+                msg.textContent = 'Kerja bagus! Pemahaman materimu sudah sangat baik. 👍';
+            } else {
+                msg.textContent = 'Terus tingkatkan belajarmu! Coba baca materinya kembali dan ulangi kuisnya. 📚';
+            }
+        }
+
+        function resetQuiz() {
+            document.getElementById('result-container').classList.add('hidden');
+            document.getElementById('step-category').classList.remove('hidden');
+        }
+
+        initQuizApp();
+    </script>
+</body>
+
+</html>

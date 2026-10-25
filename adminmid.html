@@ -8,7 +8,7 @@
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- SortableJS CDN untuk Drag & Drop Baris Tabel -->
+    <!-- SortableJS CDN untuk Drag & Drop Urutan Posisi -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
     <script>
         tailwind.config = {
@@ -35,50 +35,67 @@
         .drag-handle:active {
             cursor: grabbing;
         }
+
+        .rotate-180 {
+            transform: rotate(180deg);
+        }
+
+        .truncate-text {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
     </style>
 </head>
 
 <body class="bg-gray-50 text-gray-950">
 
-    <div class="max-w-6xl mx-auto px-4 py-8">
+    <div class="max-w-6xl mx-auto px-2 sm:px-4 py-8">
         <!-- Header -->
-        <header class="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <header class="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 px-2 sm:px-0">
             <div>
-                <h1 class="text-3xl font-bold text-primary">Dashboard Admin</h1>
-                <p class="text-sm text-gray-500">Kelola materi, sesi video pembelajaran, dan bank soal latihan dalam
-                    satu panel.</p>
+                <h1 class="text-2xl sm:text-3xl font-bold text-primary">Dashboard Admin</h1>
+                <p class="text-xs sm:text-sm text-gray-500">Kelola materi, urutan posisi, modul video pembelajaran, dan
+                    bank soal latihan dalam satu panel.</p>
             </div>
-            <a href="index.html" target="_blank"
-                class="bg-accent text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-opacity-90 transition shadow-sm">
-                <i class="fas fa-external-link-alt mr-1"></i> Pratinjau Katalog Siswa
-            </a>
+            <div class="flex flex-wrap gap-2">
+                <a href="index.html" target="_blank"
+                    class="bg-primary text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-opacity-90 transition shadow-sm">
+                    <i class="fas fa-external-link-alt mr-1"></i> Pratinjau Katalog Siswa
+                </a>
+                <a href="latihansoal.html" target="_blank"
+                    class="bg-accent text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-opacity-90 transition shadow-sm">
+                    <i class="fas fa-gamepad mr-1"></i> Pratinjau Kuis Siswa
+                </a>
+            </div>
         </header>
 
-        <!-- Tab Navigasi Utama -->
-        <div class="flex border-b border-gray-200 mb-8 gap-4 overflow-x-auto">
+        <!-- Tab Navigasi Utama (3 Tab Lengkap) -->
+        <div class="flex border-b border-gray-200 mb-8 gap-4 px-2 sm:px-0 overflow-x-auto whitespace-nowrap">
             <button onclick="switchTab('materi')" id="tab-materi"
-                class="pb-3 px-4 font-bold text-sm border-b-2 border-primary text-primary transition-all flex items-center gap-2 whitespace-nowrap">
+                class="pb-3 px-2 sm:px-4 font-bold text-sm border-b-2 border-primary text-primary transition-all flex items-center gap-2">
                 <i class="fas fa-book-open"></i> Kelola Materi
             </button>
             <button onclick="switchTab('modul')" id="tab-modul"
-                class="pb-3 px-4 font-bold text-sm border-b-2 border-transparent text-gray-400 hover:text-gray-700 transition-all flex items-center gap-2 whitespace-nowrap">
-                <i class="fas fa-video"></i> Kelola Modul & Video Belajar
+                class="pb-3 px-2 sm:px-4 font-bold text-sm border-b-2 border-transparent text-gray-400 hover:text-gray-700 transition-all flex items-center gap-2">
+                <i class="fas fa-video"></i> Kelola Modul &amp; Video Belajar
             </button>
             <button onclick="switchTab('soal')" id="tab-soal"
-                class="pb-3 px-4 font-bold text-sm border-b-2 border-transparent text-gray-400 hover:text-gray-700 transition-all flex items-center gap-2 whitespace-nowrap">
+                class="pb-3 px-2 sm:px-4 font-bold text-sm border-b-2 border-transparent text-gray-400 hover:text-gray-700 transition-all flex items-center gap-2">
                 <i class="fas fa-brain"></i> Kelola Bank Soal Latihan
             </button>
         </div>
 
         <!-- ================= SECTION 1: KELOLA MATERI ================= -->
         <div id="section-materi" class="space-y-8">
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                <h2 class="text-xl font-bold mb-4 text-primary">Tambah Materi Baru</h2>
+            <!-- Form Tambah Materi -->
+            <div class="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 mx-2 sm:mx-0">
+                <h2 class="text-lg sm:text-xl font-bold mb-4 text-primary">Tambah Materi Baru</h2>
                 <form id="add-course-form" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Kategori Utama</label>
                         <select id="category" required
-                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm bg-white">
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary bg-white">
                             <option value="">-- Pilih Kategori --</option>
                             <option value="syariah">Bimbel Syariah</option>
                             <option value="ushul">Bimbel Ushuludin</option>
@@ -87,87 +104,103 @@
                             <option value="amiyah">Amiyah Mesir</option>
                         </select>
                     </div>
+
                     <div>
                         <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Sub-Filter / Tingkat</label>
                         <select id="subfilter" required
-                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm bg-white">
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary bg-white">
                             <option value="">-- Pilih Kategori Dulu --</option>
                         </select>
                     </div>
+
                     <div>
                         <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Mode Kelas</label>
                         <select id="mode" required
-                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm bg-white">
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary bg-white">
                             <option value="Online">Online</option>
                             <option value="Offline">Offline</option>
                         </select>
                     </div>
+
                     <div>
                         <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Tipe / Metode Kelas</label>
                         <select id="class_type" required
-                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm bg-white">
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary bg-white">
                             <option value="E-LEARNING">E-LEARNING</option>
                             <option value="INTERAKTIF">INTERAKTIF</option>
                         </select>
                     </div>
+
                     <div>
                         <label class="block text-xs font-bold text-gray-700 uppercase mb-1">ID Unik Kursus
                             (Otomatis)</label>
                         <input type="text" id="course_id" readonly placeholder="Terbentuk otomatis"
                             class="w-full border border-gray-200 bg-gray-100 p-2.5 rounded-xl text-sm text-gray-500 cursor-not-allowed">
                     </div>
+
                     <div>
                         <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Judul / Nama Materi</label>
-                        <input type="text" id="title" placeholder="cth: Nahwu Shorof TK1" required
-                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm">
+                        <input type="text" id="title" placeholder="cth: Tarikh Tasyri' TK1" required
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary">
                     </div>
+
                     <div>
                         <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Nama Pengajar
                             (Asatidzah)</label>
                         <input type="text" id="instructor" placeholder="cth: Ust Ernanda Yusril, Lc." required
-                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm">
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary">
                     </div>
+
                     <div>
-                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Jumlah Pertemuan /
-                            Sesi</label>
-                        <input type="text" id="meetings" placeholder="cth: 10 Pertemuan" required
-                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm">
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Jumlah Pertemuan <span
+                                class="text-gray-400 font-normal lowercase">(opsional)</span></label>
+                        <input type="text" inputmode="numeric" id="meetings" placeholder="cth: 10"
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary">
                     </div>
+
                     <div>
-                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Fasilitas /
-                            Keterangan</label>
-                        <input type="text" id="facility" placeholder="cth: Latihan Soal+Talkhisan" required
-                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm">
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Fasilitas / Keterangan <span
+                                class="text-gray-400 font-normal lowercase">(opsional)</span></label>
+                        <input type="text" id="facility" placeholder="cth: Latihan Soal+Talkhisan"
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary">
                     </div>
+
                     <div>
-                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Kuota Peserta</label>
-                        <input type="text" id="quota" placeholder="cth: Kuota Tak Terbatas" required
-                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm">
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Kuota Peserta <span
+                                class="text-gray-400 font-normal lowercase">(opsional)</span></label>
+                        <input type="text" id="quota" placeholder="cth: Kuota Tak Terbatas / 25"
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary">
                     </div>
+
                     <div>
-                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Harga (Rupiah)</label>
-                        <input type="text" id="price" placeholder="cth: Rp 90.000" required
-                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm">
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Harga (Rupiah) <span
+                                class="text-gray-400 font-normal lowercase">(opsional)</span></label>
+                        <input type="text" inputmode="numeric" id="price" placeholder="cth: 90000"
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary">
                     </div>
+
                     <div>
-                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Harga Alternatif
-                            (LE)</label>
-                        <input type="text" id="price_le" placeholder="cth: / 270 LE"
-                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm">
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Harga Alternatif (LE) <span
+                                class="text-gray-400 font-normal lowercase">(opsional)</span></label>
+                        <input type="text" inputmode="numeric" id="price_le" placeholder="cth: 270"
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary">
                     </div>
+
                     <div class="md:col-span-2">
-                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Link Pendaftaran /
-                            Cadangan</label>
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Link Pendaftaran / Cadangan
+                            <span class="text-gray-400 font-normal lowercase">(opsional)</span></label>
                         <input type="url" id="link" placeholder="cth: https://..."
-                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm">
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary">
                     </div>
+
                     <div class="md:col-span-2 lg:col-span-3">
                         <label class="block text-xs font-bold text-gray-700 uppercase mb-1">URL Gambar Cover</label>
                         <input type="url" id="image" placeholder="cth: https://..." required
-                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm">
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary">
                     </div>
+
                     <div class="md:col-span-2 lg:col-span-3">
-                        <button type="submit"
+                        <button type="submit" id="btn-simpan-materi"
                             class="w-full bg-primary text-white font-bold py-3 rounded-xl hover:bg-opacity-90 transition shadow-sm">
                             Simpan Materi ke Database
                         </button>
@@ -175,77 +208,73 @@
                 </form>
             </div>
 
-            <!-- Tabel Daftar Materi -->
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                <h2 class="text-xl font-bold text-primary mb-4">Daftar Materi Tersimpan</h2>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="border-b bg-gray-50 text-xs text-gray-500 uppercase">
-                                <th class="p-3 w-12 text-center"><i class="fas fa-grip-vertical"></i></th>
-                                <th class="p-3">Materi</th>
-                                <th class="p-3">Kategori</th>
-                                <th class="p-3">Pengajar</th>
-                                <th class="p-3">Harga</th>
-                                <th class="p-3 text-center">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody id="course-table-body" class="text-sm"></tbody>
-                    </table>
+            <!-- Daftar Materi (Flat Accordion + Drag & Drop) -->
+            <div class="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 mx-2 sm:mx-0">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
+                    <h2 class="text-lg sm:text-xl font-bold text-primary">Daftar Materi Tersimpan</h2>
+                    <span
+                        class="text-[10px] sm:text-xs bg-emerald-50 text-primary px-3 py-1.5 rounded-lg font-semibold"><i
+                            class="fas fa-hand-paper mr-1"></i> Tahan &amp; geser ikon titik untuk atur urutan</span>
+                </div>
+
+                <div id="grouped-course-list" class="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                    <p class="text-sm text-gray-500 text-center py-4">Memuat data materi...</p>
                 </div>
             </div>
         </div>
 
         <!-- ================= SECTION 2: KELOLA MODUL VIDEO ================= -->
         <div id="section-modul" class="space-y-8 hidden">
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                <h2 class="text-xl font-bold mb-4 text-primary"><i class="fas fa-video mr-2"></i>Tambah Modul Video
-                    Pembelajaran</h2>
+            <div class="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 mx-2 sm:mx-0">
+                <h2 class="text-lg sm:text-xl font-bold mb-4 text-primary"><i class="fas fa-video mr-2"></i>Tambah Modul
+                    Video Pembelajaran</h2>
                 <form id="add-module-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="md:col-span-2">
                         <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Pilih Materi / Kursus
                             Terkait</label>
                         <select id="module-course_id" required
-                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm bg-white">
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary bg-white">
                             <option value="">-- Memuat Daftar Materi --</option>
                         </select>
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Judul Sesi / Modul
                             Video</label>
-                        <input type="text" id="module-title" placeholder="cth: Pengantar Nahwu Dasar" required
-                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm">
+                        <input type="text" id="module-title" placeholder="cth: Sesi 1 - Pengantar Nahwu Dasar" required
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-700 uppercase mb-1">URL / Link Embed
                             YouTube</label>
                         <input type="text" id="module-youtube" placeholder="cth: https://www.youtube.com/watch?v=xxxxx"
-                            required class="w-full border border-gray-200 p-2.5 rounded-xl text-sm">
+                            required
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary">
                     </div>
                     <div class="md:col-span-2">
                         <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Penjelasan Singkat Materi
-                            Sesi Ini</label>
+                            Sesi Ini <span class="text-gray-400 font-normal lowercase">(opsional)</span></label>
                         <textarea id="module-desc" rows="2" placeholder="Tuliskan penjelasan singkat untuk video ini..."
-                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm"></textarea>
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary"></textarea>
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Stop Time (Detik untuk Jeda
                             Kuis)</label>
                         <input type="number" id="module-stoptime" placeholder="cth: 120 (detik ke-120)" value="0"
-                            required class="w-full border border-gray-200 p-2.5 rounded-xl text-sm">
+                            required
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary">
                         <span class="text-[10px] text-gray-400 mt-0.5 block">Video otomatis berhenti pada detik ini
                             untuk memunculkan kuis. Isi 0 jika tanpa kuis.</span>
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Status Akses Video</label>
                         <select id="module-freetrial" required
-                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm bg-white">
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary bg-white">
                             <option value="false">Berbayar (Terkunci jika belum beli)</option>
                             <option value="true">Free Trial (Bisa ditonton gratis)</option>
                         </select>
                     </div>
                     <div class="md:col-span-2">
-                        <button type="submit"
+                        <button type="submit" id="btn-simpan-modul"
                             class="w-full bg-primary text-white font-bold py-3 rounded-xl hover:bg-opacity-90 transition shadow-sm">
                             Simpan Modul Video ke Database
                         </button>
@@ -253,67 +282,66 @@
                 </form>
             </div>
 
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                <h2 class="text-xl font-bold text-primary mb-4">Daftar Modul Video Tersimpan</h2>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="border-b bg-gray-50 text-xs text-gray-500 uppercase">
-                                <th class="p-3">Judul Sesi</th>
-                                <th class="p-3">ID Materi</th>
-                                <th class="p-3">Status</th>
-                                <th class="p-3 text-center">Stop Time</th>
-                                <th class="p-3 text-center">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody id="modules-table-body" class="text-sm"></tbody>
-                    </table>
+            <!-- Daftar Modul Video (Flat Accordion per Materi + Drag & Drop Urutan Sesi + Edit) -->
+            <div class="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 mx-2 sm:mx-0">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
+                    <h2 class="text-lg sm:text-xl font-bold text-primary">Daftar Modul Video Tersimpan</h2>
+                    <span
+                        class="text-[10px] sm:text-xs bg-emerald-50 text-primary px-3 py-1.5 rounded-lg font-semibold"><i
+                            class="fas fa-hand-paper mr-1"></i> Tahan &amp; geser sesi untuk mengatur urutan
+                        video</span>
+                </div>
+                <div id="grouped-module-list" class="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                    <p class="text-sm text-gray-500 text-center py-4">Memuat modul video...</p>
                 </div>
             </div>
         </div>
 
         <!-- ================= SECTION 3: KELOLA BANK SOAL ================= -->
         <div id="section-soal" class="space-y-8 hidden">
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                <h2 class="text-xl font-bold mb-4 text-primary"><i class="fas fa-question-circle mr-2"></i>Tambah Soal
-                    Kuis Baru</h2>
+            <div class="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 mx-2 sm:mx-0">
+                <h2 class="text-lg sm:text-xl font-bold mb-4 text-primary"><i
+                        class="fas fa-question-circle mr-2"></i>Tambah Soal Kuis Baru</h2>
                 <form id="add-quiz-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="md:col-span-2">
                         <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Pilih Materi Terkait</label>
                         <select id="quiz-course_id" required
-                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm bg-white">
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary bg-white">
                             <option value="">-- Memuat Daftar Materi --</option>
                         </select>
                     </div>
+
                     <div class="md:col-span-2">
                         <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Pertanyaan Soal</label>
                         <textarea id="quiz-question" rows="2" placeholder="Tuliskan isi pertanyaan kuis..." required
-                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm"></textarea>
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary"></textarea>
                     </div>
+
                     <div>
                         <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Pilihan A</label>
                         <input type="text" id="quiz-opt-a" placeholder="Jawaban A" required
-                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm">
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Pilihan B</label>
                         <input type="text" id="quiz-opt-b" placeholder="Jawaban B" required
-                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm">
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Pilihan C</label>
                         <input type="text" id="quiz-opt-c" placeholder="Jawaban C" required
-                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm">
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Pilihan D</label>
                         <input type="text" id="quiz-opt-d" placeholder="Jawaban D" required
-                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm">
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary">
                     </div>
+
                     <div class="md:col-span-2">
                         <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Kunci Jawaban Benar</label>
                         <select id="quiz-correct" required
-                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm bg-white">
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary bg-white">
                             <option value="">-- Pilih Kunci Jawaban --</option>
                             <option value="A">A</option>
                             <option value="B">B</option>
@@ -321,6 +349,7 @@
                             <option value="D">D</option>
                         </select>
                     </div>
+
                     <div class="md:col-span-2">
                         <button type="submit"
                             class="w-full bg-accent text-white font-bold py-3 rounded-xl hover:bg-opacity-90 transition shadow-sm">
@@ -330,21 +359,247 @@
                 </form>
             </div>
 
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                <h2 class="text-xl font-bold text-primary mb-4">Daftar Bank Soal Kuis</h2>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="border-b bg-gray-50 text-xs text-gray-500 uppercase">
-                                <th class="p-3">Pertanyaan</th>
-                                <th class="p-3">ID Materi</th>
-                                <th class="p-3 text-center">Kunci</th>
-                                <th class="p-3 text-center">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody id="quiz-table-body" class="text-sm"></tbody>
-                    </table>
+            <!-- Daftar Bank Soal (Flat Accordion + Edit) -->
+            <div class="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 mx-2 sm:mx-0">
+                <h2 class="text-lg sm:text-xl font-bold mb-6 text-primary">Daftar Bank Soal Kuis</h2>
+                <div id="grouped-quiz-list" class="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                    <p class="text-sm text-gray-500 text-center py-4">Memuat data soal...</p>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MODAL 1: EDIT MATERI ================= -->
+    <div id="edit-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 hidden"
+        style="z-index: 99999;">
+        <div class="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+            <div class="bg-primary p-4 text-white flex justify-between items-center">
+                <h3 class="font-bold text-lg">Edit Detail Materi</h3>
+                <button onclick="closeEditModal()"
+                    class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10"><i
+                        class="fas fa-times"></i></button>
+            </div>
+            <div class="p-6 overflow-y-auto flex-grow">
+                <form id="edit-course-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input type="hidden" id="edit-course_id">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Judul / Nama Materi</label>
+                        <input type="text" id="edit-title" required
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Kategori Utama</label>
+                        <select id="edit-category" required onchange="updateEditSubFilters()"
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm bg-white focus:outline-none focus:border-primary">
+                            <option value="syariah">Bimbel Syariah</option>
+                            <option value="ushul">Bimbel Ushuludin</option>
+                            <option value="tafaqquh">Tafaqquh</option>
+                            <option value="tashil">Ilmu Alat</option>
+                            <option value="amiyah">Amiyah Mesir</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Sub-Filter / Tingkat</label>
+                        <select id="edit-subfilter" required
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm bg-white focus:outline-none focus:border-primary">
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Mode Kelas</label>
+                        <select id="edit-mode" required
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm bg-white">
+                            <option value="Online">Online</option>
+                            <option value="Offline">Offline</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Tipe / Metode</label>
+                        <select id="edit-class_type" required
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm bg-white focus:outline-none focus:border-primary">
+                            <option value="E-LEARNING">E-LEARNING</option>
+                            <option value="INTERAKTIF">INTERAKTIF</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Nama Pengajar</label>
+                        <input type="text" id="edit-instructor" required
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Jumlah Pertemuan <span
+                                class="text-gray-400 font-normal lowercase">(opsional)</span></label>
+                        <input type="text" inputmode="numeric" id="edit-meetings"
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Fasilitas <span
+                                class="text-gray-400 font-normal lowercase">(opsional)</span></label>
+                        <input type="text" id="edit-facility"
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Kuota <span
+                                class="text-gray-400 font-normal lowercase">(opsional)</span></label>
+                        <input type="text" id="edit-quota"
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Harga (Rupiah) <span
+                                class="text-gray-400 font-normal lowercase">(opsional)</span></label>
+                        <input type="text" inputmode="numeric" id="edit-price"
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Harga Alternatif (LE) <span
+                                class="text-gray-400 font-normal lowercase">(opsional)</span></label>
+                        <input type="text" inputmode="numeric" id="edit-price_le"
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Link Pendaftaran / Cadangan
+                            (URL)</label>
+                        <input type="url" id="edit-link"
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">URL Gambar Cover</label>
+                        <input type="url" id="edit-image" required
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary">
+                    </div>
+                </form>
+            </div>
+            <div class="p-4 border-t border-gray-100 bg-gray-50 flex gap-3 justify-end">
+                <button onclick="closeEditModal()"
+                    class="px-5 py-2 bg-gray-200 text-gray-700 font-bold rounded-xl text-xs hover:bg-gray-300 transition">Batal</button>
+                <button onclick="submitEditForm()" id="btn-simpan-edit"
+                    class="px-5 py-2 bg-primary text-white font-bold rounded-xl text-xs hover:bg-opacity-90 transition">Simpan
+                    Perubahan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MODAL 2: EDIT MODUL VIDEO ================= -->
+    <div id="edit-module-modal"
+        class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 hidden"
+        style="z-index: 99999;">
+        <div class="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+            <div class="bg-primary p-4 text-white flex justify-between items-center">
+                <h3 class="font-bold text-lg">Edit Modul Video Pembelajaran</h3>
+                <button onclick="closeEditModuleModal()"
+                    class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10"><i
+                        class="fas fa-times"></i></button>
+            </div>
+            <div class="p-6 overflow-y-auto flex-grow">
+                <form id="edit-module-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input type="hidden" id="edit-module_id">
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Materi / Kursus
+                            Terkait</label>
+                        <select id="edit-module-course_id" required
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm bg-white focus:outline-none focus:border-primary">
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Judul Sesi / Modul
+                            Video</label>
+                        <input type="text" id="edit-module-title" required
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">URL / Link Embed
+                            YouTube</label>
+                        <input type="text" id="edit-module-youtube" required
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Penjelasan Singkat
+                            Sesi</label>
+                        <textarea id="edit-module-desc" rows="2"
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Stop Time (Detik Jeda
+                            Kuis)</label>
+                        <input type="number" id="edit-module-stoptime" required
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Status Akses Video</label>
+                        <select id="edit-module-freetrial" required
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm bg-white focus:outline-none focus:border-primary">
+                            <option value="false">Berbayar (Terkunci jika belum beli)</option>
+                            <option value="true">Free Trial (Bisa ditonton gratis)</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="p-4 border-t border-gray-100 bg-gray-50 flex gap-3 justify-end">
+                <button onclick="closeEditModuleModal()"
+                    class="px-5 py-2 bg-gray-200 text-gray-700 font-bold rounded-xl text-xs hover:bg-gray-300 transition">Batal</button>
+                <button onclick="submitEditModuleForm()" id="btn-simpan-edit-modul"
+                    class="px-5 py-2 bg-primary text-white font-bold rounded-xl text-xs hover:bg-opacity-90 transition">Simpan
+                    Perubahan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MODAL 3: EDIT SOAL KUIS ================= -->
+    <div id="edit-quiz-modal"
+        class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 hidden"
+        style="z-index: 99999;">
+        <div class="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+            <div class="bg-primary p-4 text-white flex justify-between items-center">
+                <h3 class="font-bold text-lg">Edit Soal Kuis</h3>
+                <button onclick="closeEditQuizModal()"
+                    class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10"><i
+                        class="fas fa-times"></i></button>
+            </div>
+            <div class="p-6 overflow-y-auto flex-grow">
+                <form id="edit-quiz-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input type="hidden" id="edit-quiz_id">
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Pertanyaan Soal</label>
+                        <textarea id="edit-quiz-question" rows="2" required
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Pilihan A</label>
+                        <input type="text" id="edit-quiz-opt-a" required
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Pilihan B</label>
+                        <input type="text" id="edit-quiz-opt-b" required
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Pilihan C</label>
+                        <input type="text" id="edit-quiz-opt-c" required
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Pilihan D</label>
+                        <input type="text" id="edit-quiz-opt-d" required
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Kunci Jawaban Benar</label>
+                        <select id="edit-quiz-correct" required
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none focus:border-primary bg-white">
+                            <option value="A">A</option>
+                            <option value="B">B</option>
+                            <option value="C">C</option>
+                            <option value="D">D</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="p-4 border-t border-gray-100 bg-gray-50 flex gap-3 justify-end">
+                <button onclick="closeEditQuizModal()"
+                    class="px-5 py-2 bg-gray-200 text-gray-700 font-bold rounded-xl text-xs hover:bg-gray-300 transition">Batal</button>
+                <button onclick="submitEditQuizForm()"
+                    class="px-5 py-2 bg-primary text-white font-bold rounded-xl text-xs hover:bg-opacity-90 transition">Simpan
+                    Perubahan</button>
             </div>
         </div>
     </div>
@@ -357,6 +612,54 @@
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         let cachedCourses = [];
+        let cachedModules = [];
+        let cachedQuizzes = [];
+        let sortableInstances = [];
+        let moduleSortableInstances = [];
+
+        const CATEGORY_LABELS = {
+            'syariah': 'Bimbel Syariah',
+            'ushul': 'Bimbel Ushuludin',
+            'tafaqquh': 'Tafaqquh',
+            'tashil': 'Ilmu Alat',
+            'amiyah': 'Amiyah Mesir',
+            'Lainnya': 'Lainnya'
+        };
+
+        const SUB_FILTERS = {
+            syariah: ['Tingkat 1', 'Tingkat 2', 'Tingkat 3'],
+            ushul: ['Tingkat 1', 'Tingkat 2', 'Tingkat 3'],
+            tafaqquh: ['Fiqih', 'Ushul Fiqh', 'Tauhid'],
+            tashil: ['Nahwu', 'Sharaf', 'Balaghah', 'Mantiq'],
+            amiyah: ['Dasar', 'Menengah', 'Lanjut']
+        };
+
+        // --- HELPER FUNCTIONS UNTUK FORMATTING OTOMATIS ---
+        function cleanNumberString(str) {
+            if (!str) return '';
+            return String(str).replace(/[^0-9]/g, '');
+        }
+
+        function formatRupiah(val) {
+            if (!val) return '';
+            const num = cleanNumberString(val);
+            if (!num) return '';
+            return 'Rp ' + new Intl.NumberFormat('id-ID').format(num);
+        }
+
+        function formatLE(val) {
+            if (!val) return '';
+            const num = cleanNumberString(val);
+            if (!num) return '';
+            return `/ ${num} LE`;
+        }
+
+        function formatPertemuan(val) {
+            if (!val) return '';
+            const num = cleanNumberString(val);
+            if (!num) return val;
+            return `${num} Pertemuan`;
+        }
 
         function switchTab(tabName) {
             const secMateri = document.getElementById('section-materi');
@@ -371,42 +674,67 @@
             secModul.classList.add('hidden');
             secSoal.classList.add('hidden');
 
-            tabMateri.className = "pb-3 px-4 font-bold text-sm border-b-2 border-transparent text-gray-400 hover:text-gray-700 transition-all flex items-center gap-2 whitespace-nowrap";
-            tabModul.className = "pb-3 px-4 font-bold text-sm border-b-2 border-transparent text-gray-400 hover:text-gray-700 transition-all flex items-center gap-2 whitespace-nowrap";
-            tabSoal.className = "pb-3 px-4 font-bold text-sm border-b-2 border-transparent text-gray-400 hover:text-gray-700 transition-all flex items-center gap-2 whitespace-nowrap";
+            const inactiveClass = "pb-3 px-2 sm:px-4 font-bold text-sm border-b-2 border-transparent text-gray-400 hover:text-gray-700 transition-all flex items-center gap-2";
+            const activeClass = "pb-3 px-2 sm:px-4 font-bold text-sm border-b-2 border-primary text-primary transition-all flex items-center gap-2";
+
+            tabMateri.className = inactiveClass;
+            tabModul.className = inactiveClass;
+            tabSoal.className = inactiveClass;
 
             if (tabName === 'materi') {
                 secMateri.classList.remove('hidden');
-                tabMateri.className = "pb-3 px-4 font-bold text-sm border-b-2 border-primary text-primary transition-all flex items-center gap-2 whitespace-nowrap";
+                tabMateri.className = activeClass;
             } else if (tabName === 'modul') {
                 secModul.classList.remove('hidden');
-                tabModul.className = "pb-3 px-4 font-bold text-sm border-b-2 border-primary text-primary transition-all flex items-center gap-2 whitespace-nowrap";
+                tabModul.className = activeClass;
             } else {
                 secSoal.classList.remove('hidden');
-                tabSoal.className = "pb-3 px-4 font-bold text-sm border-b-2 border-primary text-primary transition-all flex items-center gap-2 whitespace-nowrap";
+                tabSoal.className = activeClass;
             }
         }
 
-        const SUB_FILTERS = {
-            syariah: ['Tingkat 1', 'Tingkat 2', 'Tingkat 3'],
-            ushul: ['Tingkat 1', 'Tingkat 2', 'Tingkat 3'],
-            tafaqquh: ['Fiqih', 'Ushul Fiqh', 'Tauhid'],
-            tashil: ['Nahwu', 'Sharaf', 'Balaghah', 'Mantiq'],
-            amiyah: ['Dasar', 'Menengah', 'Lanjut']
-        };
+        function toggleAccordion(id) {
+            const el = document.getElementById(id);
+            const icon = document.getElementById('icon-' + id);
+            if (!el) return;
+            if (el.classList.contains('hidden')) {
+                el.classList.remove('hidden');
+                if (icon) icon.classList.add('rotate-180');
+            } else {
+                el.classList.add('hidden');
+                if (icon) icon.classList.remove('rotate-180');
+            }
+        }
 
         function updateSubFilters() {
-            const cat = document.getElementById('category').value;
-            const sub = document.getElementById('subfilter');
-            sub.innerHTML = '<option value="">-- Pilih Sub-Filter --</option>';
-            if (SUB_FILTERS[cat]) {
-                SUB_FILTERS[cat].forEach(s => {
+            const catSelect = document.getElementById('category');
+            const subSelect = document.getElementById('subfilter');
+            const selectedCat = catSelect.value;
+            subSelect.innerHTML = '<option value="">-- Pilih Sub-Filter --</option>';
+            if (SUB_FILTERS[selectedCat]) {
+                SUB_FILTERS[selectedCat].forEach(sub => {
                     const opt = document.createElement('option');
-                    opt.value = s; opt.textContent = s;
-                    sub.appendChild(opt);
+                    opt.value = sub;
+                    opt.textContent = sub;
+                    subSelect.appendChild(opt);
                 });
             }
             generateCourseId();
+        }
+
+        function updateEditSubFilters(selectedSub = '') {
+            const cat = document.getElementById('edit-category').value;
+            const subSelect = document.getElementById('edit-subfilter');
+            subSelect.innerHTML = '';
+            if (SUB_FILTERS[cat]) {
+                SUB_FILTERS[cat].forEach(sub => {
+                    const opt = document.createElement('option');
+                    opt.value = sub;
+                    opt.textContent = sub;
+                    if (sub === selectedSub) opt.selected = true;
+                    subSelect.appendChild(opt);
+                });
+            }
         }
 
         function generateCourseId() {
@@ -426,117 +754,468 @@
         document.getElementById('subfilter').addEventListener('change', generateCourseId);
         document.getElementById('mode').addEventListener('change', generateCourseId);
 
+        // ================================================================
+        // 1. FETCH & RENDER MATERI
+        // ================================================================
         async function fetchCourses() {
-            const tbody = document.getElementById('course-table-body');
+            const container = document.getElementById('grouped-course-list');
             const quizSelect = document.getElementById('quiz-course_id');
             const moduleSelect = document.getElementById('module-course_id');
+            const editModuleSelect = document.getElementById('edit-module-course_id');
 
-            tbody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-gray-400">Memuat data...</td></tr>';
+            container.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">Memuat data materi...</p>';
 
-            const { data, error } = await supabaseClient.from('courses').select('*').order('position', { ascending: true });
+            const { data, error } = await supabaseClient
+                .from('courses')
+                .select('*')
+                .order('position', { ascending: true })
+                .order('created_at', { ascending: false });
+
             if (error) {
-                tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-red-500">Gagal memuat: ${error.message}</td></tr>`;
+                container.innerHTML = `<p class="text-sm text-red-500 text-center py-4">Gagal memuat: ${error.message}</p>`;
                 return;
             }
 
             cachedCourses = data || [];
-            tbody.innerHTML = '';
+
             quizSelect.innerHTML = '<option value="">-- Pilih Materi --</option>';
             moduleSelect.innerHTML = '<option value="">-- Pilih Materi --</option>';
-
-            if (cachedCourses.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-gray-500">Belum ada materi tersimpan.</td></tr>';
-                return;
-            }
+            editModuleSelect.innerHTML = '';
 
             cachedCourses.forEach(course => {
-                // Populate dropdowns
-                const opt1 = document.createElement('option');
-                opt1.value = course.course_id;
-                opt1.textContent = `${course.title} (${course.category})`;
-                quizSelect.appendChild(opt1);
+                const labelText = `${course.title} (${CATEGORY_LABELS[course.category] || course.category} - ${course.mode || 'Online'})`;
 
-                const opt2 = document.createElement('option');
-                opt2.value = course.course_id;
-                opt2.textContent = `${course.title} (${course.category})`;
-                moduleSelect.appendChild(opt2);
+                const optQuiz = document.createElement('option');
+                optQuiz.value = course.course_id;
+                optQuiz.textContent = labelText;
+                quizSelect.appendChild(optQuiz);
 
-                // Render Table Row
-                const tr = document.createElement('tr');
-                tr.className = 'border-b hover:bg-gray-50';
-                tr.innerHTML = `
-                    <td class="p-3 text-center text-gray-400"><i class="fas fa-grip-vertical"></i></td>
-                    <td class="p-3 font-bold text-gray-800">${course.title}<br><span class="text-[10px] text-gray-400 font-normal">ID: ${course.course_id}</span></td>
-                    <td class="p-3 text-gray-600">${course.category} (${course.subfilter})</td>
-                    <td class="p-3 text-gray-600 text-xs">${course.instructor}</td>
-                    <td class="p-3 text-primary font-semibold">${course.price}</td>
-                    <td class="p-3 text-center">
-                        <button onclick="deleteCourse('${course.course_id}')" class="bg-red-50 text-red-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-100 transition">Hapus</button>
-                    </td>
+                const optMod = document.createElement('option');
+                optMod.value = course.course_id;
+                optMod.textContent = labelText;
+                moduleSelect.appendChild(optMod);
+
+                const optEditMod = document.createElement('option');
+                optEditMod.value = course.course_id;
+                optEditMod.textContent = labelText;
+                editModuleSelect.appendChild(optEditMod);
+            });
+
+            if (cachedCourses.length === 0) {
+                container.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">Belum ada materi tersimpan.</p>';
+                return;
+            }
+
+            renderGroupedCourses();
+        }
+
+        function renderGroupedCourses() {
+            const container = document.getElementById('grouped-course-list');
+            container.innerHTML = '';
+
+            sortableInstances.forEach(inst => inst.destroy());
+            sortableInstances = [];
+
+            const grouped = {};
+            cachedCourses.forEach(course => {
+                const cat = course.category || 'Lainnya';
+                const sub = course.subfilter || 'Umum';
+                const mode = course.mode || 'Online';
+
+                if (!grouped[cat]) grouped[cat] = {};
+                if (!grouped[cat][sub]) grouped[cat][sub] = {};
+                if (!grouped[cat][sub][mode]) grouped[cat][sub][mode] = [];
+
+                grouped[cat][sub][mode].push(course);
+            });
+
+            let html = '';
+
+            for (const cat in grouped) {
+                const catLabel = CATEGORY_LABELS[cat] || cat.toUpperCase();
+                let totalCatItems = 0;
+                for (const sub in grouped[cat]) {
+                    for (const mode in grouped[cat][sub]) {
+                        totalCatItems += grouped[cat][sub][mode].length;
+                    }
+                }
+
+                html += `
+                <div class="border-b border-gray-200 last:border-b-0">
+                    <button class="w-full bg-gray-100 px-4 py-3 flex justify-between items-center font-bold text-primary hover:bg-gray-200 transition" onclick="toggleAccordion('cat-materi-${cat}')">
+                        <span class="flex items-center gap-2 text-sm">
+                            <i class="fas fa-folder-open text-accent"></i> 
+                            ${catLabel} 
+                            <span class="bg-primary/20 text-primary text-[10px] px-2 py-0.5 rounded-full ml-1">${totalCatItems} Materi</span>
+                        </span>
+                        <i class="fas fa-chevron-down text-xs transition-transform duration-200" id="icon-cat-materi-${cat}"></i>
+                    </button>
+                    <div id="cat-materi-${cat}" class="hidden">
                 `;
-                tbody.appendChild(tr);
+
+                for (const sub in grouped[cat]) {
+                    const safeSubId = `${cat}-${sub}`.replace(/\s+/g, '-');
+                    let totalSubItems = 0;
+                    for (const mode in grouped[cat][sub]) {
+                        totalSubItems += grouped[cat][sub][mode].length;
+                    }
+
+                    html += `
+                    <div class="border-b border-gray-100 last:border-b-0">
+                        <button class="w-full bg-white px-4 py-2.5 flex justify-between items-center text-sm font-bold text-gray-700 hover:bg-gray-50 transition" onclick="toggleAccordion('sub-materi-${safeSubId}')">
+                            <span class="flex items-center gap-2">
+                                <i class="fas fa-layer-group text-emerald-600"></i>
+                                ${sub}
+                                <span class="bg-emerald-100 text-emerald-800 text-[10px] px-2 py-0.5 rounded-full ml-1">${totalSubItems} Materi</span>
+                            </span>
+                            <i class="fas fa-chevron-down text-xs transition-transform duration-200" id="icon-sub-materi-${safeSubId}"></i>
+                        </button>
+                        <div id="sub-materi-${safeSubId}" class="hidden bg-gray-50/30">
+                    `;
+
+                    for (const mode in grouped[cat][sub]) {
+                        const coursesInMode = grouped[cat][sub][mode];
+                        const safeModeId = `${safeSubId}-${mode}`.replace(/\s+/g, '-');
+                        const isOnline = mode.toLowerCase() === 'online';
+                        const modeColor = isOnline ? 'blue' : 'orange';
+                        const modeIcon = isOnline ? 'fa-globe' : 'fa-building';
+
+                        html += `
+                        <div class="border-t border-gray-100">
+                            <button class="w-full bg-transparent px-4 py-2 flex justify-between items-center text-xs font-bold text-${modeColor}-700 hover:bg-${modeColor}-50 transition" onclick="toggleAccordion('mode-materi-${safeModeId}')">
+                                <span class="flex items-center gap-2">
+                                    <i class="fas ${modeIcon}"></i>
+                                    Mode: ${mode}
+                                    <span class="bg-${modeColor}-100 text-${modeColor}-800 text-[10px] px-1.5 py-0.5 rounded-full ml-1">${coursesInMode.length} Kelas</span>
+                                </span>
+                                <i class="fas fa-chevron-down text-[10px] transition-transform duration-200" id="icon-mode-materi-${safeModeId}"></i>
+                            </button>
+                            
+                            <div id="mode-materi-${safeModeId}" class="hidden bg-white">
+                                <div id="list-${safeModeId}" class="sortable-list flex flex-col">
+                        `;
+
+                        coursesInMode.forEach(course => {
+                            const encodedCourse = btoa(encodeURIComponent(JSON.stringify(course)));
+
+                            let extraInfoHtml = '';
+                            if (course.meetings) extraInfoHtml += `<span class="text-[11px] text-gray-600"><i class="fas fa-calendar-alt text-gray-400 mr-1"></i>${course.meetings}</span>`;
+                            if (course.facility) extraInfoHtml += `<span class="text-[11px] text-gray-600"><i class="fas fa-check-circle text-gray-400 mr-1"></i>${course.facility}</span>`;
+                            if (course.quota) extraInfoHtml += `<span class="text-[11px] text-gray-600"><i class="fas fa-users text-gray-400 mr-1"></i>Kuota: ${course.quota}</span>`;
+
+                            let priceHtml = '';
+                            if (course.price) priceHtml += `<div class="text-primary font-bold text-xs sm:text-sm whitespace-nowrap mt-1 sm:mt-0">${course.price}</div>`;
+                            if (course.price_le) priceHtml += `<div class="text-gray-500 text-[10px] whitespace-nowrap">${course.price_le}</div>`;
+                            if (!course.price && !course.price_le) priceHtml = `<div class="text-gray-400 text-[10px] italic mt-1 sm:mt-0">Harga belum diatur</div>`;
+
+                            html += `
+                                <div class="p-3 border-b border-gray-100 hover:bg-gray-50 flex items-start gap-3" data-id="${course.course_id}">
+                                    <div class="pt-1 drag-handle text-gray-400 hover:text-primary">
+                                        <i class="fas fa-grip-vertical"></i>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1">
+                                            <div class="font-bold text-gray-800 text-sm leading-tight break-words pr-2">${course.title}</div>
+                                            <div class="shrink-0 text-right sm:text-left">${priceHtml}</div>
+                                        </div>
+                                        <div class="text-[10px] text-gray-500 font-mono mt-1">${course.course_id}</div>
+                                        
+                                        <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2">
+                                            <span class="px-2 py-0.5 rounded text-[10px] bg-gray-100 text-gray-700 font-semibold border border-gray-200">${course.class_type || '-'}</span>
+                                            ${course.instructor ? `<span class="text-[11px] text-gray-600"><i class="fas fa-chalkboard-teacher text-gray-400 mr-1"></i>${course.instructor}</span>` : ''}
+                                            ${extraInfoHtml}
+                                        </div>
+                                        
+                                        <div class="flex flex-wrap gap-2 mt-3">
+                                            <button onclick="openEditModal('${encodedCourse}')" class="bg-blue-50 text-blue-600 px-3 py-1 rounded border border-blue-200 text-xs font-bold hover:bg-blue-100 transition"><i class="fas fa-edit mr-1"></i>Edit</button>
+                                            <a href="halaman_belajar.html?course_id=${course.course_id}" target="_blank" class="bg-emerald-50 text-emerald-700 px-3 py-1 rounded border border-emerald-200 text-xs font-bold hover:bg-emerald-100 transition"><i class="fas fa-play-circle mr-1"></i>Lihat Ruang Belajar</a>
+                                            <button onclick="deleteCourse('${course.course_id}')" class="bg-red-50 text-red-600 px-3 py-1 rounded border border-red-200 text-xs font-bold hover:bg-red-100 transition"><i class="fas fa-trash mr-1"></i>Hapus</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        html += `</div></div></div>`;
+                    }
+                    html += `</div></div>`;
+                }
+                html += `</div></div>`;
+            }
+
+            container.innerHTML = html;
+
+            document.querySelectorAll('.sortable-list').forEach(list => {
+                const sortable = Sortable.create(list, {
+                    handle: '.drag-handle',
+                    animation: 150,
+                    ghostClass: 'sortable-ghost',
+                    onEnd: async function () {
+                        const items = list.querySelectorAll('[data-id]');
+                        const updates = [];
+                        items.forEach((item, newIndex) => {
+                            const courseId = item.getAttribute('data-id');
+                            updates.push(supabaseClient.from('courses').update({ position: newIndex }).eq('course_id', courseId));
+                        });
+                        await Promise.all(updates);
+                    }
+                });
+                sortableInstances.push(sortable);
             });
         }
 
+        // ================================================================
+        // 2. FETCH & RENDER MODUL VIDEO (ACCORDION + DRAG & DROP + EDIT)
+        // ================================================================
         async function fetchModules() {
-            const tbody = document.getElementById('modules-table-body');
-            tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-400">Memuat modul...</td></tr>';
+            const container = document.getElementById('grouped-module-list');
+            container.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">Memuat modul video...</p>';
 
-            const { data, error } = await supabaseClient.from('modules').select('*').order('position', { ascending: true });
+            const { data, error } = await supabaseClient
+                .from('modules')
+                .select('*')
+                .order('position', { ascending: true });
+
             if (error) {
-                tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-red-500">Gagal memuat: ${error.message}</td></tr>`;
+                container.innerHTML = `<p class="text-sm text-red-500 text-center py-4">Gagal memuat modul: ${error.message}</p>`;
                 return;
             }
 
-            tbody.innerHTML = '';
-            if (!data || data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-500">Belum ada modul video tersimpan.</td></tr>';
+            cachedModules = data || [];
+
+            if (cachedModules.length === 0) {
+                container.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">Belum ada modul video tersimpan.</p>';
                 return;
             }
 
-            data.forEach(mod => {
-                const tr = document.createElement('tr');
-                tr.className = 'border-b hover:bg-gray-50';
-                tr.innerHTML = `
-                    <td class="p-3 font-bold text-gray-800">${mod.title}</td>
-                    <td class="p-3 text-xs font-mono text-gray-500">${mod.course_id}</td>
-                    <td class="p-3"><span class="px-2 py-0.5 rounded text-xs font-semibold ${mod.is_free_trial ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">${mod.is_free_trial ? 'Free Trial' : 'Berbayar'}</span></td>
-                    <td class="p-3 text-center text-xs font-bold">${mod.stop_time} detik</td>
-                    <td class="p-3 text-center">
-                        <button onclick="deleteModule('${mod.id}')" class="bg-red-50 text-red-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-100 transition">Hapus</button>
-                    </td>
+            renderGroupedModules();
+        }
+
+        function renderGroupedModules() {
+            const container = document.getElementById('grouped-module-list');
+            container.innerHTML = '';
+
+            moduleSortableInstances.forEach(inst => inst.destroy());
+            moduleSortableInstances = [];
+
+            const courseMap = {};
+            cachedCourses.forEach(c => {
+                courseMap[c.course_id] = {
+                    title: c.title,
+                    cat: CATEGORY_LABELS[c.category] || c.category
+                };
+            });
+
+            const grouped = {};
+            cachedModules.forEach(mod => {
+                const cId = mod.course_id || 'lainnya';
+                if (!grouped[cId]) grouped[cId] = [];
+                grouped[cId].push(mod);
+            });
+
+            let html = '';
+
+            for (const cId in grouped) {
+                const mods = grouped[cId];
+                const cInfo = courseMap[cId] || { title: `Materi (${cId})`, cat: 'Lainnya' };
+                const safeCId = cId.replace(/[^a-zA-Z0-9_-]/g, '-');
+
+                html += `
+                <div class="border-b border-gray-200 last:border-b-0">
+                    <button class="w-full bg-gray-100 px-4 py-3 flex justify-between items-center font-bold text-primary hover:bg-gray-200 transition" onclick="toggleAccordion('mod-group-${safeCId}')">
+                        <span class="flex items-center gap-2 text-sm text-left">
+                            <i class="fas fa-film text-accent"></i>
+                            <span>${cInfo.title} <span class="text-xs font-normal text-gray-500">(${cInfo.cat})</span></span>
+                            <span class="bg-primary/20 text-primary text-[10px] px-2 py-0.5 rounded-full ml-1 shrink-0">${mods.length} Sesi</span>
+                        </span>
+                        <i class="fas fa-chevron-down text-xs transition-transform duration-200" id="icon-mod-group-${safeCId}"></i>
+                    </button>
+                    <div id="mod-group-${safeCId}" class="hidden bg-white">
+                        <div id="mod-list-${safeCId}" class="module-sortable-list flex flex-col">
                 `;
-                tbody.appendChild(tr);
+
+                mods.forEach((mod, idx) => {
+                    const encodedMod = btoa(encodeURIComponent(JSON.stringify(mod)));
+                    const badgeClass = mod.is_free_trial ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-amber-100 text-amber-800 border-amber-200';
+                    const badgeText = mod.is_free_trial ? 'Free Trial' : 'Berbayar';
+
+                    html += `
+                        <div class="p-3 border-b border-gray-100 hover:bg-gray-50 flex items-start gap-3" data-mod-id="${mod.id}">
+                            <div class="pt-1 drag-handle text-gray-400 hover:text-primary">
+                                <i class="fas fa-grip-vertical"></i>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex flex-wrap items-center justify-between gap-2">
+                                    <div class="font-bold text-gray-800 text-sm">${idx + 1}. ${mod.title}</div>
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold border ${badgeClass}">${badgeText}</span>
+                                </div>
+                                ${mod.description ? `<p class="text-xs text-gray-600 mt-1">${mod.description}</p>` : ''}
+                                <div class="flex flex-wrap items-center gap-3 mt-2 text-[11px] text-gray-500">
+                                    <span><i class="fab fa-youtube text-red-500 mr-1"></i>${mod.youtube_url}</span>
+                                    <span><i class="fas fa-stopwatch text-primary mr-1"></i>Stop Time Kuis: <strong>${mod.stop_time || 0} detik</strong></span>
+                                </div>
+                                <div class="flex gap-2 mt-3">
+                                    <button onclick="openEditModuleModal('${encodedMod}')" class="bg-blue-50 text-blue-600 px-3 py-1 rounded border border-blue-200 text-xs font-bold hover:bg-blue-100 transition"><i class="fas fa-edit mr-1"></i>Edit</button>
+                                    <button onclick="deleteModule('${mod.id}')" class="bg-red-50 text-red-600 px-3 py-1 rounded border border-red-200 text-xs font-bold hover:bg-red-100 transition"><i class="fas fa-trash mr-1"></i>Hapus</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                html += `</div></div></div>`;
+            }
+
+            container.innerHTML = html;
+
+            document.querySelectorAll('.module-sortable-list').forEach(list => {
+                const sortable = Sortable.create(list, {
+                    handle: '.drag-handle',
+                    animation: 150,
+                    ghostClass: 'sortable-ghost',
+                    onEnd: async function () {
+                        const items = list.querySelectorAll('[data-mod-id]');
+                        const updates = [];
+                        items.forEach((item, newIndex) => {
+                            const modId = item.getAttribute('data-mod-id');
+                            updates.push(supabaseClient.from('modules').update({ position: newIndex }).eq('id', modId));
+                        });
+                        await Promise.all(updates);
+                    }
+                });
+                moduleSortableInstances.push(sortable);
             });
         }
 
+        // ================================================================
+        // 3. FETCH & RENDER BANK SOAL (ACCORDION + EDIT)
+        // ================================================================
         async function fetchQuizzes() {
-            const tbody = document.getElementById('quiz-table-body');
-            tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-gray-400">Memuat bank soal...</td></tr>';
-            const { data } = await supabaseClient.from('quizzes').select('*');
-            tbody.innerHTML = '';
-            if (!data || data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-gray-500">Belum ada soal kuis.</td></tr>';
+            const container = document.getElementById('grouped-quiz-list');
+            container.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">Memuat data soal...</p>';
+
+            const { data, error } = await supabaseClient
+                .from('quizzes')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                container.innerHTML = `<p class="text-sm text-red-500 text-center py-4">Gagal memuat soal: ${error.message}</p>`;
                 return;
             }
-            data.forEach(q => {
-                const tr = document.createElement('tr');
-                tr.className = 'border-b hover:bg-gray-50';
-                tr.innerHTML = `
-                    <td class="p-3 font-medium text-gray-800">${q.question}</td>
-                    <td class="p-3 text-xs text-gray-500 font-mono">${q.course_id}</td>
-                    <td class="p-3 text-center"><span class="px-2 py-1 bg-emerald-100 text-emerald-800 rounded font-bold text-xs">${q.correct_answer}</span></td>
-                    <td class="p-3 text-center">
-                        <button onclick="deleteQuiz('${q.id}')" class="bg-red-50 text-red-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-100 transition">Hapus</button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
+
+            cachedQuizzes = data || [];
+
+            if (cachedQuizzes.length === 0) {
+                container.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">Belum ada soal kuis tersimpan.</p>';
+                return;
+            }
+
+            renderGroupedQuizzes();
         }
 
-        // Form Submit: Tambah Materi
+        function renderGroupedQuizzes() {
+            const container = document.getElementById('grouped-quiz-list');
+            container.innerHTML = '';
+
+            const courseMap = {};
+            cachedCourses.forEach(c => {
+                courseMap[c.course_id] = {
+                    cat: c.category || 'Lainnya',
+                    sub: c.subfilter || 'Umum',
+                    title: c.title || 'Materi Tidak Dikenal'
+                };
+            });
+
+            const grouped = {};
+            cachedQuizzes.forEach(q => {
+                const info = courseMap[q.course_id] || { cat: 'Lainnya', sub: 'Tanpa Kategori', title: `ID: ${q.course_id}` };
+                const cat = info.cat;
+                const sub = info.sub;
+
+                if (!grouped[cat]) grouped[cat] = {};
+                if (!grouped[cat][sub]) grouped[cat][sub] = [];
+                grouped[cat][sub].push({ ...q, courseTitle: info.title });
+            });
+
+            let html = '';
+
+            for (const cat in grouped) {
+                const catLabel = CATEGORY_LABELS[cat] || cat.toUpperCase();
+                let totalCatItems = 0;
+                for (const sub in grouped[cat]) { totalCatItems += grouped[cat][sub].length; }
+
+                html += `
+                <div class="border-b border-gray-200 last:border-b-0">
+                    <button class="w-full bg-gray-100 px-4 py-3 flex justify-between items-center font-bold text-primary hover:bg-gray-200 transition" onclick="toggleAccordion('cat-soal-${cat}')">
+                        <span class="flex items-center gap-2 text-sm">
+                            <i class="fas fa-folder-open text-accent"></i> 
+                            ${catLabel} 
+                            <span class="bg-primary/20 text-primary text-[10px] px-2 py-0.5 rounded-full ml-1">${totalCatItems} Soal</span>
+                        </span>
+                        <i class="fas fa-chevron-down text-xs transition-transform duration-200" id="icon-cat-soal-${cat}"></i>
+                    </button>
+                    <div id="cat-soal-${cat}" class="hidden">
+                `;
+
+                for (const sub in grouped[cat]) {
+                    const quizzesInSub = grouped[cat][sub];
+                    const safeId = `${cat}-${sub}`.replace(/\s+/g, '-');
+
+                    html += `
+                    <div class="border-b border-gray-100 last:border-b-0">
+                        <button class="w-full bg-white px-4 py-2.5 flex justify-between items-center text-sm font-bold text-gray-700 hover:bg-gray-50 transition" onclick="toggleAccordion('sub-soal-${safeId}')">
+                            <span class="flex items-center gap-2">
+                                <i class="fas fa-layer-group text-emerald-600"></i>
+                                ${sub}
+                                <span class="bg-emerald-100 text-emerald-800 text-[10px] px-2 py-0.5 rounded-full ml-1">${quizzesInSub.length} Soal</span>
+                            </span>
+                            <i class="fas fa-chevron-down text-xs transition-transform duration-200" id="icon-sub-soal-${safeId}"></i>
+                        </button>
+                        <div id="sub-soal-${safeId}" class="hidden bg-white">
+                    `;
+
+                    quizzesInSub.forEach(q => {
+                        const encodedQuiz = btoa(encodeURIComponent(JSON.stringify(q)));
+                        html += `
+                            <div class="p-3 border-b border-gray-100 hover:bg-gray-50 flex flex-col gap-2">
+                                <div class="text-sm font-medium text-gray-800">${q.question}</div>
+                                <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-[11px] text-gray-600">
+                                    <div class="bg-gray-50 p-1.5 rounded border"><strong>A:</strong> ${q.option_a || '-'}</div>
+                                    <div class="bg-gray-50 p-1.5 rounded border"><strong>B:</strong> ${q.option_b || '-'}</div>
+                                    <div class="bg-gray-50 p-1.5 rounded border"><strong>C:</strong> ${q.option_c || '-'}</div>
+                                    <div class="bg-gray-50 p-1.5 rounded border"><strong>D:</strong> ${q.option_d || '-'}</div>
+                                </div>
+                                <div class="flex flex-wrap gap-2 items-center text-xs mt-1">
+                                    <span class="text-gray-500">Materi:</span>
+                                    <span class="font-bold text-gray-700 bg-gray-100 px-2 py-0.5 rounded">${q.courseTitle}</span>
+                                    <span class="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded font-bold border border-emerald-200">Kunci: ${q.correct_answer}</span>
+                                </div>
+                                <div class="flex gap-2 mt-1">
+                                    <button onclick="openEditQuizModal('${encodedQuiz}')" class="bg-blue-50 text-blue-600 px-3 py-1 rounded border border-blue-200 text-xs font-bold hover:bg-blue-100 transition"><i class="fas fa-edit mr-1"></i>Edit</button>
+                                    <button onclick="deleteQuiz('${q.id}')" class="bg-red-50 text-red-600 px-3 py-1 rounded border border-red-200 text-xs font-bold hover:bg-red-100 transition"><i class="fas fa-trash mr-1"></i>Hapus</button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    html += `</div></div>`;
+                }
+                html += `</div></div>`;
+            }
+
+            container.innerHTML = html;
+        }
+
+        // ================================================================
+        // SUBMIT FORMS (TAMBAH DATA BARU)
+        // ================================================================
         document.getElementById('add-course-form').addEventListener('submit', async (e) => {
             e.preventDefault();
+            const btnSubmit = document.getElementById('btn-simpan-materi');
+            btnSubmit.disabled = true;
+            btnSubmit.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Menyimpan...';
+
+            const newPosition = cachedCourses.length > 0 ? (Math.max(...cachedCourses.map(c => c.position || 0)) + 1) : 0;
+
             const newCourse = {
                 course_id: document.getElementById('course_id').value,
                 title: document.getElementById('title').value,
@@ -544,41 +1223,67 @@
                 subfilter: document.getElementById('subfilter').value,
                 mode: document.getElementById('mode').value,
                 instructor: document.getElementById('instructor').value,
-                meetings: document.getElementById('meetings').value,
+                meetings: formatPertemuan(document.getElementById('meetings').value),
                 class_type: document.getElementById('class_type').value,
-                facility: document.getElementById('facility').value,
-                quota: document.getElementById('quota').value,
-                price: document.getElementById('price').value,
-                price_le: document.getElementById('price_le').value,
+                facility: document.getElementById('facility').value.trim(),
+                quota: document.getElementById('quota').value.trim(),
+                price: formatRupiah(document.getElementById('price').value),
+                price_le: formatLE(document.getElementById('price_le').value),
                 link: document.getElementById('link').value,
                 image: document.getElementById('image').value,
-                position: cachedCourses.length
+                position: newPosition
             };
 
-            const { error } = await supabaseClient.from('courses').insert([newCourse]);
-            if (error) alert('Gagal: ' + error.message);
-            else { alert('Materi berhasil ditambahkan!'); e.target.reset(); fetchCourses(); }
+            try {
+                const { error } = await supabaseClient.from('courses').insert([newCourse]);
+                if (error) throw error;
+                alert('Materi berhasil ditambahkan!');
+                e.target.reset();
+                document.getElementById('subfilter').innerHTML = '<option value="">-- Pilih Kategori Dulu --</option>';
+                await fetchCourses();
+            } catch (error) {
+                alert('Gagal menambah materi: ' + error.message);
+            } finally {
+                btnSubmit.disabled = false;
+                btnSubmit.innerHTML = 'Simpan Materi ke Database';
+            }
         });
 
-        // Form Submit: Tambah Modul Video
         document.getElementById('add-module-form').addEventListener('submit', async (e) => {
             e.preventDefault();
+            const btn = document.getElementById('btn-simpan-modul');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Menyimpan...';
+
+            const selectedCourseId = document.getElementById('module-course_id').value;
+            const courseMods = cachedModules.filter(m => m.course_id === selectedCourseId);
+            const nextPos = courseMods.length > 0 ? (Math.max(...courseMods.map(m => m.position || 0)) + 1) : 0;
+
             const newMod = {
-                course_id: document.getElementById('module-course_id').value,
+                course_id: selectedCourseId,
                 title: document.getElementById('module-title').value,
                 youtube_url: document.getElementById('module-youtube').value,
                 description: document.getElementById('module-desc').value,
                 stop_time: parseInt(document.getElementById('module-stoptime').value) || 0,
                 is_free_trial: document.getElementById('module-freetrial').value === 'true',
-                position: 0
+                position: nextPos
             };
 
-            const { error } = await supabaseClient.from('modules').insert([newMod]);
-            if (error) alert('Gagal menyimpan modul: ' + error.message);
-            else { alert('Modul video berhasil ditambahkan!'); e.target.reset(); fetchModules(); }
+            try {
+                const { error } = await supabaseClient.from('modules').insert([newMod]);
+                if (error) throw error;
+                alert('Modul video berhasil ditambahkan!');
+                e.target.reset();
+                document.getElementById('module-stoptime').value = '0';
+                await fetchModules();
+            } catch (error) {
+                alert('Gagal menyimpan modul: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'Simpan Modul Video ke Database';
+            }
         });
 
-        // Form Submit: Tambah Soal
         document.getElementById('add-quiz-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const newQuiz = {
@@ -591,32 +1296,208 @@
                 correct_answer: document.getElementById('quiz-correct').value
             };
 
-            const { error } = await supabaseClient.from('quizzes').insert([newQuiz]);
-            if (error) alert('Gagal: ' + error.message);
-            else { alert('Soal berhasil ditambahkan!'); e.target.reset(); fetchQuizzes(); }
+            try {
+                const { error } = await supabaseClient.from('quizzes').insert([newQuiz]);
+                if (error) throw error;
+                alert('Soal latihan berhasil ditambahkan!');
+                e.target.reset();
+                await fetchQuizzes();
+            } catch (error) {
+                alert('Gagal menyimpan soal: ' + error.message);
+            }
         });
 
-        async function deleteCourse(id) {
-            if (!confirm('Hapus materi ini?')) return;
-            await supabaseClient.from('courses').delete().eq('course_id', id);
-            fetchCourses();
+        // ================================================================
+        // FUNGSI EDIT & HAPUS DATA (MATERI, MODUL, SOAL)
+        // ================================================================
+        function openEditModal(encodedBase64) {
+            const course = JSON.parse(decodeURIComponent(atob(encodedBase64)));
+            document.getElementById('edit-course_id').value = course.course_id;
+            document.getElementById('edit-title').value = course.title || '';
+            document.getElementById('edit-category').value = course.category || 'syariah';
+            updateEditSubFilters(course.subfilter || '');
+            document.getElementById('edit-mode').value = course.mode || 'Online';
+            document.getElementById('edit-class_type').value = course.class_type || 'E-LEARNING';
+            document.getElementById('edit-instructor').value = course.instructor || '';
+
+            document.getElementById('edit-meetings').value = cleanNumberString(course.meetings);
+            document.getElementById('edit-facility').value = course.facility || '';
+            document.getElementById('edit-quota').value = course.quota || '';
+            document.getElementById('edit-price').value = cleanNumberString(course.price);
+            document.getElementById('edit-price_le').value = cleanNumberString(course.price_le);
+
+            document.getElementById('edit-link').value = course.link || '';
+            document.getElementById('edit-image').value = course.image || '';
+            document.getElementById('edit-modal').classList.remove('hidden');
         }
 
-        async function deleteModule(id) {
+        function closeEditModal() {
+            document.getElementById('edit-modal').classList.add('hidden');
+        }
+
+        async function submitEditForm() {
+            const courseId = document.getElementById('edit-course_id').value;
+            const btnSubmit = document.getElementById('btn-simpan-edit');
+            btnSubmit.disabled = true;
+            btnSubmit.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Menyimpan...';
+
+            const updatedData = {
+                title: document.getElementById('edit-title').value,
+                category: document.getElementById('edit-category').value,
+                subfilter: document.getElementById('edit-subfilter').value,
+                mode: document.getElementById('edit-mode').value,
+                class_type: document.getElementById('edit-class_type').value,
+                instructor: document.getElementById('edit-instructor').value,
+                meetings: formatPertemuan(document.getElementById('edit-meetings').value) || '',
+                facility: document.getElementById('edit-facility').value.trim(),
+                quota: document.getElementById('edit-quota').value.trim(),
+                price: formatRupiah(document.getElementById('edit-price').value) || '',
+                price_le: formatLE(document.getElementById('edit-price_le').value) || '',
+                link: document.getElementById('edit-link').value,
+                image: document.getElementById('edit-image').value
+            };
+
+            try {
+                const { error } = await supabaseClient.from('courses').update(updatedData).eq('course_id', courseId);
+                if (error) throw error;
+                alert('Materi berhasil diperbarui!');
+                closeEditModal();
+                await fetchCourses();
+                renderGroupedModules();
+                renderGroupedQuizzes();
+            } catch (error) {
+                alert('Gagal mengupdate materi: ' + error.message);
+            } finally {
+                btnSubmit.disabled = false;
+                btnSubmit.innerHTML = 'Simpan Perubahan';
+            }
+        }
+
+        function openEditModuleModal(encodedBase64) {
+            const mod = JSON.parse(decodeURIComponent(atob(encodedBase64)));
+            document.getElementById('edit-module_id').value = mod.id;
+            document.getElementById('edit-module-course_id').value = mod.course_id;
+            document.getElementById('edit-module-title').value = mod.title || '';
+            document.getElementById('edit-module-youtube').value = mod.youtube_url || '';
+            document.getElementById('edit-module-desc').value = mod.description || '';
+            document.getElementById('edit-module-stoptime').value = mod.stop_time || 0;
+            document.getElementById('edit-module-freetrial').value = mod.is_free_trial ? 'true' : 'false';
+            document.getElementById('edit-module-modal').classList.remove('hidden');
+        }
+
+        function closeEditModuleModal() {
+            document.getElementById('edit-module-modal').classList.add('hidden');
+        }
+
+        async function submitEditModuleForm() {
+            const modId = document.getElementById('edit-module_id').value;
+            const btn = document.getElementById('btn-simpan-edit-modul');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Menyimpan...';
+
+            const updatedMod = {
+                course_id: document.getElementById('edit-module-course_id').value,
+                title: document.getElementById('edit-module-title').value,
+                youtube_url: document.getElementById('edit-module-youtube').value,
+                description: document.getElementById('edit-module-desc').value,
+                stop_time: parseInt(document.getElementById('edit-module-stoptime').value) || 0,
+                is_free_trial: document.getElementById('edit-module-freetrial').value === 'true'
+            };
+
+            try {
+                const { error } = await supabaseClient.from('modules').update(updatedMod).eq('id', modId);
+                if (error) throw error;
+                alert('Modul video berhasil diperbarui!');
+                closeEditModuleModal();
+                await fetchModules();
+            } catch (error) {
+                alert('Gagal mengupdate modul: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'Simpan Perubahan';
+            }
+        }
+
+        function openEditQuizModal(encodedBase64) {
+            const q = JSON.parse(decodeURIComponent(atob(encodedBase64)));
+            document.getElementById('edit-quiz_id').value = q.id;
+            document.getElementById('edit-quiz-question').value = q.question || '';
+            document.getElementById('edit-quiz-opt-a').value = q.option_a || '';
+            document.getElementById('edit-quiz-opt-b').value = q.option_b || '';
+            document.getElementById('edit-quiz-opt-c').value = q.option_c || '';
+            document.getElementById('edit-quiz-opt-d').value = q.option_d || '';
+            document.getElementById('edit-quiz-correct').value = q.correct_answer || 'A';
+            document.getElementById('edit-quiz-modal').classList.remove('hidden');
+        }
+
+        function closeEditQuizModal() {
+            document.getElementById('edit-quiz-modal').classList.add('hidden');
+        }
+
+        async function submitEditQuizForm() {
+            const quizId = document.getElementById('edit-quiz_id').value;
+            const updatedQuiz = {
+                question: document.getElementById('edit-quiz-question').value,
+                option_a: document.getElementById('edit-quiz-opt-a').value,
+                option_b: document.getElementById('edit-quiz-opt-b').value,
+                option_c: document.getElementById('edit-quiz-opt-c').value,
+                option_d: document.getElementById('edit-quiz-opt-d').value,
+                correct_answer: document.getElementById('edit-quiz-correct').value
+            };
+
+            try {
+                const { error } = await supabaseClient.from('quizzes').update(updatedQuiz).eq('id', quizId);
+                if (error) throw error;
+                alert('Soal berhasil diperbarui!');
+                closeEditQuizModal();
+                await fetchQuizzes();
+            } catch (error) {
+                alert('Gagal mengupdate soal: ' + error.message);
+            }
+        }
+
+        async function deleteCourse(courseId) {
+            if (!confirm('Apakah Anda yakin ingin menghapus materi ini?')) return;
+            try {
+                const { error } = await supabaseClient.from('courses').delete().eq('course_id', courseId);
+                if (error) throw error;
+                await fetchCourses();
+                await fetchModules();
+                await fetchQuizzes();
+            } catch (error) {
+                alert('Gagal menghapus: ' + error.message);
+            }
+        }
+
+        async function deleteModule(modId) {
             if (!confirm('Hapus modul video ini?')) return;
-            await supabaseClient.from('modules').delete().eq('id', id);
-            fetchModules();
+            try {
+                const { error } = await supabaseClient.from('modules').delete().eq('id', modId);
+                if (error) throw error;
+                await fetchModules();
+            } catch (error) {
+                alert('Gagal menghapus modul: ' + error.message);
+            }
         }
 
-        async function deleteQuiz(id) {
-            if (!confirm('Hapus soal ini?')) return;
-            await supabaseClient.from('quizzes').delete().eq('id', id);
-            fetchQuizzes();
+        async function deleteQuiz(quizId) {
+            if (!confirm('Hapus soal ini dari bank soal?')) return;
+            try {
+                const { error } = await supabaseClient.from('quizzes').delete().eq('id', quizId);
+                if (error) throw error;
+                await fetchQuizzes();
+            } catch (error) {
+                alert('Gagal menghapus soal: ' + error.message);
+            }
         }
 
-        fetchCourses();
-        fetchModules();
-        fetchQuizzes();
+        async function init() {
+            await fetchCourses();
+            await fetchModules();
+            await fetchQuizzes();
+        }
+
+        init();
     </script>
 </body>
 
