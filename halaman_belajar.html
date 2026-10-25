@@ -905,11 +905,12 @@
         function logoutUser() {
             localStorage.removeItem('nuqthah_current_user');
             localStorage.removeItem(`nuqthah_access_${courseId}`);
+            localStorage.removeItem(`nuqthah_access_${courseId}_email`);
             window.location.reload();
         }
 
         /* ================================================================
-           CEK AKSES (MENDUKUNG PAKET & SATUAN LINTAS PRODUK)
+           CEK AKSES KETAT (STRICT MODE DENGAN KOLOM is_active & FALLBACK OFFLINE)
         ================================================================ */
         function saveAccessCache(cId, email) {
             if (!cId || !email) return;
@@ -923,51 +924,59 @@
             // Daftar ID yang valid untuk membuka materi ini (ID materi ini sendiri + ID Paket Induk jika ada)
             const validAccessIds = [courseId, ...parentBundleIdsContainingCurrentCourse];
 
-            for (const cid of validAccessIds) {
-                const localAccessEmail = localStorage.getItem(`nuqthah_access_${cid}_email`);
-                if (localStorage.getItem(`nuqthah_access_${cid}`) === 'granted' && localAccessEmail === currentUser.email) {
+            try {
+                // 1. CEK KETAT KE SUPABASE: Hanya izinkan jika ada di user_access DAN is_active = true
+                const { data: accByEmail, error: emailErr } = await supabaseClient
+                    .from('user_access')
+                    .select('*')
+                    .in('course_id', validAccessIds)
+                    .eq('user_email', currentUser.email)
+                    .eq('is_active', true)
+                    .limit(1);
+
+                if (emailErr) throw emailErr;
+
+                if (accByEmail && accByEmail.length > 0) {
+                    saveAccessCache(courseId, currentUser.email);
                     return true;
                 }
-            }
 
-            try {
+                // Cek juga berdasarkan user_id jika tersedia
                 if (currentUser.id) {
-                    const { data: accById } = await supabaseClient
+                    const { data: accById, error: idErr } = await supabaseClient
                         .from('user_access')
                         .select('*')
                         .in('course_id', validAccessIds)
                         .eq('user_id', currentUser.id)
+                        .eq('is_active', true)
                         .limit(1);
+
+                    if (idErr) throw idErr;
+
                     if (accById && accById.length > 0) {
                         saveAccessCache(courseId, currentUser.email);
                         return true;
                     }
                 }
 
-                const { data: accByEmail } = await supabaseClient
-                    .from('user_access')
-                    .select('*')
-                    .in('course_id', validAccessIds)
-                    .eq('user_email', currentUser.email)
-                    .limit(1);
-                if (accByEmail && accByEmail.length > 0) {
-                    saveAccessCache(courseId, currentUser.email);
-                    return true;
-                }
+                // 2. JIKA DIBLOKIR ADMIN (is_active = false) ATAU DIHAPUS DARI user_access:
+                // Hancurkan cache akses lokal di perangkat siswa agar materi langsung terkunci kembali
+                validAccessIds.forEach(cid => {
+                    localStorage.removeItem(`nuqthah_access_${cid}`);
+                    localStorage.removeItem(`nuqthah_access_${cid}_email`);
+                });
+                return false;
 
-                const { data: trxSuccess } = await supabaseClient
-                    .from('transactions')
-                    .select('*')
-                    .in('course_id', validAccessIds)
-                    .eq('user_email', currentUser.email)
-                    .eq('status', 'success')
-                    .limit(1);
-                if (trxSuccess && trxSuccess.length > 0) {
-                    saveAccessCache(courseId, currentUser.email);
-                    return true;
-                }
             } catch (e) {
-                console.warn('Gagal mengecek akses dari database:', e);
+                console.warn('Koneksi ke database terganggu, memeriksa fallback cache lokal:', e);
+                // 3. FALLBACK DARURAT SAAT JARINGAN BURUK / OFFLINE:
+                // Agar siswa yang sudah punya akses sah tidak ter-logout/terkunci saat sinyal hilang
+                for (const cid of validAccessIds) {
+                    const localAccessEmail = localStorage.getItem(`nuqthah_access_${cid}_email`);
+                    if (localStorage.getItem(`nuqthah_access_${cid}`) === 'granted' && localAccessEmail === currentUser.email) {
+                        return true;
+                    }
+                }
             }
 
             return false;
@@ -2258,7 +2267,8 @@
                                 user_id: userToUse.id || null,
                                 user_email: userToUse.email,
                                 course_id: cid,
-                                order_id: data.order_id
+                                order_id: data.order_id,
+                                is_active: true
                             }));
 
                             await supabaseClient.from('user_access').insert(accessRows);
@@ -2362,7 +2372,7 @@
                     showToast(`Selamat datang kembali, ${currentUser.name || 'Siswa'}! Akses materi Anda telah dibuka.`, 'success', 'Berhasil Masuk');
                     setTimeout(() => window.location.reload(), 1400);
                 } else {
-                    showToast(`Halo ${currentUser.name || 'Siswa'}, akun ini belum tercatat membeli materi ini. Silakan lanjutkan pembayaran.`, 'info', 'Akses Belum Aktif');
+                    showToast(`Halo ${currentUser.name || 'Siswa'}, akun ini belum tercatat memiliki akses aktif ke materi ini. Silakan lanjutkan pembayaran.`, 'info', 'Akses Belum Aktif');
                     openCheckoutModal();
                 }
 
