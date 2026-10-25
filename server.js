@@ -7,7 +7,7 @@ const nodemailer = require('nodemailer');
 
 const app = express();
 
-// Konfigurasi CORS yang komprehensif
+// Konfigurasi CORS komprehensif yang otomatis menangani OPTIONS
 const corsOptions = {
     origin: ['https://markaznuqthahlearning.my.id', 'http://localhost:3000'],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -16,8 +16,6 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.options('/(.*)', cors(corsOptions)); // Diperbaiki untuk Express v5
-
 app.use(express.json());
 
 // Inisialisasi Supabase dengan Service Role Key
