@@ -7,7 +7,6 @@ const nodemailer = require('nodemailer');
 
 const app = express();
 
-// Konfigurasi CORS agar dapat diakses dari domain utama & localhost
 app.use(cors());
 app.use(express.json());
 
@@ -41,9 +40,21 @@ const mailTransporter = nodemailer.createTransport({
     }
 });
 
-// ================= HELPER: NORMALISASI NOMOR & KIRIM WA FONNTE =================
+// ================= HELPER: PARSE BUNDLING PAKET =================
+function parseBundleIdsFromLink(rawLink) {
+    const str = String(rawLink || '');
+    if (!str.startsWith('BUNDLE::')) return [];
+    const withoutPrefix = str.substring(8);
+    const parts = withoutPrefix.split('||');
+    try {
+        const ids = JSON.parse(parts[0]);
+        return Array.isArray(ids) ? ids : [];
+    } catch (e) {
+        return [];
+    }
+}
 
-// Normalisasi nomor WhatsApp untuk Indonesia (62) dan Mesir (20)
+// ================= HELPER: NORMALISASI NOMOR & KIRIM WA FONNTE =================
 function normalizePhoneNumber(phone) {
     if (!phone) return '';
     let clean = String(phone).replace(/[^0-9]/g, '');
@@ -51,18 +62,15 @@ function normalizePhoneNumber(phone) {
     if (clean.startsWith('00')) {
         clean = clean.substring(2);
     } else if (clean.startsWith('08')) {
-        // Format lokal Indonesia (08xxx -> 628xxx)
         clean = '62' + clean.substring(1);
     } else if (clean.startsWith('8') && clean.length >= 9 && clean.length <= 13) {
         clean = '62' + clean;
     } else if (clean.startsWith('01') && clean.length === 11) {
-        // Format lokal Mesir (010/011/012/015 -> 201xxx)
         clean = '20' + clean.substring(1);
     }
     return clean;
 }
 
-// Fungsi kirim pesan WhatsApp otomatis via Fonnte API
 async function sendFonnteWhatsApp(targetPhone, messageText) {
     const token = process.env.FONNTE_TOKEN;
     if (!token) {
@@ -86,7 +94,7 @@ async function sendFonnteWhatsApp(targetPhone, messageText) {
             body: JSON.stringify({
                 target: formattedPhone,
                 message: messageText,
-                countryCode: '0' // '0' agar mendukung pengiriman lintas negara (Indonesia & Mesir)
+                countryCode: '0'
             })
         });
 
@@ -109,7 +117,6 @@ app.post('/api/create-transaction', async (req, res) => {
         
         const cleanPrice = parseInt(String(price).replace(/[^0-9]/g, '')) || 10000;
 
-        // Ambil data siswa (Nama & Nomor WA) dan judul materi dari Supabase
         const { data: userData } = await supabaseAdmin
             .from('users')
             .select('*')
@@ -118,7 +125,7 @@ app.post('/api/create-transaction', async (req, res) => {
 
         const { data: courseData } = await supabaseAdmin
             .from('courses')
-            .select('title')
+            .select('title, link')
             .eq('course_id', course_id)
             .single();
 
@@ -140,7 +147,6 @@ app.post('/api/create-transaction', async (req, res) => {
 
         let transaction = await snap.createTransaction(parameter);
 
-        // Simpan transaksi ke tabel transactions dengan status pending
         await supabaseAdmin.from('transactions').insert([{
             order_id: orderId,
             user_id: user_id || userData?.id || null,
@@ -150,7 +156,6 @@ app.post('/api/create-transaction', async (req, res) => {
             status: 'pending'
         }]);
 
-        // Kirim WhatsApp Follow-Up otomatis jika nomor WA siswa tersedia
         if (studentWa) {
             const formattedRupiah = 'Rp ' + new Intl.NumberFormat('id-ID').format(cleanPrice);
             const learningUrl = `https://markaz.nuqthahlearning.my.id/halaman_belajar.html?course_id=${course_id}`;
@@ -181,7 +186,7 @@ Apabila ada kendala atau butuh bantuan admin, silakan balas pesan ini. Syukran! 
     }
 });
 
-// Endpoint 2: Midtrans Webhook Notification (Update Akses & Kirim WA Konfirmasi Lunas)
+// Endpoint 2: Midtrans Webhook Notification (Update Akses Paket/Satuan & Kirim WA Konfirmasi Lunas)
 app.post('/api/midtrans-notification', async (req, res) => {
     try {
         let notificationJson = req.body;
@@ -198,7 +203,6 @@ app.post('/api/midtrans-notification', async (req, res) => {
         let transactionStatus = statusResponse.transaction_status;
         let fraudStatus = statusResponse.fraud_status;
 
-        // Ambil data transaksi dari Supabase
         const { data: trx } = await supabaseAdmin
             .from('transactions')
             .select('*')
@@ -209,7 +213,6 @@ app.post('/api/midtrans-notification', async (req, res) => {
             return res.status(200).json({ status: 'OK', message: 'Transaksi tidak ditemukan di DB' });
         }
 
-        // Ambil informasi pengguna & materi untuk isi pesan WhatsApp
         const { data: userData } = await supabaseAdmin
             .from('users')
             .select('*')
@@ -218,7 +221,7 @@ app.post('/api/midtrans-notification', async (req, res) => {
 
         const { data: courseData } = await supabaseAdmin
             .from('courses')
-            .select('title')
+            .select('title, link')
             .eq('course_id', trx.course_id)
             .single();
 
@@ -236,7 +239,6 @@ app.post('/api/midtrans-notification', async (req, res) => {
                     .update({ status: 'success' })
                     .eq('order_id', orderId);
 
-                // Cek agar tidak terjadi duplikasi data di user_access
                 const { data: existingAccess } = await supabaseAdmin
                     .from('user_access')
                     .select('id')
@@ -244,15 +246,19 @@ app.post('/api/midtrans-notification', async (req, res) => {
                     .limit(1);
 
                 if (!existingAccess || existingAccess.length === 0) {
-                    await supabaseAdmin.from('user_access').insert([{
+                    const bundledIds = parseBundleIdsFromLink(courseData?.link);
+                    const allCourseIdsToGrant = Array.from(new Set([trx.course_id, ...bundledIds]));
+
+                    const accessRows = allCourseIdsToGrant.map(cid => ({
                         user_id: trx.user_id || userData?.id || null,
                         user_email: trx.user_email || null,
-                        course_id: trx.course_id,
+                        course_id: cid,
                         order_id: orderId
-                    }]);
+                    }));
+
+                    await supabaseAdmin.from('user_access').insert(accessRows);
                 }
 
-                // Kirim WA Konfirmasi Lunas (hanya 1 kali saat status berubah menjadi success)
                 if (!wasAlreadySuccess && studentWa) {
                     const formattedRupiah = 'Rp ' + new Intl.NumberFormat('id-ID').format(trx.gross_amount || 0);
                     const successMsg = 
@@ -285,7 +291,6 @@ Selamat belajar, semoga ilmunya bermanfaat dan berkah! 🌟
                 .update({ status: 'failed' })
                 .eq('order_id', orderId);
 
-            // Kirim WA Follow-Up jika pembayaran kedaluwarsa (expire)
             if (transactionStatus == 'expire' && !wasAlreadyFailed && studentWa) {
                 const expireMsg = 
 `Assalamu'alaikum *${studentName}*,
@@ -342,7 +347,6 @@ app.post('/api/send-otp', async (req, res) => {
 
         console.log(`[OTP SYSTEM] Kode verifikasi untuk ${email} adalah: ${otpCode}`);
 
-        // 1. Kirim OTP ke Email
         if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
             await mailTransporter.sendMail({
                 from: `"Nuqthah Learning Center" <${process.env.EMAIL_USER}>`,
@@ -362,7 +366,6 @@ app.post('/api/send-otp', async (req, res) => {
             });
         }
 
-        // 2. Kirim juga OTP ke WhatsApp siswa (jika FONNTE_TOKEN aktif & nomor WA ada)
         if (userExist.whatsapp && process.env.FONNTE_TOKEN) {
             const otpWaMsg = 
 `Assalamu'alaikum *${userExist.name}*,
@@ -425,7 +428,6 @@ app.post('/api/verify-otp', async (req, res) => {
     }
 });
 
-// Konfigurasi port lokal vs Vercel
 const PORT = process.env.PORT || 3000;
 
 if (process.env.NODE_ENV !== 'production') {
