@@ -57,6 +57,21 @@
             background-color: #000 !important;
         }
 
+        /* KHUSUS IPHONE / IOS (SAFARI & CHROME): Putar Layar Lanskap 90 Derajat */
+        .nuqthah-player-wrapper.is-forced-landscape {
+            position: fixed !important;
+            top: 50% !important;
+            left: 50% !important;
+            width: 100dvh !important;
+            height: 100vw !important;
+            transform: translate(-50%, -50%) rotate(90deg) !important;
+            z-index: 99990 !important;
+            border-radius: 0 !important;
+            aspect-ratio: auto !important;
+            background-color: #000 !important;
+            max-width: none !important;
+        }
+
         .video-iframe-layer {
             position: absolute;
             inset: 0;
@@ -1577,17 +1592,22 @@
             }
         }
 
+        /* ================================================================
+           FULLSCREEN & PUTAR LAYAR LANSKAP (SUPPORT ANDROID & IPHONE/IOS)
+        ================================================================ */
         async function toggleFullscreen() {
             const isNativeFs = document.fullscreenElement || document.webkitFullscreenElement;
             const isPseudoFs = playerContainer.classList.contains('is-pseudo-fullscreen');
+            const isForcedLandscape = playerContainer.classList.contains('is-forced-landscape');
 
-            if (!isNativeFs && !isPseudoFs) {
+            if (!isNativeFs && !isPseudoFs && !isForcedLandscape) {
                 try {
                     if (playerContainer.requestFullscreen) {
                         await playerContainer.requestFullscreen();
                     } else if (playerContainer.webkitRequestFullscreen) {
                         await playerContainer.webkitRequestFullscreen();
                     } else {
+                        // Fallback untuk iPhone (Safari & Chrome iOS)
                         playerContainer.classList.add('is-pseudo-fullscreen');
                         document.body.style.overflow = 'hidden';
                         iconFullscreen.className = 'fas fa-compress text-xs sm:text-sm';
@@ -1605,8 +1625,8 @@
                     if (document.exitFullscreen) await document.exitFullscreen();
                     else if (document.webkitExitFullscreen) await document.webkitExitFullscreen();
                 }
-                if (isPseudoFs) {
-                    playerContainer.classList.remove('is-pseudo-fullscreen');
+                if (isPseudoFs || isForcedLandscape) {
+                    playerContainer.classList.remove('is-pseudo-fullscreen', 'is-forced-landscape');
                     document.body.style.overflow = '';
                     iconFullscreen.className = 'fas fa-expand text-xs sm:text-sm';
                 }
@@ -1617,26 +1637,40 @@
         }
 
         async function forceLandscape() {
-            const isNativeFs = document.fullscreenElement || document.webkitFullscreenElement;
-            const isPseudoFs = playerContainer.classList.contains('is-pseudo-fullscreen');
+            const isForcedLandscape = playerContainer.classList.contains('is-forced-landscape');
 
-            if (!isNativeFs && !isPseudoFs) {
-                await toggleFullscreen();
+            // Jika sedang dalam mode rotasi CSS (iPhone), kembalikan ke posisi semula (Portrait)
+            if (isForcedLandscape) {
+                playerContainer.classList.remove('is-forced-landscape', 'is-pseudo-fullscreen');
+                document.body.style.overflow = '';
+                iconFullscreen.className = 'fas fa-expand text-xs sm:text-sm';
+                return;
             }
 
+            // 1. Coba gunakan fitur rotasi native terlebih dahulu (untuk Android)
             if (screen.orientation && screen.orientation.lock) {
                 try {
+                    const isNativeFs = document.fullscreenElement || document.webkitFullscreenElement;
+                    if (!isNativeFs && playerContainer.requestFullscreen) {
+                        await playerContainer.requestFullscreen();
+                    }
                     if (screen.orientation.type.includes('portrait')) {
                         await screen.orientation.lock('landscape');
                     } else {
                         await screen.orientation.lock('portrait');
                     }
+                    return; // Berhasil di Android
                 } catch (err) {
-                    showToast('Browser Anda tidak mengizinkan penguncian orientasi otomatis. Putar perangkat secara manual.', 'warning', 'Orientasi Tidak Didukung');
+                    // Jika ditolak oleh sistem (seperti pada iPhone/iOS), lanjut ke fallback CSS di bawah
                 }
-            } else {
-                showToast('Browser Anda tidak mendukung fitur putar layar otomatis. Putar perangkat secara manual.', 'info', 'Fitur Tidak Didukung');
             }
+
+            // 2. FALLBACK OTOMATIS UNTUK IPHONE (Safari & Chrome iOS):
+            // Putar layar penuh menggunakan CSS 90 derajat secara instan
+            playerContainer.classList.remove('is-pseudo-fullscreen');
+            playerContainer.classList.add('is-forced-landscape');
+            document.body.style.overflow = 'hidden';
+            iconFullscreen.className = 'fas fa-compress text-xs sm:text-sm';
         }
 
         function showControls() {
@@ -1780,7 +1814,7 @@
                 } else if (e.key === 'r' || e.key === 'R') {
                     e.preventDefault();
                     forceLandscape();
-                } else if (e.key === 'Escape' && playerContainer.classList.contains('is-pseudo-fullscreen')) {
+                } else if (e.key === 'Escape' && (playerContainer.classList.contains('is-pseudo-fullscreen') || playerContainer.classList.contains('is-forced-landscape'))) {
                     toggleFullscreen();
                 }
             });
@@ -2258,6 +2292,7 @@
                                 .update({ status: 'success' })
                                 .eq('order_id', data.order_id);
 
+                            // Jika membeli Paket Bundling, buka akses untuk Paket sekaligus seluruh materi di dalam paket
                             const accessIdsToGrant = isBundleCourse
                                 ? [courseId, ...bundledCourseIds]
                                 : [courseId];
@@ -2303,6 +2338,7 @@
                 showToast('Terjadi kesalahan koneksi ke server pembayaran.', 'error', 'Koneksi Gagal');
             }
         }
+
         /* ================================================================
            OTP
         ================================================================ */
