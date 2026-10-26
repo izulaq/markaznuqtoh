@@ -40,9 +40,10 @@ const mailTransporter = nodemailer.createTransport({
     }
 });
 
-// ================= HELPER: PARSE BUNDLING PAKET =================
+// ================= HELPER: PARSE BUNDLING PAKET & METADATA =================
 function parseBundleIdsFromLink(rawLink) {
-    const str = String(rawLink || '');
+    // Bersihkan akhiran ||META:: terlebih dahulu agar tidak mengganggu pembacaan link/paket
+    const str = String(rawLink || '').split('||META::')[0];
     if (!str.startsWith('BUNDLE::')) return [];
     const withoutPrefix = str.substring(8);
     const parts = withoutPrefix.split('||');
@@ -186,7 +187,8 @@ app.post('/api/create-transaction', async (req, res) => {
             user_email: user_email || null,
             course_id: course_id,
             gross_amount: cleanPrice,
-            status: 'pending'
+            status: 'pending',
+            created_at: new Date().toISOString()
         }]);
 
         if (studentWa) {
@@ -275,7 +277,7 @@ app.post('/api/midtrans-notification', async (req, res) => {
                 const bundledIds = parseBundleIdsFromLink(courseData?.link);
                 const allCourseIdsToGrant = Array.from(new Set([trx.course_id, ...bundledIds]));
 
-                // Gunakan helper Anti-Duplikat untuk setiap course_id
+                // Buka akses untuk materi utama maupun seluruh materi di dalam Paket Bundling
                 for (const cid of allCourseIdsToGrant) {
                     await grantUserAccessSafely({
                         userId: trx.user_id || userData?.id || null,
