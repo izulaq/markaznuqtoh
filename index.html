@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- index.html - Integrasi Dinamis Supabase, Paket Bundling, Strict Access Control, Materimu Drawer & Halaman Belajar -->
+<!-- index.html - Redesigned Student Dashboard & Katalog Nuqthah -->
 <html lang="id">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Materi - Nuqthah Learning Center</title>
+    <title>Dashboard - Nuqthah Learning Center</title>
 
     <meta name="theme-color" content="#0F4A3A">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -18,7 +18,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
     <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&amp;family=Poppins:wght@400;600;700&amp;display=swap"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Poppins:wght@400;600;700&display=swap"
         rel="stylesheet">
 
     <!-- CDNs -->
@@ -31,6 +31,7 @@
                 extend: {
                     colors: {
                         primary: '#2E5E4E',
+                        primarydark: '#1F4236',
                         accent: '#C9A227',
                     }
                 }
@@ -41,6 +42,7 @@
     <style>
         body {
             font-family: 'Inter', sans-serif;
+            background-color: #F8FAFC;
         }
 
         h1,
@@ -78,16 +80,13 @@
         }
 
         .course-card {
-            box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.08), 0 4px 10px -5px rgba(0, 0, 0, 0.04) !important;
-        }
-
-        .card-hover {
+            box-shadow: 0 4px 15px -3px rgba(0, 0, 0, 0.05);
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        .card-hover:hover {
+        .course-card:hover {
             transform: translateY(-4px);
-            box-shadow: 0 20px 35px -5px rgba(0, 0, 0, 0.15) !important;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
         }
 
         .card-title-min-h {
@@ -111,6 +110,17 @@
             z-index: 70000 !important;
         }
 
+        .sticky-filter {
+            z-index: 60000 !important;
+            top: 48px;
+        }
+
+        @media (min-width: 768px) {
+            .sticky-filter {
+                top: 64px;
+            }
+        }
+
         .modal-fade-in {
             animation: modalFadeIn 0.3s ease-out forwards;
         }
@@ -127,81 +137,7 @@
             }
         }
 
-        html {
-            scroll-behavior: smooth;
-        }
-
-        .sticky-cat {
-            top: 48px;
-        }
-
-        @media (min-width: 768px) {
-            .sticky-cat {
-                top: 64px;
-            }
-        }
-
-        #category-tabs,
-        #online-offline-filter {
-            -webkit-overflow-scrolling: touch;
-        }
-
-        .modal-container {
-            z-index: 9999999 !important;
-        }
-
-        .modal-overlay {
-            z-index: 9999998 !important;
-        }
-
-        #edit-modal .modal-content {
-            max-width: 440px;
-        }
-
-        #edit-modal input {
-            width: 100%;
-            border: 1px solid rgba(15, 74, 58, .10);
-            border-radius: 12px;
-            padding: 12px 16px;
-            background: #fff;
-            outline: none;
-            transition: .25s;
-            font-size: .9rem;
-        }
-
-        #edit-modal input:focus {
-            border-color: rgba(15, 74, 58, .35);
-            box-shadow: 0 0 0 4px rgba(15, 74, 58, .08);
-        }
-
-        #empty-materi-state {
-            transition: opacity 0.3s ease;
-        }
-
-        #empty-materi-state.hidden {
-            opacity: 0;
-            pointer-events: none;
-        }
-
-        #empty-materi-state .empty-icon {
-            font-size: 3.5rem;
-            color: rgba(46, 94, 78, 0.15);
-        }
-
-        #empty-materi-state .empty-title {
-            color: #2E5E4E;
-            font-weight: 700;
-            font-size: 1.1rem;
-        }
-
-        #empty-materi-state .empty-desc {
-            color: #6b7280;
-            font-size: 0.9rem;
-            max-width: 360px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-
+        /* Toast & Loading */
         @keyframes nlc-spin {
             to {
                 transform: rotate(360deg);
@@ -211,9 +147,8 @@
         #page-loading-overlay {
             position: fixed;
             inset: 0;
-            background: rgba(255, 255, 255, 0.96);
-            backdrop-filter: blur(6px);
-            -webkit-backdrop-filter: blur(6px);
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(4px);
             z-index: 999999;
             display: flex;
             align-items: center;
@@ -229,25 +164,15 @@
             pointer-events: none;
         }
 
-        #page-loading-overlay .page-loading-spinner {
-            width: 48px;
-            height: 48px;
+        .page-loading-spinner {
+            width: 40px;
+            height: 40px;
             border: 3px solid rgba(46, 94, 78, 0.15);
             border-top-color: #2E5E4E;
             border-radius: 50%;
             animation: nlc-spin 0.8s linear infinite;
         }
 
-        #page-loading-overlay .page-loading-text {
-            color: #2E5E4E;
-            font-size: 0.8rem;
-            font-weight: 700;
-            letter-spacing: 0.15em;
-            text-transform: uppercase;
-            opacity: 0.85;
-        }
-
-        /* ============ TOAST ============ */
         .toast-item {
             animation: toastIn .35s cubic-bezier(.21, 1.02, .73, 1) forwards;
         }
@@ -294,81 +219,95 @@
             }
         }
 
-        /* ============ PURCHASED BADGE ============ */
         .purchased-item {
             background: linear-gradient(135deg, rgba(16, 185, 129, 0.04) 0%, rgba(255, 255, 255, 1) 100%);
             border-color: rgba(16, 185, 129, 0.25) !important;
         }
+
+        /* Dashboard Widget Styles */
+        .stat-card {
+            background: white;
+            border-radius: 1rem;
+            padding: 1.25rem;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+            border: 1px solid #f1f5f9;
+        }
+
+        .continue-card {
+            min-width: 280px;
+            max-width: 280px;
+        }
     </style>
 </head>
 
-<body class="bg-white text-gray-900 overflow-x-hidden">
+<body class="text-gray-800 overflow-x-hidden pt-12 md:pt-16">
 
-    <!-- ================= TOAST CONTAINER ================= -->
+    <!-- TOAST CONTAINER (Z-Index Tertinggi agar selalu di atas modal) -->
     <div id="toast-container" aria-live="polite"
-        class="fixed top-3 right-3 left-3 sm:left-auto sm:right-5 z-[99999999] flex flex-col items-end gap-2.5 pointer-events-none">
+        class="fixed top-16 right-3 left-3 sm:left-auto sm:right-5 z-[999999999] flex flex-col items-end gap-2.5 pointer-events-none">
     </div>
 
     <!-- PAGE LOADING OVERLAY -->
     <div id="page-loading-overlay">
         <div class="page-loading-spinner"></div>
-        <div class="page-loading-text">Memuat Materi...</div>
+        <div class="text-primary text-xs font-bold tracking-widest uppercase opacity-85">Memuat Data...</div>
     </div>
 
-    <!-- Navigation -->
+    <!-- NAVIGATION -->
     <nav
-        class="main-nav fixed top-0 left-0 right-0 w-full bg-primary text-white shadow-lg px-4 md:px-6 h-12 md:h-16 flex items-center justify-between">
-        <a href="index.html" class="flex items-center gap-2 md:gap-3 hover:opacity-90 transition-opacity duration-300">
+        class="main-nav fixed top-0 left-0 right-0 w-full bg-primary text-white shadow-md px-4 md:px-6 h-12 md:h-16 flex items-center justify-between">
+        <a href="index.html" class="flex items-center gap-2 md:gap-3 hover:opacity-90 transition-opacity">
             <i class="fas fa-home text-xl md:text-2xl text-white"></i>
-            <span class="font-bold text-sm md:text-base hidden sm:inline">Kembali Ke Beranda</span>
-            <span class="font-bold text-sm sm:hidden">Beranda</span>
+            <span class="font-bold text-sm md:text-base hidden sm:inline">Beranda</span>
         </a>
 
-        <div class="flex items-center gap-2 md:gap-3">
+        <div class="flex items-center gap-1.5 md:gap-3">
+            <!-- Trial Quiz (Tampil di mobile) -->
             <a href="latihansoal.html"
-                class="bg-accent text-white px-4 py-1.5 rounded-lg font-bold text-xs md:text-sm hover:bg-opacity-90 transition-all shadow-sm">
+                class="bg-accent text-white px-3 py-1.5 md:px-4 md:py-1.5 rounded-lg font-bold text-[11px] md:text-sm hover:bg-opacity-90 transition-all shadow-sm whitespace-nowrap">
                 Trial Quiz
             </a>
+
             <button id="materimu-toggle-btn" onclick="toggleDrawer()"
-                class="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-colors relative cursor-pointer">
+                class="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-2.5 py-1.5 md:px-3 md:py-1.5 rounded-lg transition-colors relative cursor-pointer">
                 <i class="far fa-bookmark"></i>
-                <span class="text-xs md:text-sm font-medium">Materimu</span>
+                <span class="text-xs md:text-sm font-medium hidden sm:inline">Materimu</span>
                 <span id="materimu-badge"
                     class="absolute -top-1 -right-1 bg-accent text-white text-[10px] w-5 h-5 flex items-center justify-center rounded-full border border-primary leading-none">0</span>
             </button>
 
-            <!-- Auth State UI -->
             <div id="nav-auth-container" class="flex items-center ml-1">
                 <!-- Diisi oleh JavaScript -->
             </div>
         </div>
     </nav>
 
-    <!-- Drawer Overlay -->
+    <!-- DRAWER OVERLAY -->
     <div id="drawer-overlay" onclick="toggleDrawer()"
         class="fixed inset-0 bg-black/60 transition-opacity duration-300 opacity-0 pointer-events-none"></div>
 
-    <!-- Materimu Drawer -->
+    <!-- MATERIMU DRAWER -->
     <div id="materimu-drawer"
         class="fixed inset-y-0 right-0 w-full max-w-[320px] md:max-w-[400px] bg-white shadow-2xl transition-transform duration-300 flex flex-col translate-x-full">
         <div class="p-5 border-b border-gray-100 flex items-center justify-between bg-primary text-white">
-            <div class="flex items-center gap-3">
-                <h2 class="text-lg font-bold">Materimu</h2>
-                <span id="drawer-count-badge"
-                    class="bg-accent px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase">0</span>
+            <div class="flex flex-col min-w-0 pr-2">
+                <div class="flex items-center gap-2">
+                    <h2 class="text-base md:text-lg font-bold truncate">Materi Tersimpan</h2>
+                    <span id="drawer-count-badge"
+                        class="bg-accent px-2 py-0.5 rounded-full text-[10px] font-bold uppercase whitespace-nowrap">0</span>
+                </div>
+                <span id="drawer-user-email" class="text-[10px] md:text-[11px] text-gray-300 truncate mt-0.5">Memuat
+                    email...</span>
             </div>
-            <div class="flex items-center gap-2">
-                <button id="close-drawer" onclick="toggleDrawer()"
-                    class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10"><i
-                        class="fas fa-times"></i></button>
-            </div>
+            <button id="close-drawer" onclick="toggleDrawer()"
+                class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 shrink-0"><i
+                    class="fas fa-times"></i></button>
         </div>
 
-        <!-- Manual Add -->
         <div class="border-b border-gray-100 bg-gray-50/80">
             <button id="toggle-manual-form" onclick="toggleManualForm()"
                 class="w-full px-5 py-4 flex items-center justify-between text-xs font-bold text-primary uppercase">
-                <div class="flex items-center gap-2"><i class="fas fa-link text-accent"></i><span>Tambah Materi dari
+                <div class="flex items-center gap-2"><i class="fas fa-link text-accent"></i><span>Tambah dari
                         Link</span></div>
                 <i id="manual-chevron" class="fas fa-chevron-down transition-transform"></i>
             </button>
@@ -378,8 +317,7 @@
                 <input type="url" id="manual-link" placeholder="Link Produk / Daftar"
                     class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-primary">
                 <button id="save-manual-btn" onclick="saveManualMaterial()"
-                    class="w-full py-2.5 bg-primary text-white text-xs font-bold rounded-lg shadow-sm">Simpan ke
-                    Materimu</button>
+                    class="w-full py-2.5 bg-primary text-white text-xs font-bold rounded-lg shadow-sm">Simpan</button>
             </div>
         </div>
 
@@ -390,168 +328,222 @@
                 <p class="text-[11px] mt-1 text-gray-500">Materi yang Anda beli akan otomatis muncul di sini.</p>
             </div>
         </div>
-
-        <div class="p-4 border-t border-gray-100 bg-gray-50">
-            <button id="clear-all-btn" onclick="clearAllMaterials()"
-                class="w-full py-3 text-xs text-gray-400 hover:text-red-600 transition-colors font-semibold uppercase tracking-widest flex items-center justify-center gap-2">
-                <i class="far fa-trash-can"></i> Kosongkan Materi Tersimpan
-            </button>
-        </div>
     </div>
 
-    <!-- Header -->
-    <header class="mt-12 md:mt-16 pt-8 pb-4 px-6 text-center relative bg-white overflow-hidden">
-        <div class="absolute -top-32 -right-32 w-80 h-80 bg-primary opacity-[0.03] rounded-full blur-[80px]"></div>
-        <div class="absolute -top-32 -left-32 w-80 h-80 bg-accent opacity-[0.03] rounded-full blur-[80px]"></div>
-        <div class="fade-in relative z-10 max-w-screen-md mx-auto">
-            <h1 class="text-2xl md:text-4xl font-bold text-primary tracking-tight mb-2">Berfikir • Berdzikir • Berhasil
-            </h1>
-            <p class="text-accent text-base md:text-lg tracking-[0.2em] font-bold uppercase opacity-90">
-                #mumtazbarengnuqthah</p>
-            <div class="flex justify-center mt-2">
-                <div class="w-32 h-0.5 bg-gradient-to-r from-transparent via-accent/20 to-transparent rounded-full">
+    <!-- ================= DASHBOARD SISWA (HERO SECTION) ================= -->
+    <section class="max-w-screen-xl mx-auto px-4 md:px-6 py-6 md:py-8" id="student-dashboard">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-8">
+
+            <!-- Kartu Sambutan & Ringkasan -->
+            <div
+                class="md:col-span-2 bg-gradient-to-br from-primary to-primarydark text-white rounded-3xl p-6 md:p-8 relative overflow-hidden shadow-lg">
+                <!-- Ornamen Background -->
+                <div class="absolute -top-10 -right-10 w-40 h-40 bg-white opacity-5 rounded-full blur-2xl"></div>
+                <div class="absolute -bottom-10 -left-10 w-32 h-32 bg-accent opacity-10 rounded-full blur-xl"></div>
+
+                <div class="relative z-10">
+                    <p class="text-accent text-sm font-bold tracking-widest uppercase mb-2">Assalamu'alaikum,</p>
+                    <h1 id="dashboard-greeting" class="text-2xl md:text-3xl font-bold mb-4">Siswa Nuqthah</h1>
+                    <p class="text-gray-200 text-sm md:text-base max-w-md mb-6 leading-relaxed">
+                        Teruslah menuntut ilmu, karena ilmu adalah cahaya. Lanjutkan progres belajarmu hari ini.
+                    </p>
+
+                    <!-- Grid 2 Kolom di Mobile agar sejajar dan compact -->
+                    <div class="grid grid-cols-2 gap-2 md:flex md:gap-4 mt-6">
+                        <div
+                            class="bg-white/10 backdrop-blur-md rounded-xl p-2.5 md:p-3 px-3 md:px-4 flex items-center gap-2 md:gap-3 border border-white/10">
+                            <div
+                                class="w-8 h-8 md:w-10 md:h-10 bg-accent rounded-lg flex items-center justify-center shrink-0">
+                                <i class="fas fa-book-open text-white text-xs md:text-base"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <p
+                                    class="text-[9px] md:text-[10px] text-gray-300 uppercase tracking-wider font-bold truncate">
+                                    Materi Terbuka</p>
+                                <p id="stat-purchased" class="text-base md:text-xl font-bold">0</p>
+                            </div>
+                        </div>
+                        <div
+                            class="bg-white/10 backdrop-blur-md rounded-xl p-2.5 md:p-3 px-3 md:px-4 flex items-center gap-2 md:gap-3 border border-white/10">
+                            <div
+                                class="w-8 h-8 md:w-10 md:h-10 bg-white/20 rounded-lg flex items-center justify-center shrink-0">
+                                <i class="fas fa-certificate text-white text-xs md:text-base"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <p
+                                    class="text-[9px] md:text-[10px] text-gray-300 uppercase tracking-wider font-bold truncate">
+                                    Status Akun</p>
+                                <p id="stat-status" class="text-xs md:text-sm font-bold truncate">Guest</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Kartu Jadwal Terdekat (Dinamis dari Supabase) -->
+            <div
+                class="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm flex flex-col justify-center relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-bl-full"></div>
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center">
+                            <i class="far fa-calendar-alt text-lg"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-gray-800 text-sm">Jadwal Terdekat</h3>
+                            <p class="text-[11px] text-gray-500">Kelas online & offline</p>
+                        </div>
+                    </div>
+                </div>
+                <div id="dashboard-schedule"
+                    class="bg-gray-50 rounded-xl p-4 text-center border border-gray-100 border-dashed flex-grow flex flex-col justify-center items-center relative min-h-[140px]">
+                    <!-- Diisi oleh JS -->
+                    <i class="fas fa-mug-hot text-gray-300 text-2xl mb-2 animate-pulse"></i>
+                    <p class="text-xs text-gray-500 font-medium">Memuat jadwal...</p>
                 </div>
             </div>
         </div>
-    </header>
 
-    <!-- Filter Navigation -->
-    <nav id="katalog"
-        class="sticky sticky-cat z-[50] bg-white/95 backdrop-blur-md border-b border-gray-100 overflow-x-hidden">
-        <div class="max-w-screen-xl mx-auto px-6">
-            <div class="flex items-center justify-start md:justify-center overflow-x-auto hide-scrollbar gap-4 py-4"
-                id="category-tabs">
-                <button onclick="changeCategory('syariah')"
-                    class="nav-tab px-6 py-2 rounded-full whitespace-nowrap transition-all font-medium bg-primary text-white"
-                    data-category="syariah">Bimbel Syariah</button>
-                <button onclick="changeCategory('ushul')"
-                    class="nav-tab px-6 py-2 rounded-full whitespace-nowrap transition-all font-medium text-gray-600"
-                    data-category="ushul">Bimbel Ushuludin</button>
-                <button onclick="changeCategory('tafaqquh')"
-                    class="nav-tab px-6 py-2 rounded-full whitespace-nowrap transition-all font-medium text-gray-600"
-                    data-category="tafaqquh">Tafaqquh</button>
-                <button onclick="changeCategory('tashil')"
-                    class="nav-tab px-6 py-2 rounded-full whitespace-nowrap transition-all font-medium text-gray-600"
-                    data-category="tashil">Ilmu Alat</button>
-                <button onclick="changeCategory('amiyah')"
-                    class="nav-tab px-6 py-2 rounded-full whitespace-nowrap transition-all font-medium text-gray-600"
-                    data-category="amiyah">Amiyah Mesir</button>
+        <!-- Bagian "Lanjutkan Belajar" (Hanya Muncul Jika Punya Materi) -->
+        <div id="continue-learning-section" class="mb-4 hidden">
+            <div class="flex items-center justify-between mb-3 px-1">
+                <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                    <i class="fas fa-play-circle text-primary"></i> Lanjutkan Belajar
+                </h2>
+                <button onclick="toggleDrawer()" class="text-xs text-primary font-bold hover:underline">Lihat
+                    Semua</button>
+            </div>
+            <div class="flex overflow-x-auto hide-scrollbar gap-4 pb-4" id="continue-learning-container">
+                <!-- Diisi oleh JS -->
             </div>
         </div>
-    </nav>
+    </section>
 
-    <!-- Sub-Filter Bar -->
-    <div class="bg-gray-50/50 border-b border-gray-100 py-3 z-[49]">
-        <div class="max-w-screen-xl mx-auto px-6 overflow-x-auto hide-scrollbar flex items-center justify-start md:justify-center gap-3"
-            id="sub-filter-container"></div>
-    </div>
 
-    <!-- Online/Offline Filter Bar & Search -->
-    <div class="bg-primary/5 border-b border-gray-100 py-3 z-[48]">
+    <!-- ================= KATALOG & PENCARIAN ================= -->
+    <section id="katalog-section" class="bg-white border-t border-gray-100">
+
+        <!-- Header Katalog & Search Bar -->
         <div
-            class="max-w-screen-xl mx-auto px-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-            <div class="overflow-x-auto hide-scrollbar flex items-center justify-start gap-2.5"
-                id="online-offline-filter"></div>
-            <div class="relative w-full sm:w-64">
-                <i class="fas fa-search absolute left-3 top-2.5 text-gray-400 text-xs"></i>
-                <input type="text" id="catalog-search-input" oninput="applyFilters()"
-                    placeholder="Cari materi atau pengajar..."
-                    class="w-full bg-white border border-gray-200 pl-8 pr-3 py-1.5 rounded-full text-xs focus:outline-none focus:border-primary shadow-sm">
+            class="sticky-filter sticky bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-sm transition-all duration-300">
+            <div
+                class="max-w-screen-xl mx-auto px-4 md:px-6 py-3 flex flex-col md:flex-row items-center justify-between gap-3">
+
+                <!-- Title (Desktop Only) -->
+                <div class="hidden md:block shrink-0">
+                    <h2 class="text-lg font-bold text-gray-800">Jelajahi Materi</h2>
+                    <p class="text-[10px] text-gray-500">Temukan kelas yang cocok untukmu</p>
+                </div>
+
+                <!-- Kategori Tabs -->
+                <div class="flex items-center justify-start md:justify-center overflow-x-auto hide-scrollbar gap-2 w-full md:w-auto"
+                    id="category-tabs">
+                    <button onclick="changeCategory('syariah')"
+                        class="nav-tab px-4 py-1.5 rounded-full whitespace-nowrap transition-all text-xs font-bold bg-primary text-white"
+                        data-category="syariah">Bimbel Syariah</button>
+                    <button onclick="changeCategory('ushul')"
+                        class="nav-tab px-4 py-1.5 rounded-full whitespace-nowrap transition-all text-xs font-bold text-gray-600 hover:bg-gray-100"
+                        data-category="ushul">Bimbel Ushuludin</button>
+                    <button onclick="changeCategory('tafaqquh')"
+                        class="nav-tab px-4 py-1.5 rounded-full whitespace-nowrap transition-all text-xs font-bold text-gray-600 hover:bg-gray-100"
+                        data-category="tafaqquh">Tafaqquh</button>
+                    <button onclick="changeCategory('tashil')"
+                        class="nav-tab px-4 py-1.5 rounded-full whitespace-nowrap transition-all text-xs font-bold text-gray-600 hover:bg-gray-100"
+                        data-category="tashil">Ilmu Alat</button>
+                    <button onclick="changeCategory('amiyah')"
+                        class="nav-tab px-4 py-1.5 rounded-full whitespace-nowrap transition-all text-xs font-bold text-gray-600 hover:bg-gray-100"
+                        data-category="amiyah">Amiyah Mesir</button>
+                </div>
+
+                <!-- Search Box -->
+                <div class="relative w-full md:w-64 shrink-0">
+                    <i class="fas fa-search absolute left-3 top-2.5 text-gray-400 text-xs"></i>
+                    <input type="text" id="catalog-search-input" oninput="applyFilters()"
+                        placeholder="Cari materi atau pengajar..."
+                        class="w-full bg-gray-50 border border-gray-200 pl-8 pr-3 py-1.5 rounded-full text-xs focus:outline-none focus:border-primary focus:bg-white transition-colors">
+                </div>
+            </div>
+
+            <!-- Sub-Filters (Tingkat & Mode) -->
+            <div class="max-w-screen-xl mx-auto px-4 md:px-6 pb-3 flex flex-wrap items-center gap-2"
+                id="sub-filter-container">
+                <!-- Diisi oleh JS -->
             </div>
         </div>
-    </div>
 
-    <!-- Main Content -->
-    <main class="max-w-screen-xl mx-auto px-4 md:px-6 py-8 min-h-[60vh] overflow-hidden">
-        <div id="course-grid"
-            class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 mb-24 overflow-hidden relative">
+        <!-- Grid Materi -->
+        <div class="max-w-screen-xl mx-auto px-4 md:px-6 py-8 min-h-[50vh]">
+            <div id="course-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6 mb-12 relative">
 
-            <!-- EMPTY STATE -->
-            <div id="empty-materi-state"
-                class="col-span-full flex flex-col items-center justify-center py-16 px-4 text-center hidden">
-                <div class="empty-icon mb-4"><i class="fas fa-book-open"></i></div>
-                <h3 class="empty-title mb-2">Materi Belum Tersedia</h3>
-                <p class="empty-desc">Materi untuk program ini sedang dalam tahap penyusunan kurikulum. Silakan cek
-                    secara berkala atau hubungi admin untuk informasi terbaru.</p>
-                <div class="mt-6 flex flex-wrap gap-3 justify-center">
-                    <a href="https://wa.me/6285185409887" target="_blank"
-                        class="inline-flex items-center gap-2 px-5 py-2.5 bg-green-500 text-white text-sm font-bold rounded-xl hover:bg-green-600 transition-all shadow-md">
-                        <i class="fab fa-whatsapp"></i> Hubungi Admin
-                    </a>
-                    <button onclick="changeCategory('syariah')"
-                        class="inline-flex items-center gap-2 px-5 py-2.5 bg-primary/10 text-primary text-sm font-bold rounded-xl hover:bg-primary/20 transition-all">
-                        <i class="fas fa-arrow-left"></i> Lihat Program Lain
+                <!-- EMPTY STATE -->
+                <div id="empty-materi-state"
+                    class="col-span-full flex flex-col items-center justify-center py-20 px-4 text-center hidden">
+                    <div class="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mb-4">
+                        <i class="fas fa-box-open text-3xl text-gray-300"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-gray-800 mb-1">Materi Tidak Ditemukan</h3>
+                    <p class="text-sm text-gray-500 max-w-sm">Coba ubah kata kunci pencarian atau filter kategori Anda.
+                    </p>
+                    <button onclick="resetFilters()"
+                        class="mt-4 px-4 py-2 bg-primary/10 text-primary text-xs font-bold rounded-lg hover:bg-primary/20 transition-colors">
+                        Reset Filter
                     </button>
                 </div>
+
             </div>
         </div>
-    </main>
+    </section>
 
-    <!-- Footer -->
-    <footer class="bg-white border-t border-gray-100 pt-16 pb-12 overflow-hidden relative">
-        <div class="max-w-screen-xl mx-auto px-6 relative z-10">
-            <div class="max-w-md mx-auto bg-white p-8 rounded-3xl shadow-sm border border-gray-100 text-center mb-16">
-                <div
-                    class="w-16 h-16 bg-primary/5 text-primary rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i class="fas fa-shield-halved text-2xl"></i>
-                </div>
-                <h4 class="text-xl font-bold text-gray-800 mb-2">Secure Payment</h4>
-                <p class="text-gray-500 mb-4 text-sm">Seluruh transaksi dan pembukaan akses materi diproses secara aman
-                    dan terintegrasi otomatis di semua perangkat Anda.</p>
-                <div class="inline-flex items-center gap-2 px-4 py-1.5 bg-gray-50 rounded-full border border-gray-100">
-                    <span
-                        class="text-[10px] text-gray-400 font-semibold uppercase tracking-widest leading-none">Pembayaran
-                        Terverifikasi Otomatis</span>
-                </div>
-            </div>
-            <div
-                class="flex flex-col md:flex-row justify-between items-center gap-6 text-gray-400 text-sm border-t border-gray-50 pt-8">
-                <div class="font-medium text-xs">© 2026 Nuqthah Learning Center.</div>
-                <div class="flex gap-4 items-center text-xs">
-                    <a href="#" class="hover:text-primary transition-colors">Syarat &amp; Ketentuan</a>
-                    <a href="#" class="hover:text-primary transition-colors">Kebijakan Privasi</a>
-                </div>
+    <!-- FOOTER -->
+    <footer class="bg-white border-t border-gray-100 py-8">
+        <div
+            class="max-w-screen-xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-4 text-gray-400 text-xs">
+            <div class="font-medium">&copy; 2026 Nuqthah Learning Center.</div>
+            <div class="flex gap-4">
+                <a href="#" class="hover:text-primary transition-colors">Syarat & Ketentuan</a>
+                <a href="#" class="hover:text-primary transition-colors">Kebijakan Privasi</a>
             </div>
         </div>
     </footer>
 
-    <!-- Floating WhatsApp -->
+    <!-- FLOATING WHATSAPP -->
     <a href="https://wa.me/6285185409887" target="_blank"
-        class="fixed bottom-4 left-6 z-40 bg-green-500 text-white w-14 h-14 rounded-full flex items-center justify-center shadow-xl hover:bg-green-600 transition-all duration-300 hover:scale-110">
-        <i class="fab fa-whatsapp text-2xl"></i>
+        class="fixed bottom-6 left-6 z-[50000] bg-green-500 text-white w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center shadow-lg hover:bg-green-600 transition-transform hover:scale-110">
+        <i class="fab fa-whatsapp text-2xl md:text-3xl"></i>
     </a>
 
-    <!-- Edit Modal untuk Materimu -->
+    <!-- ================= EDIT MODAL ================= -->
     <div id="edit-modal" class="fixed inset-0 flex items-center justify-center p-4 hidden modal-container"
         style="z-index: 9999999;">
         <div id="edit-modal-overlay" onclick="closeEditModal()"
             class="absolute inset-0 bg-black/70 backdrop-blur-sm modal-overlay"></div>
-        <div class="modal-content relative bg-white w-full max-w-md rounded-2xl shadow-2xl border border-white/20 modal-fade-in p-6 space-y-4"
+        <div class="modal-content relative bg-white w-full max-w-md rounded-2xl shadow-2xl p-6 space-y-4 modal-fade-in"
             style="z-index: 9999999;">
-            <div class="bg-primary p-4 text-white rounded-xl">
-                <h3 class="text-lg font-bold text-center">Edit Materi Tersimpan</h3>
+            <div class="bg-primary p-3 text-white rounded-xl mb-2">
+                <h3 class="text-base font-bold text-center">Edit Materi Tersimpan</h3>
             </div>
             <div>
-                <label class="text-xs font-bold text-primary uppercase tracking-wider block mb-1">Nama Materi</label>
+                <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Nama
+                    Materi</label>
                 <input type="text" id="edit-name"
-                    class="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm">
+                    class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-primary">
             </div>
             <div>
-                <label class="text-xs font-bold text-primary uppercase tracking-wider block mb-1">Link Materi /
-                    Belajar</label>
+                <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Link
+                    Materi</label>
                 <input type="text" id="edit-link"
-                    class="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm">
+                    class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-primary">
             </div>
             <div class="flex gap-3 mt-4">
                 <button onclick="saveEdit()"
                     class="flex-1 bg-primary text-white font-bold py-2.5 rounded-xl text-xs hover:bg-opacity-90">Simpan</button>
                 <button onclick="closeEditModal()"
-                    class="flex-1 bg-gray-200 text-gray-700 font-bold py-2.5 rounded-xl text-xs hover:bg-gray-300">Batal</button>
+                    class="flex-1 bg-gray-100 text-gray-700 font-bold py-2.5 rounded-xl text-xs hover:bg-gray-200">Batal</button>
             </div>
         </div>
     </div>
 
-    <!-- Confirm Modal -->
+    <!-- ================= CONFIRM MODAL ================= -->
     <div id="confirm-modal" class="fixed inset-0 flex items-center justify-center p-4 hidden"
         style="z-index: 99999998;">
         <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" onclick="closeConfirmModal()"></div>
@@ -564,7 +556,7 @@
                 <h3 id="confirm-title" class="text-base font-bold text-gray-800">Konfirmasi</h3>
                 <p id="confirm-message" class="text-xs text-gray-500 mt-1 leading-relaxed"></p>
             </div>
-            <div class="flex gap-2">
+            <div class="flex gap-2 pt-2">
                 <button onclick="closeConfirmModal()"
                     class="flex-1 bg-gray-100 text-gray-700 font-bold py-2.5 rounded-xl text-xs hover:bg-gray-200 transition">Batal</button>
                 <button id="confirm-ok-btn"
@@ -574,15 +566,78 @@
         </div>
     </div>
 
-    <!-- Supabase Library -->
+    <!-- ================= OTP LOGIN MODAL ================= -->
+    <div id="otp-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 hidden"
+        style="z-index: 99999999;">
+        <div
+            class="modal-fade-in bg-white w-full max-w-md rounded-2xl p-6 space-y-5 shadow-2xl relative max-h-[92vh] overflow-y-auto">
+            <div class="flex items-center justify-between border-b pb-3">
+                <div>
+                    <h3 class="font-bold text-primary text-lg">Masuk ke Akun Belajar</h3>
+                    <p class="text-xs text-gray-500 mt-0.5">Gunakan email yang Anda pakai saat pendaftaran materi.</p>
+                </div>
+                <button onclick="closeOtpModal()"
+                    class="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-500 shrink-0">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <!-- STEP 1: Email -->
+            <div id="otp-step-email" class="space-y-4">
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-700 uppercase mb-1 tracking-wider">Email
+                        Terdaftar</label>
+                    <input type="email" id="otp-email-input" placeholder="Masukkan email pendaftaran Anda"
+                        class="w-full border border-gray-200 p-3 rounded-xl text-sm focus:outline-none focus:border-primary">
+                </div>
+                <button type="button" id="btn-request-otp" onclick="requestOtpCode()"
+                    class="w-full bg-primary text-white font-bold py-3 rounded-xl text-sm hover:bg-opacity-90 transition disabled:opacity-60 disabled:cursor-not-allowed">
+                    Minta Kode OTP
+                </button>
+            </div>
+
+            <!-- STEP 2: OTP Code -->
+            <div id="otp-step-verify" class="space-y-4 hidden">
+                <div class="bg-amber-50 border border-amber-200 p-3 rounded-xl text-xs text-amber-800">
+                    Kode OTP 6 digit telah dikirim ke <strong id="otp-target-email-label">-</strong>.
+                </div>
+                <div>
+                    <label
+                        class="block text-[10px] font-bold text-gray-700 uppercase mb-1 text-center tracking-wider">Masukkan
+                        6 Digit Kode OTP</label>
+                    <input type="text" id="otp-code-input" maxlength="6" placeholder="••••••" inputmode="numeric"
+                        class="w-full border border-gray-200 p-3 rounded-xl text-center tracking-[0.5em] font-bold text-lg focus:outline-none focus:border-primary">
+                </div>
+                <button type="button" id="btn-verify-otp" onclick="verifyOtpCode()"
+                    class="w-full bg-accent text-white font-bold py-3 rounded-xl text-sm hover:bg-opacity-90 transition shadow-md disabled:opacity-60 disabled:cursor-not-allowed">
+                    Verifikasi &amp; Masuk
+                </button>
+                <button type="button" onclick="resetOtpModalSteps()"
+                    class="w-full text-xs text-gray-500 underline hover:text-gray-700 text-center block">
+                    Ganti Email atau Kirim Ulang OTP
+                </button>
+            </div>
+
+            <div class="border-t pt-3 text-center">
+                <p class="text-xs text-gray-500">Belum punya akun atau belum membeli materi?</p>
+                <a href="#katalog-section" onclick="closeOtpModal()"
+                    class="text-xs font-bold text-accent underline mt-1 hover:opacity-80">
+                    Lihat Katalog &amp; Buka Akses Penuh
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- SUPABASE & LOGIC -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <script>
         // ================================================================
-        // SUPABASE CONFIG & STATE
+        // CONFIG & STATE
         // ================================================================
         const SUPABASE_URL = 'https://idwrkzekykarxnuoaysu.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_N96gYsm_jeSntalN3qMVCA_TpXloD4u';
+        const BACKEND_BASE_URL = 'https://markaznuqtoh.vercel.app'; // URL Backend untuk OTP
         const { createClient } = supabase;
         const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -597,7 +652,7 @@
         let confirmCallback = null;
 
         // ================================================================
-        // HELPER PARSE BUNDLING PAKET
+        // HELPER FUNCTIONS
         // ================================================================
         function parseBundleInfo(course) {
             const rawLink = String(course?.link || '');
@@ -606,20 +661,14 @@
                 const parts = withoutPrefix.split('||');
                 try {
                     const ids = JSON.parse(parts[0]);
-                    return {
-                        isBundle: true,
-                        bundledIds: Array.isArray(ids) ? ids : [],
-                        externalLink: parts[1] || ''
-                    };
-                } catch (e) {
-                    return { isBundle: true, bundledIds: [], externalLink: '' };
-                }
+                    return { isBundle: true, bundledIds: Array.isArray(ids) ? ids : [], externalLink: parts[1] || '' };
+                } catch (e) { return { isBundle: true, bundledIds: [], externalLink: '' }; }
             }
-            return {
-                isBundle: false,
-                bundledIds: [],
-                externalLink: rawLink
-            };
+            return { isBundle: false, bundledIds: [], externalLink: rawLink };
+        }
+
+        function escapeHtml(str) {
+            return String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
         }
 
         // ================================================================
@@ -632,41 +681,29 @@
             info: { icon: 'fa-info', color: 'text-sky-600', bg: 'bg-sky-50', border: 'border-sky-100', bar: 'bg-sky-500' }
         };
 
-        function escapeHtml(str) {
-            return String(str ?? '').replace(/[&<>"']/g, c => ({
-                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-            }[c]));
-        }
-
         function showToast(message, type = 'info', title = '') {
             const container = document.getElementById('toast-container');
             if (!container) return;
-
             const cfg = TOAST_STYLE[type] || TOAST_STYLE.info;
             const toast = document.createElement('div');
-            toast.className = `toast-item pointer-events-auto relative w-full sm:w-[380px] bg-white rounded-2xl shadow-lg shadow-black/5 border ${cfg.border} overflow-hidden flex items-start gap-3 p-3.5`;
+            toast.className = `toast-item pointer-events-auto relative w-full sm:w-[350px] bg-white rounded-xl shadow-lg border ${cfg.border} overflow-hidden flex items-start gap-3 p-3`;
 
             toast.innerHTML = `
-                <div class="w-9 h-9 rounded-xl ${cfg.bg} ${cfg.color} flex items-center justify-center shrink-0">
-                    <i class="fas ${cfg.icon} text-sm"></i>
+                <div class="w-8 h-8 rounded-lg ${cfg.bg} ${cfg.color} flex items-center justify-center shrink-0">
+                    <i class="fas ${cfg.icon} text-xs"></i>
                 </div>
                 <div class="flex-1 min-w-0 pt-0.5">
-                    ${title ? `<p class="text-[13px] font-bold text-gray-800 leading-tight">${escapeHtml(title)}</p>` : ''}
-                    <p class="text-xs text-gray-600 leading-snug mt-0.5 break-words">${escapeHtml(message)}</p>
+                    ${title ? `<p class="text-[12px] font-bold text-gray-800 leading-tight">${escapeHtml(title)}</p>` : ''}
+                    <p class="text-[11px] text-gray-600 leading-snug mt-0.5 break-words">${escapeHtml(message)}</p>
                 </div>
-                <button type="button" class="toast-close w-6 h-6 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-400 shrink-0 transition" aria-label="Tutup">
-                    <i class="fas fa-xmark text-[11px]"></i>
+                <button type="button" class="toast-close w-6 h-6 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-400 shrink-0 transition">
+                    <i class="fas fa-xmark text-[10px]"></i>
                 </button>
-                <div class="absolute bottom-0 left-0 h-[3px] ${cfg.bar} toast-progress"></div>
+                <div class="absolute bottom-0 left-0 h-[2px] ${cfg.bar} toast-progress"></div>
             `;
-
             container.appendChild(toast);
-
-            const timer = setTimeout(() => dismissToast(toast), 4500);
-            toast.querySelector('.toast-close').addEventListener('click', () => {
-                clearTimeout(timer);
-                dismissToast(toast);
-            });
+            const timer = setTimeout(() => dismissToast(toast), 4000);
+            toast.querySelector('.toast-close').addEventListener('click', () => { clearTimeout(timer); dismissToast(toast); });
         }
 
         function dismissToast(toast) {
@@ -685,59 +722,90 @@
             confirmCallback = onConfirm;
             document.getElementById('confirm-modal').classList.remove('hidden');
         }
-
-        function closeConfirmModal() {
-            document.getElementById('confirm-modal').classList.add('hidden');
-            confirmCallback = null;
-        }
-
+        function closeConfirmModal() { document.getElementById('confirm-modal').classList.add('hidden'); confirmCallback = null; }
         document.getElementById('confirm-ok-btn').addEventListener('click', async () => {
-            const cb = confirmCallback;
-            closeConfirmModal();
-            if (typeof cb === 'function') await cb();
+            const cb = confirmCallback; closeConfirmModal(); if (typeof cb === 'function') await cb();
         });
 
         // ================================================================
-        // NAVIGATION AUTH STATE
+        // AUTH & NAV UI
         // ================================================================
         function updateAuthUI() {
             const container = document.getElementById('nav-auth-container');
+            const greeting = document.getElementById('dashboard-greeting');
+            const statStatus = document.getElementById('stat-status');
+
             if (!container) return;
 
             if (isLoggedIn && currentUser && currentUser.email) {
+                // Tampilan jika sudah login
                 container.innerHTML = `
-                    <div class="flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-lg border border-white/15">
-                        <span class="text-xs text-white max-w-[100px] truncate hidden sm:inline">${currentUser.email}</span>
-                        <button onclick="logoutUser()" class="text-red-300 hover:text-red-200 text-xs font-bold transition">Keluar</button>
+                    <div class="flex items-center gap-1.5 md:gap-2 bg-white/10 px-2.5 py-1.5 md:px-3 md:py-1.5 rounded-lg border border-white/15">
+                        <span class="text-[11px] md:text-xs text-white max-w-[80px] md:max-w-[120px] truncate hidden sm:inline">${currentUser.email}</span>
+                        <button onclick="confirmLogout()" class="text-red-300 hover:text-red-200 text-[11px] md:text-xs font-bold transition">Keluar</button>
                     </div>
                 `;
+                if (greeting) greeting.textContent = currentUser.name || currentUser.email.split('@')[0];
+                if (statStatus) {
+                    statStatus.textContent = 'Aktif';
+                    statStatus.classList.add('text-emerald-300');
+                    statStatus.classList.remove('text-gray-300');
+                }
             } else {
+                // Tampilan jika belum login (Tombol Masuk)
                 container.innerHTML = `
-                    <span class="text-xs text-gray-300 hidden sm:inline">Belum Masuk</span>
+                    <button onclick="openOtpModal()" class="bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 md:px-4 md:py-1.5 rounded-lg text-[11px] md:text-sm font-bold transition-all border border-white/20 shadow-sm flex items-center gap-1.5">
+                        <i class="fas fa-sign-in-alt"></i> <span class="hidden sm:inline">Masuk</span>
+                    </button>
                 `;
+                if (greeting) greeting.textContent = 'Tamu Nuqthah';
+                if (statStatus) {
+                    statStatus.textContent = 'Guest';
+                    statStatus.classList.remove('text-emerald-300');
+                }
             }
         }
 
-        function logoutUser() {
+        // Fungsi Konfirmasi Logout
+        function confirmLogout() {
+            showConfirmModal(
+                'Konfirmasi Keluar',
+                'Apakah Anda yakin ingin keluar dari akun ini?',
+                () => {
+                    performLogout();
+                },
+                'Ya, Keluar'
+            );
+        }
+
+        // Fungsi Eksekusi Logout
+        function performLogout() {
             localStorage.removeItem('nuqthah_current_user');
-
             Object.keys(localStorage).forEach(key => {
-                if (key.startsWith('nuqthah_access_') || key.startsWith('nuqthah_resume_')) {
-                    localStorage.removeItem(key);
-                }
+                if (key.startsWith('nuqthah_access_') || key.startsWith('nuqthah_resume_')) localStorage.removeItem(key);
             });
-
-            supabaseClient.auth.signOut().catch(() => { });
+            if (supabaseClient.auth) supabaseClient.auth.signOut().catch(() => { });
 
             currentUser = null;
             isLoggedIn = false;
             sessionStorage.removeItem('nuqthah_welcome_shown');
 
-            updateAuthUI();
-            showToast('Anda telah keluar dari akun.', 'info', 'Berhasil Keluar');
+            // LANGSUNG KOSONGKAN TAMPILAN DRAWER SAAT LOGOUT
+            savedItems = [];
+            updateMaterimuUI();
 
+            updateAuthUI();
             loadSavedMaterials();
             renderCoursesToDOM();
+            renderDashboardWidgets();
+            renderUpcomingSchedule(null); // Kosongkan jadwal karena sudah logout
+            showToast('Anda telah keluar dari akun.', 'info', 'Berhasil Keluar');
+
+            // Tutup drawer jika sedang terbuka
+            const drawer = document.getElementById('materimu-drawer');
+            if (!drawer.classList.contains('translate-x-full')) {
+                toggleDrawer();
+            }
         }
 
         // ================================================================
@@ -746,185 +814,105 @@
         function toggleDrawer() {
             const drawer = document.getElementById('materimu-drawer');
             const overlay = document.getElementById('drawer-overlay');
-            if (!drawer || !overlay) return;
-
             const isOpen = !drawer.classList.contains('translate-x-full');
-            if (isOpen) {
-                drawer.classList.add('translate-x-full');
-                overlay.classList.add('opacity-0', 'pointer-events-none');
-            } else {
-                drawer.classList.remove('translate-x-full');
-                overlay.classList.remove('opacity-0', 'pointer-events-none');
-            }
+            if (isOpen) { drawer.classList.add('translate-x-full'); overlay.classList.add('opacity-0', 'pointer-events-none'); }
+            else { drawer.classList.remove('translate-x-full'); overlay.classList.remove('opacity-0', 'pointer-events-none'); }
         }
 
         function toggleManualForm() {
-            const container = document.getElementById('manual-form-container');
-            const chevron = document.getElementById('manual-chevron');
-            if (container) container.classList.toggle('hidden');
-            if (chevron) chevron.classList.toggle('rotate-180');
+            document.getElementById('manual-form-container').classList.toggle('hidden');
+            document.getElementById('manual-chevron').classList.toggle('rotate-180');
         }
 
         // ================================================================
-        // DATA RETRIEVAL (STRICT MODE + OFFLINE FALLBACK)
+        // DATA FETCHING
         // ================================================================
-        function getLocalItems() {
-            try { return JSON.parse(localStorage.getItem(LOCAL_KEY) || '[]'); } catch (e) { return []; }
-        }
-        function setLocalItems(items) {
-            try { localStorage.setItem(LOCAL_KEY, JSON.stringify(items)); } catch (e) { }
-        }
+        function getLocalItems() { try { return JSON.parse(localStorage.getItem(LOCAL_KEY) || '[]'); } catch (e) { return []; } }
+        function setLocalItems(items) { try { localStorage.setItem(LOCAL_KEY, JSON.stringify(items)); } catch (e) { } }
 
         async function checkSession() {
             try {
                 const otpUser = JSON.parse(localStorage.getItem('nuqthah_current_user') || 'null');
-                if (otpUser && (otpUser.id || otpUser.email)) {
-                    currentUser = otpUser;
-                    isLoggedIn = true;
-                    return;
-                }
+                if (otpUser && (otpUser.id || otpUser.email)) { currentUser = otpUser; isLoggedIn = true; return; }
                 const { data: { session } } = await supabaseClient.auth.getSession();
-                if (session) {
-                    currentUser = session.user;
-                    isLoggedIn = true;
-                }
-            } catch (err) { console.error('Session check error:', err); }
+                if (session) { currentUser = session.user; isLoggedIn = true; }
+            } catch (err) { console.error('Session error', err); }
         }
 
-        // Ambil daftar course_id yang aktif (Strict Mode: wajib is_active = true di user_access)
         async function fetchPurchasedCourseIds() {
             const ids = new Set();
-            if (!currentUser) return ids;
-
+            if (!currentUser || !isLoggedIn) return ids;
             try {
                 if (currentUser.email) {
-                    const { data: byEmail, error: emailErr } = await supabaseClient
-                        .from('user_access')
-                        .select('course_id')
-                        .eq('user_email', currentUser.email)
-                        .eq('is_active', true);
-
-                    if (emailErr) throw emailErr;
+                    const { data: byEmail } = await supabaseClient.from('user_access').select('course_id').eq('user_email', currentUser.email).eq('is_active', true);
                     (byEmail || []).forEach(row => row.course_id && ids.add(row.course_id));
                 }
-
                 if (currentUser.id) {
-                    const { data: byId, error: idErr } = await supabaseClient
-                        .from('user_access')
-                        .select('course_id')
-                        .eq('user_id', currentUser.id)
-                        .eq('is_active', true);
-
-                    if (idErr) throw idErr;
+                    const { data: byId } = await supabaseClient.from('user_access').select('course_id').eq('user_id', currentUser.id).eq('is_active', true);
                     (byId || []).forEach(row => row.course_id && ids.add(row.course_id));
                 }
-
-                // Ekspansi Paket Bundling: Jika paket aktif, otomatis buka seluruh materi anggotanya
                 allCourses.forEach(c => {
                     if (ids.has(c.course_id)) {
                         const bInfo = parseBundleInfo(c);
-                        if (bInfo.isBundle && bInfo.bundledIds.length > 0) {
-                            bInfo.bundledIds.forEach(childId => ids.add(childId));
-                        }
+                        if (bInfo.isBundle && bInfo.bundledIds.length > 0) bInfo.bundledIds.forEach(childId => ids.add(childId));
                     }
                 });
-
-                // Sinkronkan cache lokal perangkat dengan status terbaru dari database
                 if (currentUser.email) {
                     allCourses.forEach(c => {
                         if (ids.has(c.course_id)) {
                             localStorage.setItem(`nuqthah_access_${c.course_id}`, 'granted');
                             localStorage.setItem(`nuqthah_access_${c.course_id}_email`, currentUser.email);
                         } else {
-                            // Jika akses dicabut (is_active = false / dihapus), bersihkan cache lokalnya
                             localStorage.removeItem(`nuqthah_access_${c.course_id}`);
                             localStorage.removeItem(`nuqthah_access_${c.course_id}_email`);
                         }
                     });
                 }
-
             } catch (e) {
-                console.warn('Koneksi ke database terganggu, menggunakan fallback cache lokal:', e);
-                // Fallback darurat saat jaringan siswa buruk agar daftar materi terbuka tidak hilang
                 if (currentUser.email) {
                     allCourses.forEach(c => {
                         const cached = localStorage.getItem(`nuqthah_access_${c.course_id}`);
                         const cachedEmail = localStorage.getItem(`nuqthah_access_${c.course_id}_email`);
-                        if (cached === 'granted' && cachedEmail === currentUser.email) {
-                            ids.add(c.course_id);
-                        }
+                        if (cached === 'granted' && cachedEmail === currentUser.email) ids.add(c.course_id);
                     });
                 }
             }
-
             return ids;
         }
 
         async function loadSavedMaterials() {
             try {
                 let dbItems = [];
-
-                if (currentUser && currentUser.id) {
-                    try {
-                        const { data, error } = await supabaseClient
-                            .from('saved_materials')
-                            .select('id, course_id, title, link, image')
-                            .eq('user_id', currentUser.id)
-                            .order('created_at', { ascending: false });
-                        if (!error && data) dbItems = data;
-                    } catch (e) {
-                        console.warn('Koneksi ke DB gagal, memuat dari LocalStorage.', e);
-                    }
+                if (currentUser && currentUser.id && isLoggedIn) {
+                    const { data } = await supabaseClient.from('saved_materials').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false });
+                    if (data) dbItems = data;
                 }
-
                 purchasedCourseIds = await fetchPurchasedCourseIds();
 
                 let purchasedCourses = [];
                 const purchasedIdsArr = Array.from(purchasedCourseIds).filter(id => !id.startsWith('manual-'));
-                if (purchasedIdsArr.length > 0) {
-                    if (allCourses.length > 0) {
-                        purchasedCourses = allCourses.filter(c => purchasedCourseIds.has(c.course_id));
-                    } else {
-                        try {
-                            const { data: courses } = await supabaseClient
-                                .from('courses')
-                                .select('course_id, title, image, link')
-                                .in('course_id', purchasedIdsArr);
-                            purchasedCourses = courses || [];
-                        } catch (e) {
-                            console.warn('Gagal memuat detail course yang dibeli:', e);
-                        }
-                    }
+                if (purchasedIdsArr.length > 0 && allCourses.length > 0) {
+                    purchasedCourses = allCourses.filter(c => purchasedCourseIds.has(c.course_id));
                 }
 
                 const localItems = getLocalItems().map(item => ({
-                    id: item.id,
-                    course_id: item.course_id,
-                    title: item.title,
+                    ...item,
                     link: item.link && !String(item.link).startsWith('BUNDLE::') ? item.link : `halaman_belajar.html?course_id=${item.course_id}`,
                     image: item.image || DEFAULT_IMG,
-                    purchased: purchasedCourseIds.has(item.course_id)
+                    purchased: isLoggedIn && purchasedCourseIds.has(item.course_id)
                 }));
 
                 const mergedMap = new Map();
-
                 localItems.forEach(item => mergedMap.set(item.course_id, item));
-
                 dbItems.forEach(item => {
                     const existing = mergedMap.get(item.course_id);
-                    const safeLink = item.link && !String(item.link).startsWith('BUNDLE::')
-                        ? item.link
-                        : `halaman_belajar.html?course_id=${item.course_id}`;
                     mergedMap.set(item.course_id, {
-                        id: item.id,
-                        course_id: item.course_id,
-                        title: item.title || existing?.title || 'Materi',
-                        link: safeLink,
+                        ...item,
+                        link: item.link && !String(item.link).startsWith('BUNDLE::') ? item.link : `halaman_belajar.html?course_id=${item.course_id}`,
                         image: item.image || existing?.image || DEFAULT_IMG,
-                        purchased: purchasedCourseIds.has(item.course_id)
+                        purchased: isLoggedIn && purchasedCourseIds.has(item.course_id)
                     });
                 });
-
                 purchasedCourses.forEach(c => {
                     const existing = mergedMap.get(c.course_id);
                     mergedMap.set(c.course_id, {
@@ -937,289 +925,311 @@
                     });
                 });
 
-                savedItems = Array.from(mergedMap.values()).sort((a, b) => {
-                    if (a.purchased && !b.purchased) return -1;
-                    if (!a.purchased && b.purchased) return 1;
-                    return 0;
-                });
-
+                savedItems = Array.from(mergedMap.values()).sort((a, b) => a.purchased === b.purchased ? 0 : a.purchased ? -1 : 1);
                 updateMaterimuUI();
+                renderDashboardWidgets();
+
+                // Setelah materi dimuat, muat jadwal terdekat
+                await fetchUpcomingSchedules();
+
             } catch (err) {
-                console.error('Load saved materials error:', err);
-                savedItems = [];
-                updateMaterimuUI();
+                console.error('Load error:', err);
+                savedItems = []; updateMaterimuUI(); renderDashboardWidgets();
             }
         }
 
         // ================================================================
-        // SAVE / REMOVE / UPDATE
+        // FETCH & RENDER JADWAL TERDEKAT (DENGAN RESCHEDULE INFO)
         // ================================================================
-        async function saveToMaterimu(courseId) {
-            if (savedItems.find(m => m.course_id === courseId)) {
-                showToast('Materi ini sudah ada di daftar Materimu.', 'info', 'Sudah Tersimpan');
-                toggleDrawer();
+        async function fetchUpcomingSchedules() {
+            const scheduleContainer = document.getElementById('dashboard-schedule');
+            if (!scheduleContainer) return;
+
+            if (!isLoggedIn || purchasedCourseIds.size === 0) {
+                renderUpcomingSchedule(null);
                 return;
             }
 
-            const course = allCourses.find(c => c.course_id === courseId);
-            if (!course) {
-                showToast('Data materi tidak ditemukan.', 'error', 'Gagal Menyimpan');
+            const courseIdsArray = Array.from(purchasedCourseIds).filter(id => !id.startsWith('manual-'));
+            if (courseIdsArray.length === 0) {
+                renderUpcomingSchedule(null);
                 return;
             }
 
-            const title = course.title;
-            const link = `halaman_belajar.html?course_id=${course.course_id}`;
-            const image = course.image || DEFAULT_IMG;
-
-            if (currentUser && currentUser.id) {
-                try {
-                    const { error } = await supabaseClient.from('saved_materials').insert({
-                        user_id: currentUser.id,
-                        course_id: courseId,
-                        title, link, image
-                    });
-                    if (error && error.code !== '23505') {
-                        console.warn('Penyimpanan DB dilewati, menggunakan LocalStorage.');
-                    }
-                } catch (err) {
-                    console.warn('Koneksi DB error, beralih ke LocalStorage.');
-                }
-            }
-
-            const local = getLocalItems();
-            if (!local.find(m => m.course_id === courseId)) {
-                local.unshift({ id: 'local-' + Date.now(), course_id: courseId, title, link, image });
-                setLocalItems(local);
-            }
-
-            await loadSavedMaterials();
-            showToast('Materi berhasil disimpan ke daftar Anda.', 'success', 'Tersimpan');
-            toggleDrawer();
-        }
-
-        async function removeFromMaterimu(recordId) {
             try {
-                const itemToRemove = savedItems.find(i => i.id === recordId);
-                if (!itemToRemove) return;
+                const now = new Date().toISOString();
 
-                if (itemToRemove.purchased) {
-                    showToast('Materi yang sudah dibeli tidak dapat dihapus dari daftar.', 'warning', 'Tidak Dapat Dihapus');
-                    return;
+                const { data: schedules, error } = await supabaseClient
+                    .from('schedules')
+                    .select(`
+                        *,
+                        courses (title, instructor)
+                    `)
+                    .in('course_id', courseIdsArray)
+                    .gte('start_time', now)
+                    .neq('status', 'cancelled')
+                    .order('start_time', { ascending: true })
+                    .limit(1);
+
+                if (error) throw error;
+
+                if (schedules && schedules.length > 0) {
+                    renderUpcomingSchedule(schedules[0]);
+                } else {
+                    renderUpcomingSchedule(null);
                 }
-
-                if (currentUser && currentUser.id) {
-                    try {
-                        await supabaseClient.from('saved_materials').delete().eq('id', recordId).eq('user_id', currentUser.id);
-                    } catch (e) { console.warn('DB delete failed', e); }
-                }
-
-                const local = getLocalItems().filter(i => i.course_id !== itemToRemove.course_id);
-                setLocalItems(local);
-
-                await loadSavedMaterials();
-                showToast('Materi dihapus dari daftar tersimpan.', 'info', 'Terhapus');
             } catch (err) {
-                console.error('Remove error:', err);
+                console.error('Gagal memuat jadwal:', err);
+                renderUpcomingSchedule(null);
             }
         }
 
-        function clearAllMaterials() {
-            showConfirmModal(
-                'Kosongkan Materi Tersimpan?',
-                'Materi yang Anda simpan manual akan dihapus dari daftar. Materi yang sudah dibeli tetap muncul karena merupakan bukti kepemilikan akses Anda.',
-                async () => {
-                    try {
-                        if (currentUser && currentUser.id) {
-                            try {
-                                await supabaseClient.from('saved_materials').delete().eq('user_id', currentUser.id);
-                            } catch (e) { console.warn('DB clear failed', e); }
-                        }
-                        setLocalItems([]);
-                        await loadSavedMaterials();
-                        showToast('Materi tersimpan berhasil dikosongkan.', 'success', 'Berhasil');
-                    } catch (err) {
-                        console.error('Clear error:', err);
-                        showToast('Gagal mengosongkan daftar.', 'error', 'Terjadi Kesalahan');
-                    }
-                },
-                'Ya, Kosongkan'
-            );
-        }
+        function renderUpcomingSchedule(schedule) {
+            const container = document.getElementById('dashboard-schedule');
+            if (!container) return;
 
-        async function saveManualMaterial() {
-            const nameInput = document.getElementById('manual-name');
-            const linkInput = document.getElementById('manual-link');
-            const title = nameInput.value.trim();
-            const link = linkInput.value.trim();
-
-            if (!title || !link) {
-                showToast('Nama dan Link materi harus diisi.', 'warning', 'Data Belum Lengkap');
+            if (!schedule) {
+                container.innerHTML = `
+                    <i class="fas fa-mug-hot text-gray-300 text-2xl mb-2"></i>
+                    <p class="text-xs text-gray-500 font-medium text-center">Belum ada jadwal terdekat.</p>
+                    <p class="text-[10px] text-gray-400 mt-1 text-center">Silakan cek katalog untuk mendaftar kelas.</p>
+                `;
                 return;
             }
 
-            const courseId = 'manual-' + Date.now();
+            // Format Tanggal
+            const dateObj = new Date(schedule.start_time);
+            const options = { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' };
+            const formattedDate = dateObj.toLocaleDateString('id-ID', options).replace('.', ':') + ' WIB';
+            const courseTitle = schedule.courses?.title || 'Kelas Anda';
+            const instructor = schedule.courses?.instructor || 'Pengajar';
 
-            if (currentUser && currentUser.id) {
-                try {
-                    await supabaseClient.from('saved_materials').insert({
-                        user_id: currentUser.id, course_id: courseId, title, link, image: null
-                    });
-                } catch (e) { console.warn('DB save manual failed', e); }
+            const isOnline = schedule.meeting_link && schedule.meeting_link.startsWith('http');
+            const btnText = isOnline ? 'Gabung Meeting' : 'Lihat Detail';
+            const btnAction = isOnline
+                ? `window.open('${schedule.meeting_link}', '_blank')`
+                : `window.location.href='halaman_belajar.html?course_id=${schedule.course_id}'`;
+
+            // Cek apakah jadwal diubah (Rescheduled)
+            let rescheduleAlertHtml = '';
+            let rescheduleBadgeHtml = '';
+            if (schedule.is_rescheduled && schedule.reschedule_reason) {
+                rescheduleBadgeHtml = `<span class="bg-amber-100 text-amber-700 text-[9px] font-bold px-2 py-0.5 rounded uppercase"><i class="fas fa-sync-alt mr-1"></i> Reschedule</span>`;
+                rescheduleAlertHtml = `
+                    <div class="bg-amber-50 border border-amber-200 rounded-lg p-2 mb-2 flex items-start gap-1.5 text-left">
+                        <i class="fas fa-exclamation-circle text-amber-500 mt-0.5 text-[10px]"></i>
+                        <div class="text-[10px] text-amber-700 leading-tight">
+                            <strong>Jadwal Diubah:</strong> ${escapeHtml(schedule.reschedule_reason)}
+                        </div>
+                    </div>
+                `;
             }
 
-            const local = getLocalItems();
-            local.unshift({ id: 'local-' + Date.now(), course_id: courseId, title, link, image: null });
-            setLocalItems(local);
+            container.innerHTML = `
+                <div class="w-full text-left">
+                    <div class="flex items-center justify-between gap-2 mb-1">
+                        <span class="bg-emerald-100 text-emerald-700 text-[9px] font-bold px-2 py-0.5 rounded uppercase">Terdekat</span>
+                        ${rescheduleBadgeHtml}
+                    </div>
+                    <h4 class="text-sm font-bold text-gray-800 line-clamp-1" title="${escapeHtml(schedule.title)}">${escapeHtml(schedule.title)}</h4>
+                    <p class="text-[10px] text-gray-500 truncate mb-2">${escapeHtml(courseTitle)} • ${escapeHtml(instructor)}</p>
+                    
+                    <div class="flex items-center gap-1.5 text-[11px] font-semibold text-primary mb-3">
+                        <i class="far fa-clock"></i> ${formattedDate}
+                    </div>
 
-            nameInput.value = '';
-            linkInput.value = '';
-            toggleManualForm();
-            await loadSavedMaterials();
-            showToast('Materi berhasil ditambahkan ke daftar.', 'success', 'Tersimpan');
-        }
+                    ${rescheduleAlertHtml}
 
-        async function updateMaterial(recordId, newTitle, newLink) {
-            const item = savedItems.find(i => i.id === recordId);
-            if (item && item.purchased) {
-                showToast('Materi yang sudah dibeli tidak dapat diubah.', 'warning', 'Tidak Dapat Diubah');
-                return;
-            }
-
-            if (currentUser && currentUser.id) {
-                try {
-                    await supabaseClient.from('saved_materials')
-                        .update({ title: newTitle, link: newLink })
-                        .eq('id', recordId).eq('user_id', currentUser.id);
-                } catch (e) { console.warn('DB update failed', e); }
-            }
-
-            if (item) {
-                const local = getLocalItems();
-                const idx = local.findIndex(i => i.course_id === item.course_id);
-                if (idx > -1) {
-                    local[idx].title = newTitle;
-                    local[idx].link = newLink;
-                    setLocalItems(local);
-                }
-            }
-
-            await loadSavedMaterials();
-            showToast('Perubahan materi berhasil disimpan.', 'success', 'Diperbarui');
+                    <button onclick="${btnAction}" class="w-full py-1.5 bg-primary hover:bg-opacity-90 text-white text-[10px] font-bold rounded-lg transition-colors flex items-center justify-center gap-1">
+                        <i class="fas ${isOnline ? 'fa-video' : 'fa-book-open'}"></i> ${btnText}
+                    </button>
+                </div>
+            `;
         }
 
         // ================================================================
-        // RENDER MATERIMU UI
+        // RENDER DASHBOARD WIDGETS
+        // ================================================================
+        function renderDashboardWidgets() {
+            const statPurchased = document.getElementById('stat-purchased');
+            const continueSection = document.getElementById('continue-learning-section');
+            const continueContainer = document.getElementById('continue-learning-container');
+
+            const purchasedItems = savedItems.filter(i => i.purchased);
+
+            if (statPurchased) statPurchased.textContent = purchasedItems.length;
+
+            if (purchasedItems.length > 0 && isLoggedIn) {
+                continueSection.classList.remove('hidden');
+                continueContainer.innerHTML = '';
+
+                purchasedItems.forEach(item => {
+                    const card = document.createElement('a');
+                    card.href = item.link || `halaman_belajar.html?course_id=${item.course_id}`;
+                    card.className = 'continue-card bg-white rounded-xl border border-gray-100 p-3 flex gap-3 shadow-sm hover:shadow-md transition-all flex-shrink-0 group';
+                    card.innerHTML = `
+                        <div class="w-16 h-16 rounded-lg overflow-hidden shrink-0 bg-gray-100 relative">
+                            <img src="${item.image || DEFAULT_IMG}" class="w-full h-full object-cover">
+                            <div class="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                <i class="fas fa-play text-white text-xs"></i>
+                            </div>
+                        </div>
+                        <div class="flex flex-col justify-center min-w-0">
+                            <span class="text-[9px] font-bold text-emerald-600 uppercase tracking-wider mb-0.5"><i class="fas fa-check-circle mr-1"></i>Terbuka</span>
+                            <h4 class="text-xs font-bold text-gray-800 line-clamp-2 leading-tight">${escapeHtml(item.title)}</h4>
+                            <div class="w-full bg-gray-100 h-1.5 rounded-full mt-2 overflow-hidden">
+                                <div class="bg-primary h-full rounded-full w-[35%]"></div>
+                            </div>
+                        </div>
+                    `;
+                    continueContainer.appendChild(card);
+                });
+            } else {
+                continueSection.classList.add('hidden');
+            }
+        }
+
+        // ================================================================
+        // RENDER MATERIMU DRAWER
         // ================================================================
         function updateMaterimuUI() {
             const drawerBadge = document.getElementById('materimu-badge');
             const drawerCountBadge = document.getElementById('drawer-count-badge');
             const drawerContent = document.getElementById('drawer-content');
             const emptyState = document.getElementById('drawer-empty');
+            const emailLabel = document.getElementById('drawer-user-email');
+
+            // Set Email di Drawer Header
+            if (emailLabel) {
+                if (isLoggedIn && currentUser && currentUser.email) {
+                    emailLabel.textContent = currentUser.email;
+                } else {
+                    emailLabel.textContent = 'Mode Tamu (Belum Masuk)';
+                }
+            }
 
             const count = savedItems.length;
             const purchasedCount = savedItems.filter(i => i.purchased).length;
 
             if (drawerBadge) drawerBadge.textContent = count;
-            if (drawerCountBadge) {
-                drawerCountBadge.textContent = purchasedCount > 0
-                    ? `${purchasedCount} Terbuka`
-                    : count;
-            }
+            if (drawerCountBadge) drawerCountBadge.textContent = purchasedCount > 0 ? `${purchasedCount} Terbuka` : count;
 
             if (!drawerContent) return;
-
             if (emptyState) emptyState.style.display = count > 0 ? 'none' : 'flex';
             drawerContent.querySelectorAll('.saved-item').forEach(el => el.remove());
 
             savedItems.forEach(item => {
                 const itemDiv = document.createElement('div');
                 itemDiv.className = `saved-item bg-white border rounded-xl p-3 flex gap-3 shadow-sm fade-in relative overflow-hidden ${item.purchased ? 'purchased-item' : 'border-gray-100'}`;
-
-                const thumbSrc = item.image || DEFAULT_IMG;
-                const targetLink = item.link && item.link !== '#' && !String(item.link).startsWith('BUNDLE::')
-                    ? item.link
-                    : `halaman_belajar.html?course_id=${item.course_id}`;
                 const safeTitle = String(item.title).replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                const safeLink = String(targetLink).replace(/'/g, "\\'");
+                const safeLink = String(item.link).replace(/'/g, "\\'");
                 const safeId = String(item.id).replace(/'/g, "\\'");
 
-                const badgeHtml = item.purchased
-                    ? `<span class="inline-flex items-center gap-1 text-[8px] bg-emerald-500 text-white px-1.5 py-0.5 rounded font-bold uppercase tracking-wider"><i class="fas fa-check text-[7px]"></i> Terbuka</span>`
-                    : '';
+                const badgeHtml = item.purchased ? `<span class="inline-flex items-center gap-1 text-[8px] bg-emerald-500 text-white px-1.5 py-0.5 rounded font-bold uppercase"><i class="fas fa-check"></i> Terbuka</span>` : '';
 
                 const actionButtons = item.purchased
-                    ? `<button onclick="window.location.href='${safeLink}'" class="px-2 py-1 bg-primary text-white text-[10px] font-bold rounded flex-grow cursor-pointer hover:bg-opacity-90">LANJUT BELAJAR</button>`
-                    : `<button onclick="window.location.href='${safeLink}'" class="px-2 py-1 bg-primary text-white text-[10px] font-bold rounded flex-grow cursor-pointer hover:bg-opacity-90">LANJUT BELAJAR</button>
-                       <button onclick="openEditModal('${safeId}', '${safeTitle}', '${safeLink}')" class="w-6 h-6 text-blue-500 flex items-center justify-center transition-colors hover:text-blue-700 cursor-pointer"><i class="fas fa-pen text-[11px]"></i></button>
-                       <button onclick="removeFromMaterimu('${safeId}')" class="w-6 h-6 text-red-500 flex items-center justify-center transition-colors hover:text-red-700 cursor-pointer"><i class="far fa-trash-can text-[11px]"></i></button>`;
+                    ? `<button onclick="window.location.href='${safeLink}'" class="px-2 py-1 bg-primary text-white text-[10px] font-bold rounded flex-grow hover:bg-opacity-90">LANJUTKAN</button>`
+                    : `<button onclick="window.location.href='${safeLink}'" class="px-2 py-1 bg-primary text-white text-[10px] font-bold rounded flex-grow hover:bg-opacity-90">BUKA</button>
+                       <button onclick="openEditModal('${safeId}', '${safeTitle}', '${safeLink}')" class="w-6 h-6 text-blue-500 flex items-center justify-center hover:text-blue-700"><i class="fas fa-pen text-[11px]"></i></button>
+                       <button onclick="removeFromMaterimu('${safeId}')" class="w-6 h-6 text-red-500 flex items-center justify-center hover:text-red-700"><i class="far fa-trash-can text-[11px]"></i></button>`;
 
                 itemDiv.innerHTML = `
-                    <div class="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-gray-50 relative">
-                        <img src="${thumbSrc}" class="w-full h-full object-cover" alt="${safeTitle}">
-                        ${item.purchased ? '<div class="absolute -top-1 -right-1 w-5 h-5 bg-emerald-500 text-white rounded-full flex items-center justify-center shadow-md border-2 border-white"><i class="fas fa-check text-[8px]"></i></div>' : ''}
+                    <div class="w-14 h-14 rounded-lg overflow-hidden shrink-0 bg-gray-50 relative">
+                        <img src="${item.image || DEFAULT_IMG}" class="w-full h-full object-cover">
                     </div>
-                    <div class="flex-grow flex flex-col justify-between py-0.5 min-w-0">
+                    <div class="flex-grow flex flex-col justify-between min-w-0 py-0.5">
                         <div>
-                            <div class="flex items-center gap-1 mb-0.5">${badgeHtml}</div>
-                            <h4 class="text-[11px] font-bold text-gray-800 line-clamp-2 leading-tight">${safeTitle}</h4>
+                            ${badgeHtml}
+                            <h4 class="text-[11px] font-bold text-gray-800 line-clamp-2 leading-tight mt-0.5">${safeTitle}</h4>
                         </div>
-                        <div class="flex items-center gap-2 mt-2">
-                            ${actionButtons}
-                        </div>
+                        <div class="flex items-center gap-1.5 mt-2">${actionButtons}</div>
                     </div>
                 `;
                 drawerContent.appendChild(itemDiv);
             });
         }
 
+        // ================================================================
+        // SAVE/REMOVE/EDIT ACTIONS
+        // ================================================================
+        async function saveToMaterimu(courseId) {
+            if (savedItems.find(m => m.course_id === courseId)) { showToast('Materi sudah ada di daftar.', 'info'); toggleDrawer(); return; }
+            const course = allCourses.find(c => c.course_id === courseId);
+            if (!course) return;
+
+            const title = course.title; const link = `halaman_belajar.html?course_id=${course.course_id}`; const image = course.image || DEFAULT_IMG;
+
+            if (currentUser && currentUser.id) {
+                try { await supabaseClient.from('saved_materials').insert({ user_id: currentUser.id, course_id: courseId, title, link, image }); } catch (e) { }
+            }
+            const local = getLocalItems();
+            if (!local.find(m => m.course_id === courseId)) {
+                local.unshift({ id: 'local-' + Date.now(), course_id: courseId, title, link, image });
+                setLocalItems(local);
+            }
+            await loadSavedMaterials();
+            showToast('Materi berhasil disimpan.', 'success'); toggleDrawer();
+        }
+
+        async function removeFromMaterimu(recordId) {
+            const itemToRemove = savedItems.find(i => i.id === recordId);
+            if (!itemToRemove) return;
+            if (itemToRemove.purchased) { showToast('Materi yang dibeli tidak dapat dihapus.', 'warning'); return; }
+
+            if (currentUser && currentUser.id) {
+                try { await supabaseClient.from('saved_materials').delete().eq('id', recordId).eq('user_id', currentUser.id); } catch (e) { }
+            }
+            setLocalItems(getLocalItems().filter(i => i.course_id !== itemToRemove.course_id));
+            await loadSavedMaterials();
+            showToast('Materi dihapus.', 'info');
+        }
+
+        async function saveManualMaterial() {
+            const title = document.getElementById('manual-name').value.trim();
+            const link = document.getElementById('manual-link').value.trim();
+            if (!title || !link) { showToast('Nama dan Link harus diisi.', 'warning'); return; }
+
+            const courseId = 'manual-' + Date.now();
+            if (currentUser && currentUser.id) {
+                try { await supabaseClient.from('saved_materials').insert({ user_id: currentUser.id, course_id: courseId, title, link, image: null }); } catch (e) { }
+            }
+            const local = getLocalItems(); local.unshift({ id: 'local-' + Date.now(), course_id: courseId, title, link, image: null }); setLocalItems(local);
+
+            document.getElementById('manual-name').value = ''; document.getElementById('manual-link').value = '';
+            toggleManualForm(); await loadSavedMaterials(); showToast('Materi ditambahkan.', 'success');
+        }
+
         let editRecordId = null;
         function openEditModal(recordId, title, link) {
             const item = savedItems.find(i => i.id === recordId);
-            if (item && item.purchased) {
-                showToast('Materi yang sudah dibeli tidak dapat diubah.', 'warning', 'Tidak Dapat Diubah');
-                return;
-            }
-            editRecordId = recordId;
-            document.getElementById('edit-name').value = title;
-            document.getElementById('edit-link').value = link;
+            if (item && item.purchased) { showToast('Materi yang dibeli tidak dapat diubah.', 'warning'); return; }
+            editRecordId = recordId; document.getElementById('edit-name').value = title; document.getElementById('edit-link').value = link;
             document.getElementById('edit-modal').classList.remove('hidden');
         }
-
-        function closeEditModal() {
-            document.getElementById('edit-modal').classList.add('hidden');
-            editRecordId = null;
-        }
-
+        function closeEditModal() { document.getElementById('edit-modal').classList.add('hidden'); editRecordId = null; }
         async function saveEdit() {
             const newTitle = document.getElementById('edit-name').value.trim();
             const newLink = document.getElementById('edit-link').value.trim();
-            if (!newTitle || !newLink) {
-                showToast('Nama dan Link materi harus diisi.', 'warning', 'Data Belum Lengkap');
-                return;
+            if (!newTitle || !newLink) { showToast('Data belum lengkap.', 'warning'); return; }
+            const item = savedItems.find(i => i.id === editRecordId);
+            if (currentUser && currentUser.id && item) {
+                try { await supabaseClient.from('saved_materials').update({ title: newTitle, link: newLink }).eq('id', editRecordId).eq('user_id', currentUser.id); } catch (e) { }
             }
-            if (editRecordId) {
-                await updateMaterial(editRecordId, newTitle, newLink);
-                closeEditModal();
+            if (item) {
+                const local = getLocalItems(); const idx = local.findIndex(i => i.course_id === item.course_id);
+                if (idx > -1) { local[idx].title = newTitle; local[idx].link = newLink; setLocalItems(local); }
             }
+            await loadSavedMaterials(); closeEditModal(); showToast('Perubahan disimpan.', 'success');
         }
 
         // ================================================================
-        // FETCH & RENDER COURSES
+        // FETCH & RENDER CATALOG
         // ================================================================
         async function fetchDynamicCourses() {
             try {
-                const { data, error } = await supabaseClient
-                    .from('courses')
-                    .select('*')
-                    .order('position', { ascending: true })
-                    .order('created_at', { ascending: false });
-
-                if (error) throw error;
+                const { data } = await supabaseClient.from('courses').select('*').order('position', { ascending: true }).order('created_at', { ascending: false });
                 allCourses = data || [];
-            } catch (err) {
-                console.error('Gagal memuat materi:', err);
-                allCourses = [];
-            }
+            } catch (err) { allCourses = []; }
         }
 
         function renderCoursesToDOM() {
@@ -1227,8 +1237,11 @@
             grid.querySelectorAll('.course-card').forEach(el => el.remove());
 
             allCourses.forEach(course => {
+                const isPurchased = purchasedCourseIds.has(course.course_id);
+                const bInfo = parseBundleInfo(course);
+
                 const cardDiv = document.createElement('div');
-                cardDiv.className = 'course-card card-hover bg-white rounded-2xl overflow-hidden border border-gray-100 flex flex-col h-full fade-in';
+                cardDiv.className = 'course-card bg-white rounded-2xl overflow-hidden border border-gray-100 flex flex-col h-full fade-in';
                 cardDiv.setAttribute('data-id', course.course_id);
                 cardDiv.setAttribute('data-category', course.category);
                 cardDiv.setAttribute('data-subfilter', course.subfilter);
@@ -1237,86 +1250,65 @@
                 cardDiv.setAttribute('data-instructor', (course.instructor || '').toLowerCase());
                 cardDiv.style.display = 'none';
 
-                const isPurchased = purchasedCourseIds.has(course.course_id);
-                const bInfo = parseBundleInfo(course);
+                let bundleRowHtml = bInfo.isBundle && bInfo.bundledIds.length > 0
+                    ? `<div class="flex items-center text-amber-700 font-bold"><i class="fas fa-boxes-stacked mr-1.5 text-accent text-[10px]"></i><span class="text-[10px]">Paket Bundling (${bInfo.bundledIds.length})</span></div>` : '';
 
-                let bundleRowHtml = '';
-                if (bInfo.isBundle && bInfo.bundledIds.length > 0) {
-                    bundleRowHtml = `<div class="flex items-center text-amber-700 font-bold"><i class="fas fa-boxes-stacked mr-2 text-accent w-3 text-center"></i><span>Paket Bundling (${bInfo.bundledIds.length} Materi)</span></div>`;
-                }
+                let meetingHtml = course.meetings ? `<div class="flex items-center"><i class="fa-solid fa-plus-minus mr-1.5 text-gray-400 text-[10px] w-3 text-center"></i><span>${escapeHtml(course.meetings)}</span></div>` : '';
+                let facilityHtml = course.facility ? `<div class="flex items-center"><i class="fas fa-book-open mr-1.5 text-gray-400 text-[10px] w-3 text-center"></i><span>${escapeHtml(course.facility)}</span></div>` : '';
+                let quotaHtml = course.quota ? `<div class="flex items-center"><i class="fas fa-users mr-1.5 text-gray-400 text-[10px] w-3 text-center"></i><span>${escapeHtml(course.quota)}</span></div>` : '';
 
-                let meetingHtml = course.meetings ? `<div class="flex items-center"><i class="fa-solid fa-plus-minus mr-2 text-primary w-3 text-center"></i><span>${escapeHtml(course.meetings)}</span></div>` : '';
-                let facilityHtml = course.facility ? `<div class="flex items-center"><i class="fas fa-book-open mr-2 text-primary w-3 text-center"></i><span>${escapeHtml(course.facility)}</span></div>` : '';
-                let quotaHtml = course.quota ? `<div class="flex items-center"><i class="fas fa-users mr-2 text-primary w-3 text-center"></i><span>${escapeHtml(course.quota)}</span></div>` : '';
-                let priceLeHtml = course.price_le ? `<span class="text-[8px] text-gray-400 font-semibold ml-1 mt-0.5">${escapeHtml(course.price_le)}</span>` : '';
+                let priceHtml = course.price ? `
+                    <div class="flex flex-col mt-1">
+                        <div class="flex items-baseline gap-1">
+                            <span class="text-primary font-bold text-base">${escapeHtml(course.price)}</span>
+                            ${course.price_le ? `<span class="text-[9px] text-gray-400 font-medium">/ ${escapeHtml(course.price_le)}</span>` : ''}
+                        </div>
+                        <span class="text-[9px] text-gray-400 font-medium">Akses Selamanya</span>
+                    </div>` : `<span class="text-primary font-bold text-sm mt-2 block">Hubungi Admin</span>`;
 
-                let priceHtml = '';
-                if (course.price) {
-                    priceHtml = `
-                    <div class="flex items-start">
-                        <span class="text-primary font-bold text-base">${escapeHtml(course.price)}</span>
-                        ${priceLeHtml}
-                    </div>
-                    <span class="text-[8px] text-gray-400 uppercase tracking-wider font-semibold">Akses Selamanya &amp; Multi-Perangkat</span>`;
-                } else {
-                    priceHtml = `<span class="text-primary font-bold text-sm">Hubungi Admin</span>`;
-                }
-
-                let topBadgesHtml = '';
-                if (isPurchased) {
-                    topBadgesHtml = `<div class="absolute top-2 left-2 z-20 bg-emerald-500 text-white px-2 py-0.5 rounded-full text-[10px] font-bold shadow-sm uppercase flex items-center gap-1"><i class="fas fa-check text-[8px]"></i> Terbuka</div>`;
-                } else if (bInfo.isBundle) {
-                    topBadgesHtml = `<div class="absolute top-2 left-2 z-20 bg-amber-500 text-white px-2.5 py-0.5 rounded-full text-[10px] font-bold shadow-sm uppercase flex items-center gap-1"><i class="fas fa-boxes-stacked text-[8px]"></i> Paket • ${escapeHtml(course.mode || 'Online')}</div>`;
-                } else {
-                    topBadgesHtml = `<div class="absolute top-2 left-2 z-20 bg-white/90 backdrop-blur-sm text-primary px-2 py-0.5 rounded-full text-[10px] font-bold shadow-sm uppercase">${escapeHtml(course.mode || 'Online')}</div>`;
-                }
+                let topBadgesHtml = isPurchased
+                    ? `<div class="absolute top-2 left-2 z-20 bg-emerald-500 text-white px-2 py-0.5 rounded shadow-sm text-[9px] font-bold uppercase flex items-center gap-1"><i class="fas fa-check"></i> Terbuka</div>`
+                    : `<div class="absolute top-2 left-2 z-20 bg-white/95 backdrop-blur-sm text-primary px-2 py-0.5 rounded shadow-sm text-[9px] font-bold uppercase">${escapeHtml(course.mode || 'Online')}</div>`;
 
                 cardDiv.innerHTML = `
-                    <div class="relative overflow-hidden group aspect-[4/3]">
-                        <img src="${course.image || DEFAULT_IMG}"
-                            alt="${escapeHtml(course.title)}"
-                            class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105">
+                    <div class="relative overflow-hidden group aspect-[4/3] bg-gray-100">
+                        <img src="${course.image || DEFAULT_IMG}" alt="${escapeHtml(course.title)}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
                         ${topBadgesHtml}
-                        <button onclick="saveToMaterimu('${course.course_id}')" title="Simpan ke Materimu"
-                            class="absolute top-2 right-2 z-20 w-8 h-8 bg-white text-primary rounded-md flex items-center justify-center shadow-md hover:bg-gray-100 transition-colors font-bold text-lg cursor-pointer">
-                            <i class="fas fa-plus"></i>
+                        <button onclick="saveToMaterimu('${course.course_id}')" title="Simpan ke Materimu" class="absolute top-2 right-2 z-20 w-7 h-7 bg-white/90 backdrop-blur-sm text-gray-600 hover:text-primary rounded-md flex items-center justify-center shadow-sm transition-colors text-xs cursor-pointer">
+                            <i class="far fa-bookmark"></i>
                         </button>
                     </div>
-                    <div class="p-4 flex flex-col flex-grow">
-                        <h3 class="text-sm font-bold text-gray-800 leading-tight mb-2 card-title-min-h">${escapeHtml(course.title)}</h3>
-                        <div class="flex flex-col gap-0.5 mb-3 text-[10px] text-gray-600">
+                    <div class="p-3 md:p-4 flex flex-col flex-grow">
+                        <h3 class="text-xs md:text-sm font-bold text-gray-800 leading-tight mb-2 card-title-min-h">${escapeHtml(course.title)}</h3>
+                        <div class="flex flex-col gap-1 mb-3 text-[10px] text-gray-500">
                             ${bundleRowHtml}
-                            <div class="flex items-center"><i class="fas fa-user-tie mr-2 text-accent w-3 text-center"></i><strong>${escapeHtml(course.instructor || 'Pengajar Nuqthah')}</strong></div>
+                            <div class="flex items-center"><i class="fas fa-user-tie mr-1.5 text-accent text-[10px] w-3 text-center"></i><strong class="truncate">${escapeHtml(course.instructor || 'Pengajar Nuqthah')}</strong></div>
                             ${meetingHtml}
-                            <div class="flex items-center"><i class="fas fa-laptop mr-2 text-primary w-3 text-center"></i><span>${escapeHtml(course.class_type || 'E-LEARNING')}</span></div>
+                            <div class="flex items-center"><i class="fas fa-laptop mr-1.5 text-gray-400 text-[10px] w-3 text-center"></i><span>${escapeHtml(course.class_type || 'E-LEARNING')}</span></div>
                             ${facilityHtml}
                             ${quotaHtml}
                         </div>
-                        <div class="mt-auto">
-                            <div class="flex flex-col mb-2">
-                                ${priceHtml}
-                            </div>
-                            <a href="halaman_belajar.html?course_id=${course.course_id}"
-                                class="w-full py-2 bg-primary hover:bg-opacity-90 text-white text-[11px] font-bold rounded-lg transition-all flex items-center justify-center gap-1 cursor-pointer">
-                                ${isPurchased ? 'Lanjut Belajar' : 'Mulai Belajar'} <i class="fas fa-arrow-right text-[8px]"></i>
+                        <div class="mt-auto pt-3 border-t border-gray-50">
+                            ${priceHtml}
+                            <a href="halaman_belajar.html?course_id=${course.course_id}" class="mt-3 w-full py-2 ${isPurchased ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-primary hover:bg-opacity-90'} text-white text-[11px] font-bold rounded-lg transition-all flex items-center justify-center gap-1.5">
+                                ${isPurchased ? 'Lanjutkan Belajar' : 'Lihat Detail'} <i class="fas fa-arrow-right text-[9px]"></i>
                             </a>
                         </div>
                     </div>
                 `;
                 grid.appendChild(cardDiv);
             });
-
             applyFilters();
         }
 
         // ================================================================
-        // NAVIGATION & FILTER
+        // FILTERS LOGIC
         // ================================================================
         const PROGRAMS = {
             syariah: { label: 'Bimbel Syariah', subs: ['Tingkat 1', 'Tingkat 2', 'Tingkat 3'] },
             ushul: { label: 'Bimbel Ushuludin', subs: ['Tingkat 1', 'Tingkat 2', 'Tingkat 3'] },
             tafaqquh: { label: 'Tafaqquh', subs: ['Fiqih', 'Ushul Fiqh', 'Tauhid'] },
-            tashil: { label: "Ta'shil", subs: ['Nahwu', 'Sharaf', 'Balaghah', 'Mantiq'] },
+            tashil: { label: "Ilmu Alat", subs: ['Nahwu', 'Sharaf', 'Balaghah', 'Mantiq'] },
             amiyah: { label: 'Amiyah Mesir', subs: ['Dasar', 'Menengah', 'Lanjut'] }
         };
 
@@ -1326,18 +1318,13 @@
 
         window.changeCategory = function (categoryKey) {
             if (!PROGRAMS[categoryKey]) return;
-            currentCategory = categoryKey;
-            currentSubFilter = 'Semua';
-            currentMode = 'Semua';
+            currentCategory = categoryKey; currentSubFilter = 'Semua'; currentMode = 'Semua';
 
             document.querySelectorAll('.nav-tab').forEach(tab => {
                 const isActive = tab.getAttribute('data-category') === categoryKey;
-                tab.className = `nav-tab px-6 py-2 rounded-full whitespace-nowrap transition-all font-medium ${isActive ? 'bg-primary text-white' : 'text-gray-600'}`;
+                tab.className = `nav-tab px-4 py-1.5 rounded-full whitespace-nowrap transition-all text-xs font-bold ${isActive ? 'bg-primary text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'}`;
             });
-
-            renderSubFilters();
-            renderOnlineOfflineFilter();
-            applyFilters();
+            renderSubFilters(); applyFilters();
         };
 
         function renderSubFilters() {
@@ -1345,39 +1332,31 @@
             if (!container) return;
             container.innerHTML = '';
 
-            const subs = PROGRAMS[currentCategory]?.subs || [];
-            const allSubs = ['Semua', ...subs];
-
-            allSubs.forEach(sub => {
-                const btn = document.createElement('button');
-                const isActive = currentSubFilter === sub;
-                btn.className = `px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${isActive ? 'bg-accent text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`;
-                btn.textContent = sub;
-                btn.onclick = () => {
-                    currentSubFilter = sub;
-                    renderSubFilters();
-                    applyFilters();
-                };
-                container.appendChild(btn);
-            });
-        }
-
-        function renderOnlineOfflineFilter() {
-            const container = document.getElementById('online-offline-filter');
-            if (!container) return;
-            container.innerHTML = '';
-
+            // Render Mode (Online/Offline)
             const modes = ['Semua', 'Online', 'Offline'];
             modes.forEach(mode => {
                 const btn = document.createElement('button');
                 const isActive = currentMode === mode;
-                btn.className = `px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${isActive ? 'bg-primary text-white shadow-sm' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`;
+                btn.className = `px-3 py-1 rounded-md text-[10px] font-bold whitespace-nowrap transition-all cursor-pointer border ${isActive ? 'bg-primary text-white border-primary' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'}`;
                 btn.textContent = mode;
-                btn.onclick = () => {
-                    currentMode = mode;
-                    renderOnlineOfflineFilter();
-                    applyFilters();
-                };
+                btn.onclick = () => { currentMode = mode; renderSubFilters(); applyFilters(); };
+                container.appendChild(btn);
+            });
+
+            // Divider
+            const divider = document.createElement('div');
+            divider.className = 'w-px h-4 bg-gray-300 mx-1';
+            container.appendChild(divider);
+
+            // Render Tingkat/Sub
+            const subs = PROGRAMS[currentCategory]?.subs || [];
+            const allSubs = ['Semua', ...subs];
+            allSubs.forEach(sub => {
+                const btn = document.createElement('button');
+                const isActive = currentSubFilter === sub;
+                btn.className = `px-3 py-1 rounded-md text-[10px] font-bold whitespace-nowrap transition-all cursor-pointer border ${isActive ? 'bg-accent text-white border-accent shadow-sm' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'}`;
+                btn.textContent = sub;
+                btn.onclick = () => { currentSubFilter = sub; renderSubFilters(); applyFilters(); };
                 container.appendChild(btn);
             });
         }
@@ -1400,8 +1379,7 @@
                 const matchSearch = !searchQuery || title.includes(searchQuery) || instructor.includes(searchQuery);
 
                 if (matchCat && matchSub && matchMode && matchSearch) {
-                    card.style.display = 'flex';
-                    visibleCount++;
+                    card.style.display = 'flex'; visibleCount++;
                 } else {
                     card.style.display = 'none';
                 }
@@ -1409,11 +1387,141 @@
 
             const emptyState = document.getElementById('empty-materi-state');
             if (emptyState) {
-                if (visibleCount === 0) {
-                    emptyState.classList.remove('hidden');
-                } else {
-                    emptyState.classList.add('hidden');
+                if (visibleCount === 0) emptyState.classList.remove('hidden');
+                else emptyState.classList.add('hidden');
+            }
+        }
+
+        window.resetFilters = function () {
+            document.getElementById('catalog-search-input').value = '';
+            changeCategory('syariah');
+        }
+
+        // ================================================================
+        // OTP LOGIN LOGIC (KHUSUS INDEX)
+        // ================================================================
+        function openOtpModal() {
+            resetOtpModalSteps();
+            document.getElementById('otp-modal').classList.remove('hidden');
+        }
+
+        function closeOtpModal() {
+            document.getElementById('otp-modal').classList.add('hidden');
+        }
+
+        function resetOtpModalSteps() {
+            document.getElementById('otp-step-email').classList.remove('hidden');
+            document.getElementById('otp-step-verify').classList.add('hidden');
+            document.getElementById('otp-code-input').value = '';
+            document.getElementById('btn-request-otp').disabled = false;
+            document.getElementById('btn-request-otp').innerHTML = 'Minta Kode OTP';
+            document.getElementById('btn-verify-otp').disabled = false;
+            document.getElementById('btn-verify-otp').innerHTML = 'Verifikasi &amp; Masuk';
+        }
+
+        async function requestOtpCode() {
+            const emailInput = document.getElementById('otp-email-input').value.trim().toLowerCase();
+            const btnRequest = document.getElementById('btn-request-otp');
+
+            if (!emailInput) {
+                showToast('Silakan masukkan alamat email Anda.', 'warning', 'Email Kosong');
+                return;
+            }
+
+            btnRequest.disabled = true;
+            btnRequest.innerHTML = '<i class="fas fa-circle-notch fa-spin mr-1"></i> Mengecek...';
+
+            try {
+                const res = await fetch(`${BACKEND_BASE_URL}/api/send-otp`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: emailInput })
+                });
+                const data = await res.json();
+
+                if (!res.ok || !data.success) {
+                    throw new Error(data.error || 'Gagal mengirim kode OTP.');
                 }
+
+                document.getElementById('otp-target-email-label').textContent = emailInput;
+                document.getElementById('otp-step-email').classList.add('hidden');
+                document.getElementById('otp-step-verify').classList.remove('hidden');
+
+                showToast('Kode OTP telah dikirim ke email Anda.', 'success', 'OTP Terkirim');
+            } catch (err) {
+                if (err.message.includes('belum terdaftar')) {
+                    showToast('Email belum terdaftar. Silakan pilih kelas di katalog dan lakukan pembelian untuk membuat akun.', 'error', 'Akun Tidak Ditemukan');
+                } else {
+                    showToast(err.message, 'error', 'Gagal Mengirim OTP');
+                }
+            } finally {
+                btnRequest.disabled = false;
+                btnRequest.innerHTML = 'Minta Kode OTP';
+            }
+        }
+
+        async function verifyOtpCode() {
+            const emailInput = document.getElementById('otp-email-input').value.trim().toLowerCase();
+            const codeInput = document.getElementById('otp-code-input').value.trim();
+            const btnVerify = document.getElementById('btn-verify-otp');
+
+            if (!codeInput || codeInput.length < 6) {
+                showToast('Silakan masukkan 6 digit kode OTP dengan benar.', 'warning', 'Kode Tidak Valid');
+                return;
+            }
+
+            btnVerify.disabled = true;
+            btnVerify.innerHTML = '<i class="fas fa-circle-notch fa-spin mr-1"></i> Memverifikasi...';
+
+            try {
+                const res = await fetch(`${BACKEND_BASE_URL}/api/verify-otp`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: emailInput, code: codeInput })
+                });
+                const data = await res.json();
+
+                if (!res.ok || !data.success) {
+                    throw new Error(data.error || 'Kode OTP tidak valid.');
+                }
+
+                // === PENGECEKAN AKSES (BETTER SYSTEM) ===
+                const { data: accessData, error: accErr } = await supabaseClient
+                    .from('user_access')
+                    .select('course_id')
+                    .eq('user_email', emailInput)
+                    .eq('is_active', true)
+                    .limit(1);
+
+                if (accErr) {
+                    console.warn("Gagal memverifikasi akses, tapi izinkan login karena OTP valid.", accErr);
+                }
+
+                if (!accErr && (!accessData || accessData.length === 0)) {
+                    showToast('Akun terdaftar namun belum memiliki akses kelas aktif. Silakan lakukan pembelian kelas terlebih dahulu.', 'error', 'Akses Ditolak');
+                    resetOtpModalSteps();
+                    return;
+                }
+
+                // === LOGIN BERHASIL ===
+                currentUser = data.user;
+                localStorage.setItem('nuqthah_current_user', JSON.stringify(currentUser));
+                isLoggedIn = true;
+
+                closeOtpModal();
+                showToast(`Selamat datang kembali, ${currentUser.name || 'Siswa'}!`, 'success', 'Berhasil Masuk');
+
+                await loadSavedMaterials();
+                updateAuthUI();
+                renderCoursesToDOM();
+                renderDashboardWidgets();
+                await fetchUpcomingSchedules(); // Ambil jadwal setelah login
+
+            } catch (err) {
+                showToast(err.message || 'Kode OTP tidak valid.', 'error', 'Verifikasi Gagal');
+            } finally {
+                btnVerify.disabled = false;
+                btnVerify.innerHTML = 'Verifikasi &amp; Masuk';
             }
         }
 
@@ -1425,27 +1533,21 @@
 
             await checkSession();
             await fetchDynamicCourses();
-            await loadSavedMaterials();
-            renderCoursesToDOM();
+            await loadSavedMaterials(); // Di dalam fungsi ini juga memanggil fetchUpcomingSchedules
 
+            renderCoursesToDOM();
             renderSubFilters();
-            renderOnlineOfflineFilter();
             updateAuthUI();
 
-            if (isLoggedIn && currentUser) {
-                if (!sessionStorage.getItem('nuqthah_welcome_shown')) {
-                    const purchasedTotal = savedItems.filter(i => i.purchased).length;
-                    if (purchasedTotal > 0) {
-                        setTimeout(() => {
-                            showToast(
-                                `Anda memiliki ${purchasedTotal} materi dengan akses penuh. Buka menu "Materimu" untuk langsung melanjutkan belajar.`,
-                                'success', `Selamat datang, ${currentUser.name || 'Siswa'}!`
-                            );
-                        }, 800);
-                    }
-                    sessionStorage.setItem('nuqthah_welcome_shown', 'true');
+            if (isLoggedIn && currentUser && !sessionStorage.getItem('nuqthah_welcome_shown')) {
+                const purchasedTotal = savedItems.filter(i => i.purchased).length;
+                if (purchasedTotal > 0) {
+                    setTimeout(() => {
+                        showToast(`Anda memiliki ${purchasedTotal} materi terbuka. Lanjutkan belajarmu!`, 'success', `Selamat datang kembali!`);
+                    }, 800);
                 }
-            } else {
+                sessionStorage.setItem('nuqthah_welcome_shown', 'true');
+            } else if (!isLoggedIn) {
                 sessionStorage.removeItem('nuqthah_welcome_shown');
             }
 
