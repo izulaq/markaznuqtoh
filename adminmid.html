@@ -1488,6 +1488,32 @@
         }
 
         // ================================================================
+        // HELPER: KALKULASI SISA SALDO SAAT INI (UNTUK VALIDASI PENGELUARAN)
+        // ================================================================
+        function getAvailableBalance() {
+            let totalIncome = 0;
+            let totalExpense = 0;
+
+            // 1. Hitung dari Transaksi Midtrans Sukses
+            cachedTransactions.forEach(t => {
+                const status = String(t.status).toLowerCase();
+                if (status === 'success' || status === 'settlement') {
+                    const feeData = calculateMidtransFee(Number(t.gross_amount) || 0, t.payment_type);
+                    totalIncome += feeData.net;
+                }
+            });
+
+            // 2. Hitung dari Kas Manual (Pemasukan & Pengeluaran)
+            cachedFinanceLogs.forEach(l => {
+                const amt = Number(l.amount) || 0;
+                if (l.type === 'IN') totalIncome += amt;
+                else if (l.type === 'OUT') totalExpense += amt;
+            });
+
+            return totalIncome - totalExpense;
+        }
+
+        // ================================================================
         // HELPER ENCODE & PARSE BUNDLING + KONFIGURASI BAGI HASIL & DISKON
         // ================================================================
         function encodeCourseLinkWithMeta(isBundle, bundledIds, externalLink, sharePct, discountPct) {
@@ -1528,15 +1554,16 @@
         }
 
         // ================================================================
-        // HELPER FORMATTING ANGKA
+        // HELPER FORMATTING ANGKA (FIXED MINUS SUPPORT)
         // ================================================================
         function cleanNumberString(str) { if (!str) return ''; return String(str).replace(/[^0-9]/g, ''); }
         function parseNumericRupiah(val) { const cleaned = cleanNumberString(val); return cleaned ? parseInt(cleaned, 10) : 0; }
         function formatRupiah(val) {
             if (val === undefined || val === null || val === '') return '';
+            let isNegative = Number(val) < 0 || String(val).includes('-');
             const num = cleanNumberString(val);
             if (!num) return '';
-            return 'Rp ' + new Intl.NumberFormat('id-ID').format(Number(num));
+            return (isNegative ? '-Rp ' : 'Rp ') + new Intl.NumberFormat('id-ID').format(Number(num));
         }
         function formatLE(val) { if (!val) return ''; const num = cleanNumberString(val); if (!num) return ''; return `/ ${num} LE`; }
         function formatPertemuan(val) { if (!val) return ''; const num = cleanNumberString(val); if (!num) return val; return `${num} Pertemuan`; }
@@ -2476,18 +2503,53 @@
 
         document.getElementById('add-finance-log-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const type = document.getElementById('fin-log-type').value; const category = document.getElementById('fin-log-category').value; const instructorName = document.getElementById('fin-log-instructor').value.trim(); const courseId = document.getElementById('fin-log-course-id').value; const title = document.getElementById('fin-log-title').value.trim(); const amount = parseInt(document.getElementById('fin-log-amount').value, 10) || 0; const notes = document.getElementById('fin-log-notes').value.trim();
+            const type = document.getElementById('fin-log-type').value;
+            const category = document.getElementById('fin-log-category').value;
+            const instructorName = document.getElementById('fin-log-instructor').value.trim();
+            const courseId = document.getElementById('fin-log-course-id').value;
+            const title = document.getElementById('fin-log-title').value.trim();
+            const amount = parseInt(document.getElementById('fin-log-amount').value, 10) || 0;
+            const notes = document.getElementById('fin-log-notes').value.trim();
+
             if (!title || amount <= 0) { showToast('Harap isi Keterangan dan Nominal dengan benar.', 'warning'); return; }
-            const btn = document.getElementById('btn-save-fin-log'); btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Menyimpan...';
+
+            // VALIDASI: CEGAH PENGELUARAN MELEBIHI SALDO
+            if (type === 'OUT') {
+                const currentBalance = getAvailableBalance();
+                if (amount > currentBalance) {
+                    showToast(`Gagal: Saldo kas tidak mencukupi! Sisa saldo saat ini: ${formatRupiah(currentBalance)}. Anda mencoba mencatat pengeluaran sebesar ${formatRupiah(amount)}.`, 'error');
+                    return;
+                }
+            }
+
+            const btn = document.getElementById('btn-save-fin-log');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Menyimpan...';
+
             const newEntry = { type, category, instructor_name: category === 'Bagi Hasil Pengajar' ? instructorName : null, course_id: type === 'IN' && courseId ? courseId : null, title, amount, notes, created_at: new Date().toISOString() };
+
             try {
                 const { data, error } = await supabaseClient.from('finance_logs').insert([newEntry]).select().single();
-                if (error) { const localItem = { id: 'local-' + Date.now(), ...newEntry }; cachedFinanceLogs.unshift(localItem); localStorage.setItem(LOCAL_FINANCE_LOGS_KEY, JSON.stringify(cachedFinanceLogs)); showToast('Catatan disimpan (Mode Lokal - Buat tabel finance_logs di Supabase untuk sinkronisasi cloud).', 'info'); }
-                else { cachedFinanceLogs.unshift(data); localStorage.setItem(LOCAL_FINANCE_LOGS_KEY, JSON.stringify(cachedFinanceLogs)); showToast('Catatan keuangan berhasil disimpan!', 'success'); }
-                document.getElementById('fin-log-title').value = ''; document.getElementById('fin-log-amount').value = ''; document.getElementById('fin-log-notes').value = '';
+                if (error) {
+                    const localItem = { id: 'local-' + Date.now(), ...newEntry };
+                    cachedFinanceLogs.unshift(localItem);
+                    localStorage.setItem(LOCAL_FINANCE_LOGS_KEY, JSON.stringify(cachedFinanceLogs));
+                    showToast('Catatan disimpan (Mode Lokal - Buat tabel finance_logs di Supabase untuk sinkronisasi cloud).', 'info');
+                } else {
+                    cachedFinanceLogs.unshift(data);
+                    localStorage.setItem(LOCAL_FINANCE_LOGS_KEY, JSON.stringify(cachedFinanceLogs));
+                    showToast('Catatan keuangan berhasil disimpan!', 'success');
+                }
+                document.getElementById('fin-log-title').value = '';
+                document.getElementById('fin-log-amount').value = '';
+                document.getElementById('fin-log-notes').value = '';
                 renderFinanceDashboard();
-            } catch (err) { showToast('Gagal menyimpan catatan: ' + err.message, 'error'); }
-            finally { btn.disabled = false; btn.innerHTML = '<i class="fas fa-plus-circle mr-1"></i> Simpan Catatan Keuangan'; }
+            } catch (err) {
+                showToast('Gagal menyimpan catatan: ' + err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-plus-circle mr-1"></i> Simpan Catatan Keuangan';
+            }
         });
 
         async function deleteFinanceLog(logId) {
