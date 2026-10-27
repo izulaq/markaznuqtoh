@@ -825,9 +825,11 @@
                     <table class="w-full text-left border-collapse">
                         <thead>
                             <tr class="bg-gray-100 text-gray-600 text-[11px] uppercase border-b border-gray-200">
-                                <th class="p-3.5 font-bold">Nama Pengajar</th>
+                                <th class="p-3.5 font-bold">Nama Pengajar (Asatidzah)</th>
                                 <th class="p-3.5 font-bold text-center">Jml Materi & Penjualan</th>
-                                <th class="p-3.5 font-bold text-right">Omzet (Net)</th>
+                                <th class="p-3.5 font-bold text-right">Omzet Kotor</th>
+                                <th class="p-3.5 font-bold text-right text-red-500">Fee Midtrans</th>
+                                <th class="p-3.5 font-bold text-right text-emerald-600">Pendapatan Bersih</th>
                                 <th class="p-3.5 font-bold text-right text-primary">Total Hak Pengajar</th>
                                 <th class="p-3.5 font-bold text-right text-amber-800">Bagian Tim Nuqthah</th>
                                 <th class="p-3.5 font-bold text-right">Sudah Dicairkan</th>
@@ -837,7 +839,7 @@
                         </thead>
                         <tbody id="instructor-revenue-tbody" class="divide-y divide-gray-100 text-xs">
                             <tr>
-                                <td colspan="8" class="p-6 text-center text-gray-400">Memuat kalkulasi bagi hasil...
+                                <td colspan="10" class="p-6 text-center text-gray-400">Memuat kalkulasi bagi hasil...
                                 </td>
                             </tr>
                         </tbody>
@@ -1433,13 +1435,15 @@
         function calculateMidtransFee(grossAmount, paymentType) {
             let gross = parseFloat(grossAmount) || 0;
             let pt = String(paymentType || '').toLowerCase();
+            let label = 'Manual (Rp 0 Fee)';
 
             // JIKA PEMBAYARAN MANUAL/CASH/TRANSFER, TIDAK ADA POTONGAN FEE
             if (pt === 'manual' || pt === 'cash' || pt.includes('transfer_manual') || pt === 'unknown') {
                 return {
                     gross: gross,
                     fee: 0,
-                    net: gross
+                    net: gross,
+                    label: 'Manual (Rp 0 Fee)'
                 };
             }
 
@@ -1447,20 +1451,28 @@
 
             if (pt.includes('bank_transfer') || pt.includes('echannel') || pt.includes('va')) {
                 fee = 4000;
+                label = 'Virtual Account (Rp 4.000)';
             } else if (pt.includes('qris')) {
                 fee = gross * 0.007;
+                label = 'QRIS (0.7%)';
             } else if (pt.includes('gopay') || pt.includes('shopeepay')) {
                 fee = gross * 0.02;
+                label = 'E-Wallet (2%)';
             } else if (pt.includes('dana') || pt.includes('ovo')) {
                 fee = gross * 0.015;
+                label = 'E-Wallet (1.5%)';
             } else if (pt.includes('credit_card')) {
                 fee = (gross * 0.029) + 2000;
+                label = 'Kartu Kredit (2.9% + Rp 2.000)';
             } else if (pt.includes('indomaret') || pt.includes('alfamart') || pt.includes('cstore')) {
                 fee = 5000;
+                label = 'Gerai Retail (Rp 5.000)';
             } else if (pt.includes('akulaku') || pt.includes('kredivo')) {
                 fee = gross * 0.02;
+                label = 'Paylater (2%)';
             } else {
                 fee = 4000; // fallback default
+                label = 'Payment Gateway (Rp 4.000)';
             }
 
             // Tambahkan PPN 11% dari nilai fee
@@ -1470,7 +1482,8 @@
             return {
                 gross: gross,
                 fee: Math.round(feeWithVat),
-                net: Math.max(0, Math.round(netAmount))
+                net: Math.max(0, Math.round(netAmount)),
+                label: label
             };
         }
 
@@ -2151,7 +2164,7 @@
             return true;
         }
 
-        // ALGORITMA INTI PEMBAGIAN PENGHASILAN (NET SETELAH FEE MIDTRANS)
+        // ALGORITMA INTI PEMBAGIAN PENGHASILAN (GROSS, FEE, & NET)
         function allocateTransactionRevenue(trx, courseMap) {
             const grossAmount = Number(trx.gross_amount) || 0;
             const pt = trx.payment_type || 'unknown';
@@ -2160,7 +2173,7 @@
 
             const course = courseMap[trx.course_id];
             if (!course) {
-                return [{ instructorName: 'Tanpa Materi / Umum', courseId: trx.course_id || '-', courseTitle: trx.course_id || 'Transaksi Umum', allocatedRevenue: netAmount, sharePct: 0, instructorShare: 0, nuqthahShare: netAmount, isFromBundle: false, fee: feeData.fee }];
+                return [{ instructorName: 'Tanpa Materi / Umum', courseId: trx.course_id || '-', courseTitle: trx.course_id || 'Transaksi Umum', grossRevenue: grossAmount, feeAmount: feeData.fee, allocatedRevenue: netAmount, sharePct: 0, instructorShare: 0, nuqthahShare: netAmount, isFromBundle: false }];
             }
 
             const bInfo = parseBundleInfo(course);
@@ -2172,12 +2185,29 @@
                     childCourses.forEach(child => {
                         const childBasePrice = parseNumericRupiah(child.price);
                         const weight = totalNormalBasePrice > 0 ? (childBasePrice / totalNormalBasePrice) : (1 / childCourses.length);
-                        const allocatedRev = Math.round(netAmount * weight);
+
+                        const allocatedGross = Math.round(grossAmount * weight);
+                        const allocatedFee = Math.round(feeData.fee * weight);
+                        const allocatedNet = allocatedGross - allocatedFee;
+
                         const childBInfo = parseBundleInfo(child);
                         const sharePct = childBInfo.sharePct;
-                        const instShare = Math.round(allocatedRev * (sharePct / 100));
-                        const nuqShare = allocatedRev - instShare;
-                        allocations.push({ instructorName: (child.instructor || 'Pengajar Nuqthah').trim(), courseId: child.course_id, courseTitle: `${child.title} (via ${course.title})`, baseCourseTitle: child.title, allocatedRevenue: allocatedRev, sharePct: sharePct, instructorShare: instShare, nuqthahShare: nuqShare, isFromBundle: true, fee: feeData.fee });
+                        const instShare = Math.round(allocatedNet * (sharePct / 100));
+                        const nuqShare = allocatedNet - instShare;
+
+                        allocations.push({
+                            instructorName: (child.instructor || 'Pengajar Nuqthah').trim(),
+                            courseId: child.course_id,
+                            courseTitle: `${child.title} (via ${course.title})`,
+                            baseCourseTitle: child.title,
+                            grossRevenue: allocatedGross,
+                            feeAmount: allocatedFee,
+                            allocatedRevenue: allocatedNet,
+                            sharePct: sharePct,
+                            instructorShare: instShare,
+                            nuqthahShare: nuqShare,
+                            isFromBundle: true
+                        });
                     });
                     return allocations;
                 }
@@ -2186,7 +2216,7 @@
             const sharePct = bInfo.sharePct;
             const instShare = Math.round(netAmount * (sharePct / 100));
             const nuqShare = netAmount - instShare;
-            return [{ instructorName: (course.instructor || 'Pengajar Nuqthah').trim(), courseId: course.course_id, courseTitle: course.title, baseCourseTitle: course.title, allocatedRevenue: netAmount, sharePct: sharePct, instructorShare: instShare, nuqthahShare: nuqShare, isFromBundle: false, fee: feeData.fee }];
+            return [{ instructorName: (course.instructor || 'Pengajar Nuqthah').trim(), courseId: course.course_id, courseTitle: course.title, baseCourseTitle: course.title, grossRevenue: grossAmount, feeAmount: feeData.fee, allocatedRevenue: netAmount, sharePct: sharePct, instructorShare: instShare, nuqthahShare: nuqShare, isFromBundle: false }];
         }
 
         function renderFinanceDashboard() {
@@ -2222,8 +2252,8 @@
                 const bInfo = parseBundleInfo(c);
                 if (bInfo.isBundle && bInfo.bundledIds.length > 0) return;
                 const rawName = (c.instructor || 'Pengajar Nuqthah').trim(); const normKey = rawName.toLowerCase();
-                if (!instructorSummaryMap[normKey]) instructorSummaryMap[normKey] = { displayName: rawName, totalSalesCount: 0, totalOmzet: 0, totalInstructorShare: 0, totalNuqthahShare: 0, coursesBreakdown: {} };
-                if (!instructorSummaryMap[normKey].coursesBreakdown[c.course_id]) instructorSummaryMap[normKey].coursesBreakdown[c.course_id] = { courseId: c.course_id, title: c.title, mode: c.mode || 'Online', price: c.price || 'Rp 0', sharePct: bInfo.sharePct, directSales: 0, bundleSales: 0, omzet: 0, instructorEarned: 0, nuqthahEarned: 0 };
+                if (!instructorSummaryMap[normKey]) instructorSummaryMap[normKey] = { displayName: rawName, totalSalesCount: 0, totalGrossOmzet: 0, totalFee: 0, totalOmzet: 0, totalInstructorShare: 0, totalNuqthahShare: 0, coursesBreakdown: {} };
+                if (!instructorSummaryMap[normKey].coursesBreakdown[c.course_id]) instructorSummaryMap[normKey].coursesBreakdown[c.course_id] = { courseId: c.course_id, title: c.title, mode: c.mode || 'Online', price: c.price || 'Rp 0', sharePct: bInfo.sharePct, directSales: 0, bundleSales: 0, grossOmzet: 0, fee: 0, netOmzet: 0, instructorEarned: 0, nuqthahEarned: 0 };
             });
 
             combinedSuccessSales.forEach(trx => {
@@ -2231,13 +2261,23 @@
                 allocations.forEach(alloc => {
                     grandTotalInstructorShare += alloc.instructorShare; grandTotalNuqthahShare += alloc.nuqthahShare;
                     const normKey = alloc.instructorName.toLowerCase();
-                    if (!instructorSummaryMap[normKey]) instructorSummaryMap[normKey] = { displayName: alloc.instructorName, totalSalesCount: 0, totalOmzet: 0, totalInstructorShare: 0, totalNuqthahShare: 0, coursesBreakdown: {} };
+                    if (!instructorSummaryMap[normKey]) instructorSummaryMap[normKey] = { displayName: alloc.instructorName, totalSalesCount: 0, totalGrossOmzet: 0, totalFee: 0, totalOmzet: 0, totalInstructorShare: 0, totalNuqthahShare: 0, coursesBreakdown: {} };
                     const group = instructorSummaryMap[normKey];
-                    group.totalSalesCount += 1; group.totalOmzet += alloc.allocatedRevenue; group.totalInstructorShare += alloc.instructorShare; group.totalNuqthahShare += alloc.nuqthahShare;
-                    if (!group.coursesBreakdown[alloc.courseId]) group.coursesBreakdown[alloc.courseId] = { courseId: alloc.courseId, title: alloc.baseCourseTitle || alloc.courseTitle, mode: courseMap[alloc.courseId]?.mode || 'Online', price: courseMap[alloc.courseId]?.price || 'Rp 0', sharePct: alloc.sharePct, directSales: 0, bundleSales: 0, omzet: 0, instructorEarned: 0, nuqthahEarned: 0 };
+                    group.totalSalesCount += 1;
+                    group.totalGrossOmzet += alloc.grossRevenue;
+                    group.totalFee += alloc.feeAmount;
+                    group.totalOmzet += alloc.allocatedRevenue;
+                    group.totalInstructorShare += alloc.instructorShare;
+                    group.totalNuqthahShare += alloc.nuqthahShare;
+
+                    if (!group.coursesBreakdown[alloc.courseId]) group.coursesBreakdown[alloc.courseId] = { courseId: alloc.courseId, title: alloc.baseCourseTitle || alloc.courseTitle, mode: courseMap[alloc.courseId]?.mode || 'Online', price: courseMap[alloc.courseId]?.price || 'Rp 0', sharePct: alloc.sharePct, directSales: 0, bundleSales: 0, grossOmzet: 0, fee: 0, netOmzet: 0, instructorEarned: 0, nuqthahEarned: 0 };
                     const cBreak = group.coursesBreakdown[alloc.courseId];
                     if (alloc.isFromBundle) cBreak.bundleSales += 1; else cBreak.directSales += 1;
-                    cBreak.omzet += alloc.allocatedRevenue; cBreak.instructorEarned += alloc.instructorShare; cBreak.nuqthahEarned += alloc.nuqthahShare;
+                    cBreak.grossOmzet += alloc.grossRevenue;
+                    cBreak.fee += alloc.feeAmount;
+                    cBreak.netOmzet += alloc.allocatedRevenue;
+                    cBreak.instructorEarned += alloc.instructorShare;
+                    cBreak.nuqthahEarned += alloc.nuqthahShare;
                 });
             });
 
@@ -2276,22 +2316,22 @@
             const list = window.__latestInstructorSummaryList || [];
             const query = (document.getElementById('search-instructor-payout')?.value || '').toLowerCase().trim();
             const filtered = list.filter(item => { if (!query) return true; const courseNames = Object.values(item.coursesBreakdown).map(c => c.title).join(' ').toLowerCase(); return item.displayName.toLowerCase().includes(query) || courseNames.includes(query); });
-            if (filtered.length === 0) { tbody.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-gray-400">Belum ada data pengajar atau transaksi yang sesuai.</td></tr>`; return; }
+            if (filtered.length === 0) { tbody.innerHTML = `<tr><td colspan="10" class="p-6 text-center text-gray-400">Belum ada data pengajar atau transaksi yang sesuai.</td></tr>`; return; }
             tbody.innerHTML = '';
             filtered.forEach((inst, idx) => {
                 const coursesArr = Object.values(inst.coursesBreakdown); const detailRowId = `inst-detail-row-${idx}`; const safeInstName = escapeHtml(inst.displayName);
                 const trMain = document.createElement('tr');
                 trMain.className = 'hover:bg-gray-50 transition cursor-pointer';
                 trMain.onclick = (e) => { if (e.target.closest('button')) return; document.getElementById(detailRowId)?.classList.toggle('hidden'); };
-                trMain.innerHTML = `<td class="p-3.5 font-bold text-gray-900"><div class="flex items-center gap-2"><i class="fas fa-chevron-right text-[10px] text-gray-400"></i><span>${safeInstName}</span></div><div class="text-[10px] text-gray-400 font-normal pl-4 mt-0.5">Klik untuk rincian per materi</div></td><td class="p-3.5 text-center"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-primary border border-emerald-200">${coursesArr.length} Materi</span><div class="text-[10px] text-gray-500 mt-0.5">${inst.totalSalesCount}x Terjual</div></td><td class="p-3.5 text-right font-semibold text-gray-700">${formatRupiah(inst.totalOmzet) || 'Rp 0'}</td><td class="p-3.5 text-right font-extrabold text-primary text-sm">${formatRupiah(inst.totalInstructorShare) || 'Rp 0'}</td><td class="p-3.5 text-right font-bold text-amber-800">${formatRupiah(inst.totalNuqthahShare) || 'Rp 0'}</td><td class="p-3.5 text-right text-emerald-700 font-semibold">${formatRupiah(inst.paidOut) || 'Rp 0'}</td><td class="p-3.5 text-right font-extrabold ${inst.unpaidBalance > 0 ? 'text-red-600' : 'text-gray-400'}">${formatRupiah(inst.unpaidBalance) || 'Rp 0'}</td><td class="p-3.5 text-center"><button type="button" onclick="prepareInstructorPayout('${safeInstName}', ${inst.unpaidBalance})" class="bg-primary text-white px-3 py-1.5 rounded-lg text-[11px] font-bold hover:bg-opacity-90 transition shadow-sm"><i class="fas fa-hand-holding-dollar mr-1"></i> Catat Cair</button></td>`;
+                trMain.innerHTML = `<td class="p-3.5 font-bold text-gray-900"><div class="flex items-center gap-2"><i class="fas fa-chevron-right text-[10px] text-gray-400"></i><span>${safeInstName}</span></div><div class="text-[10px] text-gray-400 font-normal pl-4 mt-0.5">Klik untuk rincian per materi</div></td><td class="p-3.5 text-center"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-primary border border-emerald-200">${coursesArr.length} Materi</span><div class="text-[10px] text-gray-500 mt-0.5">${inst.totalSalesCount}x Terjual</div></td><td class="p-3.5 text-right font-semibold text-gray-600">${formatRupiah(inst.totalGrossOmzet) || 'Rp 0'}</td><td class="p-3.5 text-right font-semibold text-red-500">-${formatRupiah(inst.totalFee) || 'Rp 0'}</td><td class="p-3.5 text-right font-extrabold text-emerald-600 text-sm">${formatRupiah(inst.totalOmzet) || 'Rp 0'}</td><td class="p-3.5 text-right font-extrabold text-primary text-sm">${formatRupiah(inst.totalInstructorShare) || 'Rp 0'}</td><td class="p-3.5 text-right font-bold text-amber-800">${formatRupiah(inst.totalNuqthahShare) || 'Rp 0'}</td><td class="p-3.5 text-right text-emerald-700 font-semibold">${formatRupiah(inst.paidOut) || 'Rp 0'}</td><td class="p-3.5 text-right font-extrabold ${inst.unpaidBalance > 0 ? 'text-red-600' : 'text-gray-400'}">${formatRupiah(inst.unpaidBalance) || 'Rp 0'}</td><td class="p-3.5 text-center"><button type="button" onclick="prepareInstructorPayout('${safeInstName}', ${inst.unpaidBalance})" class="bg-primary text-white px-3 py-1.5 rounded-lg text-[11px] font-bold hover:bg-opacity-90 transition shadow-sm"><i class="fas fa-hand-holding-dollar mr-1"></i> Catat Cair</button></td>`;
                 tbody.appendChild(trMain);
                 const trDetail = document.createElement('tr'); trDetail.id = detailRowId; trDetail.className = 'hidden bg-emerald-50/30 border-b border-emerald-100';
                 let breakdownRowsHtml = '';
                 coursesArr.forEach(c => {
                     const nuqPct = Math.round((100 - c.sharePct) * 100) / 100;
-                    breakdownRowsHtml += `<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 bg-white rounded-xl border border-gray-200 text-[11px]"><div><span class="font-bold text-gray-800">${escapeHtml(c.title)}</span><span class="ml-1.5 px-2 py-0.5 rounded text-[10px] bg-gray-100 text-gray-600">${escapeHtml(c.mode)} • Harga: ${escapeHtml(c.price)}</span><span class="ml-1.5 px-2 py-0.5 rounded text-[10px] bg-teal-50 text-teal-800 font-bold">Bagi Hasil: ${c.sharePct}% Pengajar / ${nuqPct}% Nuqthah</span></div><div class="flex flex-wrap items-center gap-3 sm:text-right"><span class="text-gray-500">Terjual: <b>${c.directSales} Satuan</b> + <b>${c.bundleSales} via Paket</b></span><span class="text-primary font-bold">Hak Pengajar: ${formatRupiah(c.instructorEarned) || 'Rp 0'}</span><span class="text-amber-800 font-semibold">Hak Nuqthah: ${formatRupiah(c.nuqthahEarned) || 'Rp 0'}</span></div></div>`;
+                    breakdownRowsHtml += `<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 bg-white rounded-xl border border-gray-200 text-[11px]"><div><span class="font-bold text-gray-800">${escapeHtml(c.title)}</span><span class="ml-1.5 px-2 py-0.5 rounded text-[10px] bg-gray-100 text-gray-600">${escapeHtml(c.mode)} • Harga: ${escapeHtml(c.price)}</span><span class="ml-1.5 px-2 py-0.5 rounded text-[10px] bg-teal-50 text-teal-800 font-bold">Bagi Hasil: ${c.sharePct}% Pengajar / ${nuqPct}% Nuqthah</span></div><div class="flex flex-wrap items-center gap-3 sm:text-right"><span class="text-gray-500">Terjual: <b>${c.directSales} Satuan</b> + <b>${c.bundleSales} via Paket</b></span><span class="text-gray-600 font-semibold">Kotor: ${formatRupiah(c.grossOmzet)} • Fee: -${formatRupiah(c.fee)}</span><span class="text-emerald-600 font-bold">Net: ${formatRupiah(c.netOmzet)}</span><span class="text-primary font-bold">Hak Pengajar: ${formatRupiah(c.instructorEarned) || 'Rp 0'}</span></div></div>`;
                 });
-                trDetail.innerHTML = `<td colspan="8" class="p-4"><div class="text-[11px] font-bold text-primary uppercase mb-2"><i class="fas fa-list-check mr-1"></i> Rincian Materi yang Diampu oleh ${safeInstName}:</div><div class="space-y-2">${breakdownRowsHtml}</div></td>`;
+                trDetail.innerHTML = `<td colspan="10" class="p-4"><div class="text-[11px] font-bold text-primary uppercase mb-2"><i class="fas fa-list-check mr-1"></i> Rincian Materi yang Diampu oleh ${safeInstName}:</div><div class="space-y-2">${breakdownRowsHtml}</div></td>`;
                 tbody.appendChild(trDetail);
             });
         }
@@ -2331,10 +2371,23 @@
                 const studentName = uObj?.name || t.user_email || 'Siswa Nuqthah';
                 const cObj = courseMap[t.course_id]; const courseTitle = cObj?.title || t.course_id || 'Pembelian Materi';
 
-                let netAmount = Number(t.gross_amount) || 0;
-                if (isSuccess) { const feeData = calculateMidtransFee(netAmount, t.payment_type); netAmount = feeData.net; }
+                const feeData = calculateMidtransFee(Number(t.gross_amount) || 0, t.payment_type);
 
-                unifiedItems.push({ id: t.id || t.order_id, source: 'TRANSACTION', direction: 'IN', status: status, isSuccess: isSuccess, title: studentName, subtitle: `${courseTitle} • ${t.order_id || ''}`, categoryBadge: isSuccess ? 'Pembelian Lunas (Net)' : (status === 'pending' ? 'Menunggu Pembayaran' : 'Gagal / Kedaluwarsa'), amount: netAmount, date: new Date(dateStr) });
+                unifiedItems.push({
+                    id: t.id || t.order_id,
+                    source: 'TRANSACTION',
+                    direction: 'IN',
+                    status: status,
+                    isSuccess: isSuccess,
+                    title: studentName,
+                    subtitle: `${courseTitle} • ${t.order_id || ''}`,
+                    categoryBadge: isSuccess ? 'Pembelian Lunas' : (status === 'pending' ? 'Menunggu Pembayaran' : 'Gagal / Kedaluwarsa'),
+                    amount: feeData.net,
+                    grossAmount: feeData.gross,
+                    feeAmount: feeData.fee,
+                    paymentLabel: feeData.label,
+                    date: new Date(dateStr)
+                });
             });
 
             cachedFinanceLogs.forEach(l => {
@@ -2348,10 +2401,12 @@
             const filtered = unifiedItems.filter(item => { if (activeHistoryFilter === 'IN' && item.direction !== 'IN') return false; if (activeHistoryFilter === 'OUT' && item.direction !== 'OUT') return false; if (searchVal) { const hay = `${item.title} ${item.subtitle} ${item.categoryBadge}`.toLowerCase(); if (!hay.includes(searchVal)) return false; } return true; });
             if (filtered.length === 0) { container.innerHTML = `<p class="text-xs text-gray-400 text-center py-8">Tidak ada riwayat transaksi yang sesuai filter.</p>`; return; }
             container.innerHTML = '';
+
             filtered.forEach(item => {
                 const isOut = item.direction === 'OUT';
                 const timeFormatted = item.date.toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-                let iconHtml = ''; let amountHtml = ''; let statusBadgeHtml = '';
+                let iconHtml = ''; let amountHtml = ''; let statusBadgeHtml = ''; let subAmountHtml = '';
+
                 if (isOut) {
                     iconHtml = `<div class="w-10 h-10 rounded-xl bg-red-50 text-red-600 flex items-center justify-center shrink-0 font-bold"><i class="fas fa-arrow-up-right-from-square text-xs"></i></div>`;
                     amountHtml = `<div class="font-extrabold text-red-600 text-sm whitespace-nowrap">-${formatRupiah(item.amount)}</div>`;
@@ -2359,8 +2414,16 @@
                 } else {
                     if (item.isSuccess) {
                         iconHtml = `<div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 font-bold"><i class="fas fa-arrow-down-long rotate-45 text-xs"></i></div>`;
-                        amountHtml = `<div class="font-extrabold text-emerald-700 text-sm whitespace-nowrap">+${formatRupiah(item.amount)}</div>`;
+                        amountHtml = `<div class="font-extrabold text-emerald-700 text-sm whitespace-nowrap">+${formatRupiah(item.amount)} <span class="text-[10px] text-gray-400 font-normal">(Net)</span></div>`;
                         statusBadgeHtml = `<span class="text-[10px] px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 font-semibold">${escapeHtml(item.categoryBadge)}</span>`;
+
+                        // Tampilkan rincian Kotor & Fee untuk transaksi sukses
+                        subAmountHtml = `<div class="text-[10px] text-gray-400 whitespace-nowrap mt-0.5">Kotor: ${formatRupiah(item.grossAmount)} • Fee: -${formatRupiah(item.feeAmount)}</div>`;
+
+                        // Badge Metode Pembayaran
+                        const methodBg = item.paymentLabel.includes('Manual') ? 'bg-gray-100 text-gray-600' : (item.paymentLabel.includes('QRIS') ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700');
+                        const methodIcon = item.paymentLabel.includes('Manual') ? 'fa-money-bill-wave' : (item.paymentLabel.includes('QRIS') ? 'fa-qrcode' : 'fa-wallet');
+                        statusBadgeHtml += `<span class="text-[10px] px-2 py-0.5 rounded ${methodBg} font-bold flex items-center gap-1"><i class="fas ${methodIcon} text-[8px]"></i> ${item.paymentLabel}</span>`;
                     } else {
                         iconHtml = `<div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 font-bold"><i class="fas fa-clock text-xs"></i></div>`;
                         amountHtml = `<div class="font-bold text-gray-400 text-sm whitespace-nowrap">${formatRupiah(item.amount)}</div>`;
@@ -2368,8 +2431,28 @@
                     }
                 }
                 const deleteBtnHtml = item.source === 'FINANCE_LOG' ? `<button onclick="deleteFinanceLog('${item.id}')" class="text-gray-400 hover:text-red-600 ml-2" title="Hapus Catatan Ini"><i class="fas fa-trash-alt text-xs"></i></button>` : '';
-                const row = document.createElement('div'); row.className = 'py-3.5 px-2 hover:bg-gray-50 flex items-center justify-between gap-3 transition rounded-xl';
-                row.innerHTML = `<div class="flex items-start gap-3 min-w-0">${iconHtml}<div class="min-w-0"><div class="font-bold text-gray-900 text-xs sm:text-sm truncate">${escapeHtml(item.title)}</div><div class="text-[11px] text-gray-500 truncate mt-0.5">${escapeHtml(item.subtitle)}</div><div class="flex items-center gap-2 mt-1">${statusBadgeHtml}<span class="text-[10px] text-gray-400">${timeFormatted}</span></div></div></div><div class="flex items-center gap-2 shrink-0 text-right">${amountHtml}${deleteBtnHtml}</div>`;
+
+                const row = document.createElement('div'); row.className = 'py-3.5 px-2 hover:bg-gray-50 flex items-center justify-between gap-3 transition rounded-xl border-b border-gray-50 last:border-0';
+                row.innerHTML = `
+                    <div class="flex items-start gap-3 min-w-0">
+                        ${iconHtml}
+                        <div class="min-w-0">
+                            <div class="font-bold text-gray-900 text-xs sm:text-sm truncate">${escapeHtml(item.title)}</div>
+                            <div class="text-[11px] text-gray-500 truncate mt-0.5">${escapeHtml(item.subtitle)}</div>
+                            <div class="flex flex-wrap items-center gap-2 mt-1">
+                                ${statusBadgeHtml}
+                                <span class="text-[10px] text-gray-400">${timeFormatted}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0 text-right">
+                        <div>
+                            ${amountHtml}
+                            ${subAmountHtml}
+                        </div>
+                        ${deleteBtnHtml}
+                    </div>
+                `;
                 container.appendChild(row);
             });
         }
