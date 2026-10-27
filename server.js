@@ -25,9 +25,8 @@ const supabaseAdmin = createClient(
 );
 
 // Inisialisasi Midtrans Snap API Client
-const isMidtransProd = process.env.MIDTRANS_IS_PRODUCTION === 'true';
 let snap = new midtransClient.Snap({
-    isProduction: isMidtransProd,
+    isProduction: false,
     serverKey: process.env.MIDTRANS_SERVER_KEY,
     clientKey: process.env.MIDTRANS_CLIENT_KEY
 });
@@ -41,71 +40,9 @@ const mailTransporter = nodemailer.createTransport({
     }
 });
 
-// ================= HELPER: HITUNG FEE MIDTRANS OTOMATIS DARI WEBHOOK =================
-function calculateMidtransFee(grossAmount, statusResponse) {
-    const gross = Number(grossAmount) || 0;
-    const paymentType = String(statusResponse?.payment_type || '').toLowerCase();
-    const acquirer = String(statusResponse?.acquirer || '').toLowerCase();
-    const paymentMethod = paymentType || acquirer;
-
-    let fee = 0;
-    let normalizedChannel = 'qris';
-
-    if (paymentType === 'qris') {
-        // Standar MDR QRIS Midtrans 0.7%
-        normalizedChannel = 'qris';
-        fee = Math.round(gross * 0.007);
-    } else if (
-        paymentMethod.includes('gopay') ||
-        paymentMethod.includes('shopeepay') ||
-        paymentMethod.includes('dana') ||
-        paymentMethod.includes('ovo') ||
-        paymentMethod.includes('linkaja') ||
-        paymentMethod.includes('ewallet')
-    ) {
-        // E-Wallet direct (tarif standar sistem 1.5%)
-        normalizedChannel = 'ewallet';
-        fee = Math.round(gross * 0.015);
-    } else if (
-        paymentMethod.includes('bank_transfer') ||
-        paymentMethod.includes('echannel') ||
-        paymentMethod.includes('permata') ||
-        paymentMethod.includes('virtual_account') ||
-        paymentMethod.endsWith('_va') ||
-        paymentMethod === 'va'
-    ) {
-        // Standar Virtual Account Bank (Rp 4.000 + PPN 11% = Rp 4.440)
-        normalizedChannel = 'va';
-        fee = 4440;
-    } else if (
-        paymentMethod.includes('cstore') ||
-        paymentMethod.includes('indomaret') ||
-        paymentMethod.includes('alfamart')
-    ) {
-        // Minimarket Indomaret / Alfamart
-        normalizedChannel = 'cstore';
-        fee = 5000;
-    } else if (paymentMethod.includes('credit_card')) {
-        // Kartu Kredit (2.9% + Rp 2.000)
-        normalizedChannel = 'cc';
-        fee = Math.round(gross * 0.029 + 2000);
-    } else {
-        // Default fallback ke QRIS 0.7%
-        normalizedChannel = 'qris';
-        fee = Math.round(gross * 0.007);
-    }
-
-    fee = Math.min(gross, Math.max(0, fee));
-    return {
-        paymentType: paymentType || normalizedChannel,
-        channel: normalizedChannel,
-        feeAmount: fee,
-        netAmount: gross - fee
-    };
-}
-
 // ================= HELPER: PARSE BUNDLING PAKET & METADATA =================
 function parseBundleIdsFromLink(rawLink) {
+    // Bersihkan akhiran ||META:: terlebih dahulu agar tidak mengganggu pembacaan link/paket
     const str = String(rawLink || '').split('||META::')[0];
     if (!str.startsWith('BUNDLE::')) return [];
     const withoutPrefix = str.substring(8);
@@ -176,6 +113,7 @@ async function grantUserAccessSafely({ userId, userEmail, courseId, orderId }) {
     const cleanEmail = (userEmail || '').trim().toLowerCase();
     if (!cleanEmail || !courseId) return;
 
+    // Cek apakah kombinasi user_email + course_id sudah ada di tabel user_access
     const { data: existing } = await supabaseAdmin
         .from('user_access')
         .select('id')
@@ -184,11 +122,13 @@ async function grantUserAccessSafely({ userId, userEmail, courseId, orderId }) {
         .limit(1);
 
     if (existing && existing.length > 0) {
+        // Jika sudah ada, cukup aktifkan tanpa membuat baris baru
         await supabaseAdmin
             .from('user_access')
             .update({ is_active: true, order_id: orderId })
             .eq('id', existing[0].id);
     } else {
+        // Jika belum ada, buat 1 baris baru
         await supabaseAdmin
             .from('user_access')
             .insert([{
@@ -209,7 +149,7 @@ app.post('/api/create-transaction', async (req, res) => {
         const { course_id, price, user_id, user_email } = req.body;
         const orderId = 'NUQTHAH-' + Date.now();
         
-        const cleanPrice = parseInt(String(price).replace(/[^0-9]/g, ''), 10) || 10000;
+        const cleanPrice = parseInt(String(price).replace(/[^0-9]/g, '')) || 10000;
 
         const { data: userData } = await supabaseAdmin
             .from('users')
@@ -249,6 +189,7 @@ app.post('/api/create-transaction', async (req, res) => {
             gross_amount: cleanPrice,
             status: 'pending',
             created_at: new Date().toISOString()
+            // payment_type dibiarkan null dulu sampai siswa memilih metode bayar di Midtrans
         }]);
 
         if (studentWa) {
@@ -281,13 +222,13 @@ Apabila ada kendala atau butuh bantuan admin, silakan balas pesan ini. Syukran! 
     }
 });
 
-// Endpoint 2: Midtrans Webhook Notification (Hitung Fee Midtrans Otomatis & Buka Akses)
+// Endpoint 2: Midtrans Webhook Notification (Anti-Duplikat & Kirim WA Konfirmasi Lunas)
 app.post('/api/midtrans-notification', async (req, res) => {
     try {
         let notificationJson = req.body;
         
         let apiClient = new midtransClient.CoreApi({
-            isProduction: isMidtransProd,
+            isProduction: false,
             serverKey: process.env.MIDTRANS_SERVER_KEY,
             clientKey: process.env.MIDTRANS_CLIENT_KEY
         });
@@ -297,6 +238,7 @@ app.post('/api/midtrans-notification', async (req, res) => {
         let orderId = statusResponse.order_id;
         let transactionStatus = statusResponse.transaction_status;
         let fraudStatus = statusResponse.fraud_status;
+        let paymentType = statusResponse.payment_type; // <-- Menangkap jenis metode bayar (qris, bank_transfer, dll)
 
         const { data: trx } = await supabaseAdmin
             .from('transactions')
@@ -325,45 +267,23 @@ app.post('/api/midtrans-notification', async (req, res) => {
         const courseTitle = courseData?.title || trx.course_id;
         const learningUrl = `https://markaz.nuqthahlearning.my.id/halaman_belajar.html?course_id=${trx.course_id}`;
 
-        // Hitung detail potongan fee Midtrans berdasarkan metode pembayaran aktual dari Midtrans
-        const feeCalc = calculateMidtransFee(trx.gross_amount, statusResponse);
-
-        if (transactionStatus === 'capture' || transactionStatus === 'settlement') {
-            if (fraudStatus === 'accept' || !fraudStatus) {
+        if (transactionStatus == 'capture' || transactionStatus == 'settlement') {
+            if (fraudStatus == 'accept' || !fraudStatus) {
                 const wasAlreadySuccess = trx.status === 'success';
 
-                // Simpan fee serta metode aktual dari Midtrans agar saldo admin menggunakan net yang sama.
-                const { error: richUpdateErr } = await supabaseAdmin
+                // === PERUBAHAN DI SINI: SIMPAN payment_type ===
+                await supabaseAdmin
                     .from('transactions')
-                    .update({
+                    .update({ 
                         status: 'success',
-                        payment_type: feeCalc.paymentType,
-                        midtrans_fee: feeCalc.feeAmount,
-                        net_amount: feeCalc.netAmount
+                        payment_type: paymentType 
                     })
                     .eq('order_id', orderId);
-
-                // Jika kolom fee belum tersedia, tetap simpan metode pembayaran untuk kalkulasi dashboard.
-                if (richUpdateErr) {
-                    const { error: paymentTypeUpdateErr } = await supabaseAdmin
-                        .from('transactions')
-                        .update({
-                            status: 'success',
-                            payment_type: feeCalc.paymentType
-                        })
-                        .eq('order_id', orderId);
-
-                    if (paymentTypeUpdateErr) {
-                        await supabaseAdmin
-                            .from('transactions')
-                            .update({ status: 'success' })
-                            .eq('order_id', orderId);
-                    }
-                }
 
                 const bundledIds = parseBundleIdsFromLink(courseData?.link);
                 const allCourseIdsToGrant = Array.from(new Set([trx.course_id, ...bundledIds]));
 
+                // Buka akses untuk materi utama maupun seluruh materi di dalam Paket Bundling
                 for (const cid of allCourseIdsToGrant) {
                     await grantUserAccessSafely({
                         userId: trx.user_id || userData?.id || null,
@@ -397,15 +317,19 @@ Selamat belajar, semoga ilmunya bermanfaat dan berkah! 🌟
                     await sendFonnteWhatsApp(studentWa, successMsg);
                 }
             }
-        } else if (transactionStatus === 'cancel' || transactionStatus === 'deny' || transactionStatus === 'expire') {
+        } else if (transactionStatus == 'cancel' || transactionStatus == 'deny' || transactionStatus == 'expire') {
             const wasAlreadyFailed = trx.status === 'failed';
 
+            // === PERUBAHAN DI SINI: SIMPAN payment_type (opsional untuk transaksi gagal) ===
             await supabaseAdmin
                 .from('transactions')
-                .update({ status: 'failed' })
+                .update({ 
+                    status: 'failed',
+                    payment_type: paymentType
+                })
                 .eq('order_id', orderId);
 
-            if (transactionStatus === 'expire' && !wasAlreadyFailed && studentWa) {
+            if (transactionStatus == 'expire' && !wasAlreadyFailed && studentWa) {
                 const expireMsg = 
 `Assalamu'alaikum *${studentName}*,
 
