@@ -189,6 +189,7 @@ app.post('/api/create-transaction', async (req, res) => {
             gross_amount: cleanPrice,
             status: 'pending',
             created_at: new Date().toISOString()
+            // payment_type dibiarkan null dulu sampai siswa memilih metode bayar di Midtrans
         }]);
 
         if (studentWa) {
@@ -237,6 +238,7 @@ app.post('/api/midtrans-notification', async (req, res) => {
         let orderId = statusResponse.order_id;
         let transactionStatus = statusResponse.transaction_status;
         let fraudStatus = statusResponse.fraud_status;
+        let paymentType = statusResponse.payment_type; // <-- Menangkap jenis metode bayar (qris, bank_transfer, dll)
 
         const { data: trx } = await supabaseAdmin
             .from('transactions')
@@ -269,9 +271,13 @@ app.post('/api/midtrans-notification', async (req, res) => {
             if (fraudStatus == 'accept' || !fraudStatus) {
                 const wasAlreadySuccess = trx.status === 'success';
 
+                // === PERUBAHAN DI SINI: SIMPAN payment_type ===
                 await supabaseAdmin
                     .from('transactions')
-                    .update({ status: 'success' })
+                    .update({ 
+                        status: 'success',
+                        payment_type: paymentType 
+                    })
                     .eq('order_id', orderId);
 
                 const bundledIds = parseBundleIdsFromLink(courseData?.link);
@@ -314,9 +320,13 @@ Selamat belajar, semoga ilmunya bermanfaat dan berkah! 🌟
         } else if (transactionStatus == 'cancel' || transactionStatus == 'deny' || transactionStatus == 'expire') {
             const wasAlreadyFailed = trx.status === 'failed';
 
+            // === PERUBAHAN DI SINI: SIMPAN payment_type (opsional untuk transaksi gagal) ===
             await supabaseAdmin
                 .from('transactions')
-                .update({ status: 'failed' })
+                .update({ 
+                    status: 'failed',
+                    payment_type: paymentType
+                })
                 .eq('order_id', orderId);
 
             if (transactionStatus == 'expire' && !wasAlreadyFailed && studentWa) {
