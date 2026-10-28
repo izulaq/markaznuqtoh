@@ -369,11 +369,29 @@
                             </div>
                             <p id="course-pdf-status-add" class="mt-2 text-[11px] text-gray-600">Belum ada PDF.</p>
                         </div>
-                        <div class="md:col-span-2 lg:col-span-2">
-                            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">URL Gambar Cover
+                        <div class="md:col-span-2 lg:col-span-2 bg-emerald-50 border border-emerald-100 p-3 rounded-xl">
+                            <label class="block text-xs font-bold text-emerald-900 uppercase mb-1">Upload Cover Materi
                                 *</label>
-                            <input type="url" id="image" placeholder="https://..." required
-                                class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none">
+                            <div class="flex flex-col sm:flex-row gap-2">
+                                <input type="file" id="course-cover-add" accept="image/jpeg,image/png,image/webp"
+                                    class="min-w-0 flex-1 border border-emerald-200 bg-white p-2 rounded-lg text-xs">
+                                <button type="button" onclick="uploadCourseCover('add')" id="btn-upload-cover-add"
+                                    class="shrink-0 bg-emerald-700 text-white px-3 py-2 rounded-lg text-xs font-bold">
+                                    <i class="fas fa-upload mr-1"></i> Unggah Cover
+                                </button>
+                                <button type="button" onclick="clearCourseCover('add')"
+                                    class="shrink-0 bg-white border border-gray-200 text-gray-600 px-3 py-2 rounded-lg text-xs font-bold">
+                                    Hapus Cover
+                                </button>
+                            </div>
+                            <input type="hidden" id="image">
+                            <div class="flex items-center gap-3 mt-2">
+                                <img id="course-cover-preview-add"
+                                    class="hidden w-16 h-16 rounded-lg object-cover border border-emerald-200"
+                                    alt="Pratinjau cover">
+                                <p id="course-cover-status-add" class="text-[11px] text-gray-600">Cover wajib diunggah
+                                    sebelum menyimpan materi.</p>
+                            </div>
                         </div>
                         <div class="md:col-span-2 lg:col-span-3">
                             <button type="submit" id="btn-simpan-materi"
@@ -1363,10 +1381,30 @@
                         </div>
                         <p id="course-pdf-status-edit" class="mt-2 text-[11px] text-gray-600">Belum ada PDF.</p>
                     </div>
-                    <div class="md:col-span-2"><label
-                            class="block text-xs font-bold text-gray-700 uppercase mb-1">Gambar Cover</label><input
-                            type="url" id="edit-image" required
-                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm"></div>
+                    <div class="md:col-span-2 bg-emerald-50 border border-emerald-100 p-3 rounded-xl">
+                        <label class="block text-xs font-bold text-emerald-900 uppercase mb-1">Upload Cover
+                            Materi</label>
+                        <div class="flex flex-col sm:flex-row gap-2">
+                            <input type="file" id="course-cover-edit" accept="image/jpeg,image/png,image/webp"
+                                class="min-w-0 flex-1 border border-emerald-200 bg-white p-2 rounded-lg text-xs">
+                            <button type="button" onclick="uploadCourseCover('edit')" id="btn-upload-cover-edit"
+                                class="shrink-0 bg-emerald-700 text-white px-3 py-2 rounded-lg text-xs font-bold">
+                                <i class="fas fa-upload mr-1"></i> Unggah Cover
+                            </button>
+                            <button type="button" onclick="clearCourseCover('edit')"
+                                class="shrink-0 bg-white border border-gray-200 text-gray-600 px-3 py-2 rounded-lg text-xs font-bold">
+                                Hapus Cover
+                            </button>
+                        </div>
+                        <input type="hidden" id="edit-image">
+                        <div class="flex items-center gap-3 mt-2">
+                            <img id="course-cover-preview-edit"
+                                class="hidden w-16 h-16 rounded-lg object-cover border border-emerald-200"
+                                alt="Pratinjau cover">
+                            <p id="course-cover-status-edit" class="text-[11px] text-gray-600">Cover saat ini akan
+                                dipertahankan jika tidak diganti.</p>
+                        </div>
+                    </div>
                 </form>
             </div>
             <div class="p-4 border-t bg-gray-50 flex justify-end gap-2">
@@ -1610,11 +1648,13 @@
         const UPLOAD_PROVIDER = 'GDRIVE';
         const GDRIVE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDLSShbz7Zpj9SSvmMIMtTYOcX4NzU0zsBtDzpcJlmq3mpFdZKmvoOR_7ndhlG1bzB/exec';
         const BACKEND_API_URL = 'https://markaznuqtoh.vercel.app';
+        const COVER_UPLOAD_API_URL = `${BACKEND_API_URL}/api/upload-google-drive-cover`;
         const SUPABASE_KEY = 'sb_publishable_N96gYsm_jeSntalN3qMVCA_TpXloD4u';
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         let addCoursePdf = null;
         let editCoursePdf = null;
+        let addCourseImage = null;
 
         let cachedCourses = [];
         let cachedModules = [];
@@ -1859,6 +1899,87 @@
             } finally {
                 button.disabled = false;
                 button.innerHTML = '<i class="fas fa-upload mr-1"></i> Unggah PDF';
+            }
+        }
+
+        function updateCourseCoverStatus(mode, message) {
+            const imageUrl = document.getElementById(mode === 'add' ? 'image' : 'edit-image').value.trim();
+            const preview = document.getElementById(`course-cover-preview-${mode}`);
+            const status = document.getElementById(`course-cover-status-${mode}`);
+            if (imageUrl) {
+                preview.src = imageUrl;
+                preview.classList.remove('hidden');
+                status.textContent = message || (mode === 'add'
+                    ? 'Cover siap. Simpan materi untuk menerapkan perubahan.'
+                    : 'Cover siap. Simpan perubahan materi untuk menerapkannya.');
+            } else {
+                preview.removeAttribute('src');
+                preview.classList.add('hidden');
+                status.textContent = message || (mode === 'add'
+                    ? 'Cover wajib diunggah sebelum menyimpan materi.'
+                    : 'Belum ada cover. Unggah cover baru untuk menambahkannya.');
+            }
+        }
+
+        function clearCourseCover(mode) {
+            const input = document.getElementById(`course-cover-${mode}`);
+            if (input) input.value = '';
+            document.getElementById(mode === 'add' ? 'image' : 'edit-image').value = '';
+            if (mode === 'add') addCourseImage = null;
+            updateCourseCoverStatus(mode);
+        }
+
+        async function uploadCourseCover(mode) {
+            const input = document.getElementById(`course-cover-${mode}`);
+            const file = input?.files?.[0];
+            if (!file) {
+                showToast('Pilih file gambar cover terlebih dahulu.', 'warning');
+                return;
+            }
+            const supportedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+            if (!supportedTypes.includes(file.type)) {
+                showToast('Format cover harus JPG, PNG, atau WebP.', 'warning');
+                return;
+            }
+            if (file.size === 0 || file.size > 3 * 1024 * 1024) {
+                showToast('Ukuran gambar cover maksimal 3 MB.', 'warning');
+                return;
+            }
+
+            const button = document.getElementById(`btn-upload-cover-${mode}`);
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Mengunggah...';
+            try {
+                const response = await fetch(COVER_UPLOAD_API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': file.type,
+                        'X-File-Name': encodeURIComponent(file.name)
+                    },
+                    body: file
+                });
+                const responseText = await response.text();
+                let result;
+                try {
+                    result = JSON.parse(responseText);
+                } catch (error) {
+                    throw new Error(`Layanan upload cover memberikan respons tidak valid (HTTP ${response.status}).`);
+                }
+                if (!response.ok) throw new Error(result.error || 'Upload cover gagal.');
+                if (typeof result.imageUrl !== 'string' || !result.imageUrl.startsWith('https://')) {
+                    throw new Error('Server upload tidak mengembalikan URL gambar Google Drive yang valid.');
+                }
+
+                const cover = { fileId: result.fileId, name: result.name || file.name, imageUrl: result.imageUrl };
+                document.getElementById(mode === 'add' ? 'image' : 'edit-image').value = cover.imageUrl;
+                if (mode === 'add') addCourseImage = cover;
+                updateCourseCoverStatus(mode);
+                showToast('Cover berhasil diunggah ke Google Drive. Simpan materi untuk menerapkan perubahan.', 'success');
+            } catch (error) {
+                showToast('Gagal mengunggah cover: ' + escapeHtml(error.message), 'error');
+            } finally {
+                button.disabled = false;
+                button.innerHTML = '<i class="fas fa-upload mr-1"></i> Unggah Cover';
             }
         }
 
@@ -3243,17 +3364,18 @@
             e.preventDefault();
             const isBundle = document.getElementById('course-bundle-type').value === 'paket';
             if (isBundle && selectedBundleCourseIdsAdd.length === 0) { showToast('Silakan pilih minimal 1 materi untuk dimasukkan ke dalam Paket Bundling.', 'warning'); return; }
+            if (!addCourseImage?.imageUrl) { showToast('Unggah gambar cover sebelum menyimpan materi.', 'warning'); return; }
             const btnSubmit = document.getElementById('btn-simpan-materi'); btnSubmit.disabled = true; btnSubmit.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Menyimpan...';
             const newPosition = cachedCourses.length > 0 ? (Math.max(...cachedCourses.map(c => c.position || 0)) + 1) : 0;
             const rawExternalLink = document.getElementById('link').value;
             const sharePct = parseFloat(document.getElementById('instructor_share_pct').value) || 60;
             const discountPct = isBundle ? (parseFloat(document.getElementById('add-bundle-discount').value) || 0) : 0;
             const finalLinkField = encodeCourseLinkWithMeta(isBundle, selectedBundleCourseIdsAdd, rawExternalLink, sharePct, discountPct, addCoursePdf);
-            const newCourse = { course_id: document.getElementById('course_id').value, title: document.getElementById('title').value.trim(), category: document.getElementById('category').value, subfilter: document.getElementById('subfilter').value, mode: document.getElementById('mode').value, instructor: document.getElementById('instructor').value.trim(), meetings: formatPertemuan(document.getElementById('meetings').value), class_type: document.getElementById('class_type').value, facility: document.getElementById('facility').value.trim(), quota: document.getElementById('quota').value.trim(), price: formatRupiah(document.getElementById('price').value), price_le: formatLE(document.getElementById('price_le').value), link: finalLinkField, image: document.getElementById('image').value.trim(), position: newPosition };
+            const newCourse = { course_id: document.getElementById('course_id').value, title: document.getElementById('title').value.trim(), category: document.getElementById('category').value, subfilter: document.getElementById('subfilter').value, mode: document.getElementById('mode').value, instructor: document.getElementById('instructor').value.trim(), meetings: formatPertemuan(document.getElementById('meetings').value), class_type: document.getElementById('class_type').value, facility: document.getElementById('facility').value.trim(), quota: document.getElementById('quota').value.trim(), price: formatRupiah(document.getElementById('price').value), price_le: formatLE(document.getElementById('price_le').value), link: finalLinkField, image: addCourseImage.imageUrl, position: newPosition };
             try {
                 const { error } = await supabaseClient.from('courses').insert([newCourse]); if (error) throw error;
                 showToast(isBundle ? 'Paket Bundling berhasil ditambahkan!' : 'Materi baru berhasil ditambahkan!', 'success');
-                e.target.reset(); document.getElementById('instructor_share_pct').value = 60; document.getElementById('nuqthah_share_pct').value = 40; selectedBundleCourseIdsAdd = []; addCoursePdf = null; updateCoursePdfStatus('add');
+                e.target.reset(); document.getElementById('instructor_share_pct').value = 60; document.getElementById('nuqthah_share_pct').value = 40; selectedBundleCourseIdsAdd = []; addCoursePdf = null; addCourseImage = null; updateCoursePdfStatus('add'); updateCourseCoverStatus('add');
                 handleBundleTypeChange('add'); updateSharePreview('add'); document.getElementById('subfilter').innerHTML = '<option value="">-- Pilih Kategori Dulu --</option>';
                 await fetchCourses(); renderFinanceDashboard();
             } catch (error) { showToast('Gagal menambah materi: ' + error.message, 'error'); }
@@ -3313,6 +3435,7 @@
             document.getElementById('edit-bundle-discount').value = bInfo.discountPct || 0;
             document.getElementById('edit-bundle-type').value = bInfo.isBundle ? 'paket' : 'satuan';
             selectedBundleCourseIdsEdit = [...bInfo.bundledIds];
+            document.getElementById('course-cover-edit').value = '';
             editCoursePdf = bInfo.pdf || getGoogleDrivePdfInfo(bInfo.externalLink);
             document.getElementById('course-pdf-edit').value = '';
             updateCoursePdfStatus('edit');
@@ -3325,6 +3448,7 @@
             updateSharePreview('edit');
             document.getElementById('edit-link').value = bInfo.externalLink || '';
             document.getElementById('edit-image').value = course.image || '';
+            updateCourseCoverStatus('edit', course.image ? 'Cover saat ini akan dipertahankan jika tidak diganti.' : undefined);
             document.getElementById('edit-modal').classList.remove('hidden');
         }
 

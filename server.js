@@ -7,11 +7,13 @@ const nodemailer = require('nodemailer');
 
 const app = express();
 const MAX_PDF_SIZE = 4 * 1024 * 1024;
+const MAX_COVER_SIZE = 3 * 1024 * 1024;
 
 app.use(cors());
 app.use(express.json({ limit: '18mb' }));
 
 const GDRIVE_SCRIPT_URL = process.env.GDRIVE_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbzDLSShbz7Zpj9SSvmMIMtTYOcX4NzU0zsBtDzpcJlmq3mpFdZKmvoOR_7ndhlG1bzB/exec';
+const GDRIVE_COVER_SCRIPT_URL = process.env.GDRIVE_COVER_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbz1oLv9WUvooP0e7jJ-2IOyEStCLHMWKicc6ch6p2KssZvI2g59EwPKi9s20YKWdU7s/exec';
 
 // Route pengecekan status server di browser
 app.get('/', (req, res) => {
@@ -86,6 +88,85 @@ app.get('/api/download-google-drive', async (req, res) => {
     } catch (error) {
         console.error('Google Drive download error:', error);
         return res.status(502).json({ error: 'Tidak dapat mengunduh file dari Google Drive.' });
+    }
+});
+
+app.get('/api/upload-google-drive-cover', (req, res) => {
+    res.json({
+        status: 'ready',
+        provider: 'GDRIVE',
+        acceptedTypes: ['image/jpeg', 'image/png', 'image/webp'],
+        maxFileBytes: MAX_COVER_SIZE
+    });
+});
+
+app.post('/api/upload-google-drive-cover', express.raw({ type: 'image/*', limit: MAX_COVER_SIZE }), async (req, res) => {
+    const mimeType = req.get('Content-Type');
+    const signatures = {
+        'image/jpeg': buffer => buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff,
+        'image/png': buffer => buffer.length >= 8 && buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])),
+        'image/webp': buffer => buffer.length >= 12 && buffer.toString('ascii', 0, 4) === 'RIFF' && buffer.toString('ascii', 8, 12) === 'WEBP'
+    };
+    if (!Object.hasOwn(signatures, mimeType)) {
+        return res.status(400).json({ error: 'Format cover harus JPG, PNG, atau WebP.' });
+    }
+
+    let fileName;
+    try {
+        fileName = decodeURIComponent(req.get('X-File-Name') || '');
+    } catch (error) {
+        return res.status(400).json({ error: 'Nama file cover tidak valid.' });
+    }
+    fileName = fileName.replace(/[\\/:*?"<>|\r\n]/g, '_').trim().slice(0, 180);
+    if (!fileName) return res.status(400).json({ error: 'Nama file cover wajib diisi.' });
+
+    const imageBuffer = req.body;
+    if (!Buffer.isBuffer(imageBuffer) || imageBuffer.length === 0 || imageBuffer.length > MAX_COVER_SIZE || !signatures[mimeType](imageBuffer)) {
+        return res.status(400).json({ error: 'Isi gambar tidak valid atau ukurannya melebihi 3 MB.' });
+    }
+
+    try {
+        const uploadResponse = await fetch(GDRIVE_COVER_SCRIPT_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: AbortSignal.timeout(25000),
+            body: JSON.stringify({
+                fileName,
+                mimeType,
+                base64: imageBuffer.toString('base64')
+            })
+        });
+        const responseText = await uploadResponse.text();
+        let uploadResult;
+        try {
+            uploadResult = JSON.parse(responseText);
+        } catch (error) {
+            console.error('Google Drive cover upload returned non-JSON response:', error.message);
+            return res.status(502).json({ error: 'Google Drive tidak mengembalikan respons upload cover yang valid.' });
+        }
+
+        if (!uploadResponse.ok || uploadResult?.success === false || uploadResult?.error) {
+            const message = uploadResult?.error || 'Google Drive gagal menyimpan cover.';
+            console.error('Google Drive cover upload failed:', message);
+            return res.status(502).json({ error: message });
+        }
+
+        const file = uploadResult.file || uploadResult.data || uploadResult;
+        const fileId = file.fileId || file.id;
+        if (typeof fileId !== 'string' || !/^[A-Za-z0-9_-]+$/.test(fileId)) {
+            console.error('Google Drive cover upload response is missing a valid file ID.');
+            return res.status(502).json({ error: 'Google Drive tidak mengembalikan ID file cover yang valid.' });
+        }
+
+        return res.json({
+            fileId,
+            name: typeof file.name === 'string' ? file.name : fileName,
+            imageUrl: file.imageUrl || `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w1600`,
+            viewUrl: file.viewUrl || `https://drive.google.com/file/d/${encodeURIComponent(fileId)}/view`
+        });
+    } catch (error) {
+        console.error('Google Drive cover upload error:', error);
+        return res.status(502).json({ error: 'Tidak dapat menghubungi layanan Google Drive untuk upload cover.' });
     }
 });
 
