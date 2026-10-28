@@ -27,7 +27,7 @@ async function readRequestBody(req) {
     }
 
     return Buffer.concat(chunks, size);
-}
+} 
 
 module.exports = async function uploadGoogleDrive(req, res) {
     setCorsHeaders(res);
