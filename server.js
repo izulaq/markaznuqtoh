@@ -8,6 +8,7 @@ const nodemailer = require('nodemailer');
 const app = express();
 const MAX_PDF_SIZE = 4 * 1024 * 1024;
 const MAX_COVER_SIZE = 3 * 1024 * 1024;
+const GDRIVE_COVER_SCRIPT_VERSION = 2;
 
 app.use(cors());
 app.use(express.json({ limit: '18mb' }));
@@ -91,13 +92,66 @@ app.get('/api/download-google-drive', async (req, res) => {
     }
 });
 
-app.get('/api/upload-google-drive-cover', (req, res) => {
-    res.json({
-        status: 'ready',
-        provider: 'GDRIVE',
-        acceptedTypes: ['image/jpeg', 'image/png', 'image/webp'],
-        maxFileBytes: MAX_COVER_SIZE
-    });
+app.get('/api/upload-google-drive-cover', async (req, res) => {
+    let deploymentId;
+    try {
+        deploymentId = new URL(GDRIVE_COVER_SCRIPT_URL).pathname.split('/').filter(Boolean).pop();
+        const scriptResponse = await fetch(GDRIVE_COVER_SCRIPT_URL, {
+            signal: AbortSignal.timeout(10000)
+        });
+        const contentType = scriptResponse.headers.get('content-type') || '';
+        const responseText = await scriptResponse.text();
+        let scriptInfo;
+        try {
+            scriptInfo = JSON.parse(responseText);
+        } catch (error) {
+            console.error('Google Drive cover health check returned non-JSON response:', {
+                status: scriptResponse.status,
+                contentType,
+                deploymentId,
+                responsePreview: responseText.slice(0, 200)
+            });
+            return res.status(502).json({
+                status: 'error',
+                provider: 'GDRIVE',
+                deploymentId,
+                error: 'Apps Script cover aktif membalas HTML, bukan JSON. Deploy versi terbaru yang memiliki doGet dan doPost; pastikan URL /exec serta akses Siapa saja.'
+            });
+        }
+
+        if (!scriptResponse.ok
+            || scriptInfo?.success !== true
+            || scriptInfo?.service !== 'Nuqthah course cover uploader'
+            || scriptInfo?.version !== GDRIVE_COVER_SCRIPT_VERSION
+            || !Number.isFinite(scriptInfo?.maxFileBytes)
+            || !Array.isArray(scriptInfo?.acceptedTypes)
+            || !['image/jpeg', 'image/png', 'image/webp'].every(type => scriptInfo.acceptedTypes.includes(type))) {
+            return res.status(502).json({
+                status: 'error',
+                provider: 'GDRIVE',
+                deploymentId,
+                upstreamStatus: scriptResponse.status,
+                error: 'Versi deployment Apps Script cover tidak cocok. Deploy versi terbaru dari project yang berisi doGet dan doPost.'
+            });
+        }
+
+        return res.json({
+            status: 'ready',
+            provider: 'GDRIVE',
+            deploymentId,
+            scriptVersion: scriptInfo.version,
+            acceptedTypes: scriptInfo.acceptedTypes,
+            maxFileBytes: Math.min(MAX_COVER_SIZE, scriptInfo.maxFileBytes)
+        });
+    } catch (error) {
+        console.error('Google Drive cover health check failed:', error);
+        return res.status(502).json({
+            status: 'error',
+            provider: 'GDRIVE',
+            deploymentId,
+            error: 'Backend tidak dapat menghubungi Apps Script cover. Periksa URL GDRIVE_COVER_SCRIPT_URL dan koneksi Google.'
+        });
+    }
 });
 
 app.post('/api/upload-google-drive-cover', express.raw({ type: 'image/*', limit: MAX_COVER_SIZE }), async (req, res) => {
@@ -141,8 +195,13 @@ app.post('/api/upload-google-drive-cover', express.raw({ type: 'image/*', limit:
         try {
             uploadResult = JSON.parse(responseText);
         } catch (error) {
-            console.error('Google Drive cover upload returned non-JSON response:', error.message);
-            return res.status(502).json({ error: 'Google Drive tidak mengembalikan respons upload cover yang valid.' });
+            console.error('Google Drive cover upload returned non-JSON response:', {
+                status: uploadResponse.status,
+                contentType: uploadResponse.headers.get('content-type'),
+                deploymentId: new URL(GDRIVE_COVER_SCRIPT_URL).pathname.split('/').filter(Boolean).pop(),
+                responsePreview: responseText.slice(0, 200)
+            });
+            return res.status(502).json({ error: 'Apps Script cover aktif membalas HTML, bukan JSON. Deploy versi terbaru dari project cover, set akses ke Siapa saja, lalu gunakan URL deployment /exec yang sama di GDRIVE_COVER_SCRIPT_URL.' });
         }
 
         if (!uploadResponse.ok || uploadResult?.success === false || uploadResult?.error) {
@@ -699,7 +758,10 @@ const PORT = process.env.PORT || 3000;
 
 app.use((error, req, res, next) => {
     if (error?.type === 'entity.too.large') {
-        return res.status(413).json({ error: 'PDF melebihi batas upload 4 MB.' });
+        const isCoverUpload = req.path === '/api/upload-google-drive-cover';
+        return res.status(413).json({
+            error: isCoverUpload ? 'Ukuran gambar cover maksimal 3 MB.' : 'PDF melebihi batas upload 4 MB.'
+        });
     }
     next(error);
 });
