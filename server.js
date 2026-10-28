@@ -30,6 +30,65 @@ app.get('/api/upload-google-drive', (req, res) => {
     });
 });
 
+app.get('/api/download-google-drive', async (req, res) => {
+    const fileId = req.query.fileId;
+    if (typeof fileId !== 'string' || !/^[A-Za-z0-9_-]+$/.test(fileId)) {
+        return res.status(400).json({ error: 'ID file Google Drive tidak valid.' });
+    }
+
+    const fileName = String(req.query.fileName || 'Modul.pdf')
+        .replace(/[\\/:*?"<>|\r\n]/g, '_')
+        .trim()
+        .slice(0, 180) || 'Modul.pdf';
+    const pdfFileName = fileName.toLowerCase().endsWith('.pdf') ? fileName : `${fileName}.pdf`;
+    const asciiFileName = pdfFileName.replace(/[^\x20-\x7E]/g, '_').replace(/["\\]/g, '_');
+    const encodedFileName = encodeURIComponent(pdfFileName).replace(/['()*]/g, character =>
+        `%${character.charCodeAt(0).toString(16).toUpperCase()}`
+    );
+
+    try {
+        const driveResponse = await fetch(
+            `https://drive.google.com/uc?export=download&id=${encodeURIComponent(fileId)}`,
+            { signal: AbortSignal.timeout(25000) }
+        );
+        if (!driveResponse.ok || !driveResponse.body) {
+            console.error('Google Drive download failed:', driveResponse.status);
+            return res.status(502).json({ error: 'Google Drive gagal mengirim file PDF.' });
+        }
+
+        const chunks = [];
+        let totalBytes = 0;
+        const reader = driveResponse.body.getReader();
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            totalBytes += value.byteLength;
+            if (totalBytes > MAX_PDF_SIZE) {
+                await reader.cancel();
+                return res.status(413).json({ error: 'PDF melebihi batas download 4 MB.' });
+            }
+            chunks.push(Buffer.from(value));
+        }
+
+        const pdfBuffer = Buffer.concat(chunks, totalBytes);
+        if (!pdfBuffer.subarray(0, 5).equals(Buffer.from('%PDF-'))) {
+            console.error('Google Drive download returned a non-PDF response.');
+            return res.status(502).json({ error: 'Google Drive tidak mengirim file PDF yang valid.' });
+        }
+
+        res.set({
+            'Content-Type': 'application/pdf',
+            'Content-Length': String(pdfBuffer.length),
+            'Content-Disposition': `attachment; filename="${asciiFileName}"; filename*=UTF-8''${encodedFileName}`,
+            'Cache-Control': 'private, no-store'
+        });
+        return res.send(pdfBuffer);
+    } catch (error) {
+        console.error('Google Drive download error:', error);
+        return res.status(502).json({ error: 'Tidak dapat mengunduh file dari Google Drive.' });
+    }
+});
+
 app.post('/api/upload-google-drive', express.raw({ type: 'application/pdf', limit: MAX_PDF_SIZE }), async (req, res) => {
     if (req.get('X-Upload-Provider') !== 'GDRIVE') {
         return res.status(400).json({ error: 'Konfigurasi penyedia upload tidak valid.' });
