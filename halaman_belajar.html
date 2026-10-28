@@ -788,6 +788,7 @@
         let currentModules = [];
         let activeModuleIndex = 0;
         let isUserHasAccess = false;
+        let userAccessibleCourseIds = [];
         let courseData = null;
 
         // State Bundling (Paket)
@@ -989,6 +990,7 @@
         }
 
         async function verifyUserCourseAccess() {
+            userAccessibleCourseIds = [];
             if (!currentUser || !currentUser.email) return false;
 
             // Daftar ID yang valid untuk membuka materi ini (ID materi ini sendiri + ID Paket Induk jika ada)
@@ -998,16 +1000,16 @@
                 // 1. CEK KETAT KE SUPABASE: Hanya izinkan jika ada di user_access DAN is_active = true
                 const { data: accByEmail, error: emailErr } = await supabaseClient
                     .from('user_access')
-                    .select('*')
+                    .select('course_id')
                     .in('course_id', validAccessIds)
                     .eq('user_email', currentUser.email)
-                    .eq('is_active', true)
-                    .limit(1);
+                    .eq('is_active', true);
 
                 if (emailErr) throw emailErr;
 
                 if (accByEmail && accByEmail.length > 0) {
-                    saveAccessCache(courseId, currentUser.email);
+                    userAccessibleCourseIds = [...new Set(accByEmail.map(access => access.course_id))];
+                    userAccessibleCourseIds.forEach(cId => saveAccessCache(cId, currentUser.email));
                     return true;
                 }
 
@@ -1015,16 +1017,16 @@
                 if (currentUser.id) {
                     const { data: accById, error: idErr } = await supabaseClient
                         .from('user_access')
-                        .select('*')
+                        .select('course_id')
                         .in('course_id', validAccessIds)
                         .eq('user_id', currentUser.id)
-                        .eq('is_active', true)
-                        .limit(1);
+                        .eq('is_active', true);
 
                     if (idErr) throw idErr;
 
                     if (accById && accById.length > 0) {
-                        saveAccessCache(courseId, currentUser.email);
+                        userAccessibleCourseIds = [...new Set(accById.map(access => access.course_id))];
+                        userAccessibleCourseIds.forEach(cId => saveAccessCache(cId, currentUser.email));
                         return true;
                     }
                 }
@@ -1044,9 +1046,10 @@
                 for (const cid of validAccessIds) {
                     const localAccessEmail = localStorage.getItem(`nuqthah_access_${cid}_email`);
                     if (localStorage.getItem(`nuqthah_access_${cid}`) === 'granted' && localAccessEmail === currentUser.email) {
-                        return true;
+                        userAccessibleCourseIds.push(cid);
                     }
                 }
+                return userAccessibleCourseIds.length > 0;
             }
 
             return false;
@@ -1165,7 +1168,15 @@
                     document.getElementById('paywall-container').classList.remove('hidden');
                 }
 
-                const pdfInfo = getCoursePdfInfo(bInfo);
+                let pdfInfo = getCoursePdfInfo(bInfo);
+                if (!pdfInfo) {
+                    for (const parentBundleId of parentBundleIdsContainingCurrentCourse) {
+                        if (!userAccessibleCourseIds.includes(parentBundleId)) continue;
+                        const parentBundle = bundledCoursesMap[parentBundleId];
+                        pdfInfo = getCoursePdfInfo(parseBundleInfo(parentBundle));
+                        if (pdfInfo) break;
+                    }
+                }
                 const pdfSection = document.getElementById('course-pdf-section');
                 if (pdfInfo && isUserHasAccess) {
                     document.getElementById('course-pdf-name').textContent = pdfInfo.name;
