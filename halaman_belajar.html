@@ -434,13 +434,20 @@
                         <p id="course-pdf-name" class="text-xs text-gray-500 mt-1">Baca modul atau unduh untuk dibaca
                             nanti.</p>
                     </div>
-                    <a id="course-pdf-download" href="#" target="_blank" rel="noopener noreferrer"
-                        class="shrink-0 inline-flex items-center justify-center gap-2 bg-primary text-white px-4 py-2 rounded-xl text-xs font-bold">
-                        <i class="fas fa-download"></i> Download PDF
-                    </a>
+                    <div class="flex flex-col sm:flex-row gap-2">
+                        <button id="course-pdf-toggle" type="button" onclick="toggleCoursePdfViewer()"
+                            aria-expanded="false"
+                            class="shrink-0 inline-flex items-center justify-center gap-2 bg-primary text-white px-4 py-2 rounded-xl text-xs font-bold">
+                            <i class="fas fa-book-open"></i> Buka / Baca PDF
+                        </button>
+                        <a id="course-pdf-download" href="#"
+                            class="shrink-0 inline-flex items-center justify-center gap-2 bg-primary text-white px-4 py-2 rounded-xl text-xs font-bold">
+                            <i class="fas fa-download"></i> Download PDF
+                        </a>
+                    </div>
                 </div>
                 <iframe id="course-pdf-viewer" title="Viewer Modul PDF"
-                    class="w-full h-[65vh] min-h-[420px] rounded-xl border border-gray-200" loading="lazy"
+                    class="hidden w-full h-[65vh] min-h-[420px] rounded-xl border border-gray-200" loading="lazy"
                     referrerpolicy="no-referrer" allow="fullscreen"></iframe>
             </section>
 
@@ -789,6 +796,7 @@
         let activeModuleIndex = 0;
         let isUserHasAccess = false;
         let userAccessibleCourseIds = [];
+        let currentCoursePdfInfo = null;
         let courseData = null;
 
         // State Bundling (Paket)
@@ -897,6 +905,24 @@
                     : null;
             } catch (e) {
                 return null;
+            }
+        }
+
+        function toggleCoursePdfViewer() {
+            const viewer = document.getElementById('course-pdf-viewer');
+            const button = document.getElementById('course-pdf-toggle');
+            const isOpening = viewer.classList.contains('hidden');
+
+            if (isOpening && currentCoursePdfInfo) {
+                viewer.src = currentCoursePdfInfo.viewUrl;
+                viewer.classList.remove('hidden');
+                button.innerHTML = '<i class="fas fa-eye-slash"></i> Tutup PDF';
+                button.setAttribute('aria-expanded', 'true');
+            } else {
+                viewer.removeAttribute('src');
+                viewer.classList.add('hidden');
+                button.innerHTML = '<i class="fas fa-book-open"></i> Buka / Baca PDF';
+                button.setAttribute('aria-expanded', 'false');
             }
         }
 
@@ -1179,11 +1205,23 @@
                 }
                 const pdfSection = document.getElementById('course-pdf-section');
                 if (pdfInfo && isUserHasAccess) {
+                    currentCoursePdfInfo = pdfInfo;
                     document.getElementById('course-pdf-name').textContent = pdfInfo.name;
-                    document.getElementById('course-pdf-viewer').src = pdfInfo.viewUrl;
-                    document.getElementById('course-pdf-download').href = pdfInfo.downloadUrl;
+                    const downloadParams = new URLSearchParams({
+                        fileId: pdfInfo.fileId,
+                        fileName: pdfInfo.name || 'Modul.pdf'
+                    });
+                    document.getElementById('course-pdf-download').href =
+                        `${BACKEND_BASE_URL}/api/download-google-drive?${downloadParams.toString()}`;
+                    const pdfViewer = document.getElementById('course-pdf-viewer');
+                    pdfViewer.removeAttribute('src');
+                    pdfViewer.classList.add('hidden');
+                    const pdfToggle = document.getElementById('course-pdf-toggle');
+                    pdfToggle.innerHTML = '<i class="fas fa-book-open"></i> Buka / Baca PDF';
+                    pdfToggle.setAttribute('aria-expanded', 'false');
                     pdfSection.classList.remove('hidden');
                 } else {
+                    currentCoursePdfInfo = null;
                     document.getElementById('course-pdf-viewer').removeAttribute('src');
                     pdfSection.classList.add('hidden');
                 }
