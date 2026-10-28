@@ -2383,9 +2383,24 @@
         async function fetchQuizzes() {
             const container = document.getElementById('grouped-quiz-list');
             container.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">Memuat data soal...</p>';
-            const { data, error } = await supabaseClient.from('quizzes').select('*').order('created_at', { ascending: false });
-            if (error) { container.innerHTML = `<p class="text-sm text-red-500 text-center py-4">Gagal memuat soal: ${error.message}</p>`; return; }
-            cachedQuizzes = data || []; renderGroupedQuizzes();
+            const pageSize = 1000;
+            const quizzes = [];
+            for (let from = 0; ; from += pageSize) {
+                const { data, error } = await supabaseClient
+                    .from('quizzes')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .order('id', { ascending: true })
+                    .range(from, from + pageSize - 1);
+                if (error) {
+                    container.innerHTML = `<p class="text-sm text-red-500 text-center py-4">Gagal memuat soal: ${error.message}</p>`;
+                    return;
+                }
+                quizzes.push(...(data || []));
+                if (!data || data.length < pageSize) break;
+            }
+            cachedQuizzes = quizzes;
+            renderGroupedQuizzes();
         }
 
         function renderGroupedQuizzes() {
