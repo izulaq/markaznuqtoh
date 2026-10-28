@@ -1647,6 +1647,7 @@
         const SUPABASE_URL = 'https://idwrkzekykarxnuoaysu.supabase.co';
         const UPLOAD_PROVIDER = 'GDRIVE';
         const GDRIVE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDLSShbz7Zpj9SSvmMIMtTYOcX4NzU0zsBtDzpcJlmq3mpFdZKmvoOR_7ndhlG1bzB/exec';
+        const GDRIVE_COVER_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz1oLv9WUvooP0e7jJ-2IOyEStCLHMWKicc6ch6p2KssZvI2g59EwPKi9s20YKWdU7s/exec';
         const BACKEND_API_URL = 'https://markaznuqtoh.vercel.app';
         const COVER_UPLOAD_API_URL = `${BACKEND_API_URL}/api/upload-google-drive-cover`;
         const SUPABASE_KEY = 'sb_publishable_N96gYsm_jeSntalN3qMVCA_TpXloD4u';
@@ -1929,6 +1930,56 @@
             updateCourseCoverStatus(mode);
         }
 
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const result = String(reader.result || '');
+                    const base64 = result.includes(',') ? result.split(',')[1] : result;
+                    resolve(base64);
+                };
+                reader.onerror = () => reject(new Error('Gagal membaca file gambar.'));
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function uploadCourseCoverDirectToAppsScript(file) {
+            const base64 = await fileToBase64(file);
+            const response = await fetch(GDRIVE_COVER_SCRIPT_URL, {
+                method: 'POST',
+                redirect: 'follow',
+                headers: {
+                    'Content-Type': 'text/plain;charset=utf-8'
+                },
+                body: JSON.stringify({
+                    fileName: file.name,
+                    mimeType: file.type,
+                    base64: base64
+                })
+            });
+            const responseText = await response.text();
+            let payload;
+            try {
+                payload = JSON.parse(responseText);
+            } catch (error) {
+                throw new Error('Apps Script cover masih membalas HTML. Pastikan deployment terbaru sudah diterapkan dengan akses Siapa saja.');
+            }
+            if (!response.ok || payload?.success === false || payload?.error) {
+                throw new Error(payload?.error || 'Google Drive gagal menyimpan cover.');
+            }
+            const fileData = payload.file || payload.data || payload;
+            const fileId = fileData.fileId || fileData.id;
+            if (!fileId) {
+                throw new Error('Apps Script tidak mengembalikan ID file cover yang valid.');
+            }
+            return {
+                fileId: fileId,
+                name: fileData.name || file.name,
+                imageUrl: fileData.imageUrl || `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w1600`,
+                viewUrl: fileData.viewUrl || `https://drive.google.com/file/d/${encodeURIComponent(fileId)}/view`
+            };
+        }
+
         async function uploadCourseCover(mode) {
             const input = document.getElementById(`course-cover-${mode}`);
             const file = input?.files?.[0];
@@ -1950,23 +2001,26 @@
             button.disabled = true;
             button.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Mengunggah...';
             try {
-                const response = await fetch(COVER_UPLOAD_API_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': file.type,
-                        'X-File-Name': encodeURIComponent(file.name)
-                    },
-                    body: file
-                });
-                const responseText = await response.text();
-                let result;
+                let result = null;
                 try {
-                    result = JSON.parse(responseText);
-                } catch (error) {
-                    throw new Error(`Layanan upload cover memberikan respons tidak valid (HTTP ${response.status}).`);
+                    const response = await fetch(COVER_UPLOAD_API_URL, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': file.type,
+                            'X-File-Name': encodeURIComponent(file.name)
+                        },
+                        body: file
+                    });
+                    const responseText = await response.text();
+                    const parsed = JSON.parse(responseText);
+                    if (!response.ok) throw new Error(parsed.error || 'Upload cover via backend gagal.');
+                    result = parsed;
+                } catch (backendError) {
+                    console.warn('Fallback ke Apps Script langsung karena backend gagal:', backendError.message);
+                    result = await uploadCourseCoverDirectToAppsScript(file);
                 }
-                if (!response.ok) throw new Error(result.error || 'Upload cover gagal.');
-                if (typeof result.imageUrl !== 'string' || !result.imageUrl.startsWith('https://')) {
+
+                if (typeof result?.imageUrl !== 'string' || !result.imageUrl.startsWith('https://')) {
                     throw new Error('Server upload tidak mengembalikan URL gambar Google Drive yang valid.');
                 }
 
