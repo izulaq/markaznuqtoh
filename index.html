@@ -654,17 +654,50 @@
         // ================================================================
         // HELPER FUNCTIONS
         // ================================================================
-        function parseBundleInfo(course) {
-            const rawLink = String(course?.link || '');
-            if (rawLink.startsWith('BUNDLE::')) {
-                const withoutPrefix = rawLink.substring(8);
-                const parts = withoutPrefix.split('||');
-                try {
-                    const ids = JSON.parse(parts[0]);
-                    return { isBundle: true, bundledIds: Array.isArray(ids) ? ids : [], externalLink: parts[1] || '' };
-                } catch (e) { return { isBundle: true, bundledIds: [], externalLink: '' }; }
+        function parseCourseLinkMetadata(rawLink) {
+            const value = String(rawLink || '');
+            const marker = value.indexOf('||META::');
+            if (marker === -1) return { mainPart: value, metadata: {} };
+            try {
+                return { mainPart: value.slice(0, marker), metadata: JSON.parse(value.slice(marker + 8)) };
+            } catch (error) {
+                return { mainPart: value.slice(0, marker), metadata: {} };
             }
-            return { isBundle: false, bundledIds: [], externalLink: rawLink };
+        }
+
+        function parseBundleInfo(course) {
+            const { mainPart, metadata } = parseCourseLinkMetadata(course?.link);
+            if (mainPart.startsWith('BUNDLE::')) {
+                const withoutPrefix = mainPart.substring(8);
+                const divider = withoutPrefix.indexOf('||');
+                try {
+                    const ids = JSON.parse(divider === -1 ? withoutPrefix : withoutPrefix.slice(0, divider));
+                    const externalLink = divider === -1 ? '' : withoutPrefix.slice(divider + 2);
+                    return { isBundle: true, bundledIds: Array.isArray(ids) ? ids : [], externalLink, pdf: metadata.pdf || null };
+                } catch (e) { return { isBundle: true, bundledIds: [], externalLink: '', pdf: metadata.pdf || null }; }
+            }
+            return { isBundle: false, bundledIds: [], externalLink: mainPart, pdf: metadata.pdf || null };
+        }
+
+        function getCoursePdfInfo(bundleInfo) {
+            const storedPdf = bundleInfo?.pdf;
+            if (storedPdf?.fileId && /^[A-Za-z0-9_-]+$/.test(storedPdf.fileId)) {
+                return {
+                    fileId: storedPdf.fileId,
+                    name: storedPdf.name || 'Modul PDF',
+                    viewUrl: `https://drive.google.com/file/d/${encodeURIComponent(storedPdf.fileId)}/preview`
+                };
+            }
+            try {
+                const url = new URL(bundleInfo?.externalLink || '');
+                if (url.hostname !== 'drive.google.com') return null;
+                const fileId = url.pathname.match(/\/file\/d\/([A-Za-z0-9_-]+)/)?.[1] || url.searchParams.get('id');
+                return fileId && /^[A-Za-z0-9_-]+$/.test(fileId)
+                    ? { fileId, name: 'Modul PDF', viewUrl: `https://drive.google.com/file/d/${encodeURIComponent(fileId)}/preview` }
+                    : null;
+            } catch (error) {
+                return null;
+            }
         }
 
         function escapeHtml(str) {
@@ -1252,6 +1285,9 @@
 
                 let bundleRowHtml = bInfo.isBundle && bInfo.bundledIds.length > 0
                     ? `<div class="flex items-center text-amber-700 font-bold"><i class="fas fa-boxes-stacked mr-1.5 text-accent text-[10px]"></i><span class="text-[10px]">Paket Bundling (${bInfo.bundledIds.length})</span></div>` : '';
+                let pdfRowHtml = getCoursePdfInfo(bInfo)
+                    ? '<div class="flex items-center text-blue-700 font-bold"><i class="fas fa-file-pdf mr-1.5 text-[10px]"></i><span class="text-[10px]">Modul PDF tersedia</span></div>'
+                    : '';
 
                 let meetingHtml = course.meetings ? `<div class="flex items-center"><i class="fa-solid fa-plus-minus mr-1.5 text-gray-400 text-[10px] w-3 text-center"></i><span>${escapeHtml(course.meetings)}</span></div>` : '';
                 let facilityHtml = course.facility ? `<div class="flex items-center"><i class="fas fa-book-open mr-1.5 text-gray-400 text-[10px] w-3 text-center"></i><span>${escapeHtml(course.facility)}</span></div>` : '';
@@ -1282,6 +1318,7 @@
                         <h3 class="text-xs md:text-sm font-bold text-gray-800 leading-tight mb-2 card-title-min-h">${escapeHtml(course.title)}</h3>
                         <div class="flex flex-col gap-1 mb-3 text-[10px] text-gray-500">
                             ${bundleRowHtml}
+                            ${pdfRowHtml}
                             <div class="flex items-center"><i class="fas fa-user-tie mr-1.5 text-accent text-[10px] w-3 text-center"></i><strong class="truncate">${escapeHtml(course.instructor || 'Pengajar Nuqthah')}</strong></div>
                             ${meetingHtml}
                             <div class="flex items-center"><i class="fas fa-laptop mr-1.5 text-gray-400 text-[10px] w-3 text-center"></i><span>${escapeHtml(course.class_type || 'E-LEARNING')}</span></div>

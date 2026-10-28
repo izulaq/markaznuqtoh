@@ -6,9 +6,12 @@ const { createClient } = require('@supabase/supabase-js');
 const nodemailer = require('nodemailer');
 
 const app = express();
+const MAX_PDF_SIZE = 4 * 1024 * 1024;
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '18mb' }));
+
+const GDRIVE_SCRIPT_URL = process.env.GDRIVE_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbzDLSShbz7Zpj9SSvmMIMtTYOcX4NzU0zsBtDzpcJlmq3mpFdZKmvoOR_7ndhlG1bzB/exec';
 
 // Route pengecekan status server di browser
 app.get('/', (req, res) => {
@@ -16,6 +19,96 @@ app.get('/', (req, res) => {
         status: 'OK',
         message: 'Server Backend Nuqthah Learning Center Aktif!'
     });
+});
+
+app.get('/api/upload-google-drive', (req, res) => {
+    res.json({
+        status: 'ready',
+        provider: 'GDRIVE',
+        uploadMode: 'binary',
+        maxFileBytes: MAX_PDF_SIZE
+    });
+});
+
+app.post('/api/upload-google-drive', express.raw({ type: 'application/pdf', limit: MAX_PDF_SIZE }), async (req, res) => {
+    if (req.get('X-Upload-Provider') !== 'GDRIVE') {
+        return res.status(400).json({ error: 'Konfigurasi penyedia upload tidak valid.' });
+    }
+    if (req.get('Content-Type') !== 'application/pdf') {
+        return res.status(400).json({ error: 'Content-Type harus application/pdf.' });
+    }
+
+    let fileName;
+    try {
+        fileName = decodeURIComponent(req.get('X-File-Name') || '');
+    } catch (error) {
+        return res.status(400).json({ error: 'Nama file tidak valid.' });
+    }
+    if (!fileName.toLowerCase().endsWith('.pdf')) {
+        return res.status(400).json({ error: 'Hanya file PDF yang dapat diunggah.' });
+    }
+
+    const fileBuffer = req.body;
+    if (!Buffer.isBuffer(fileBuffer) || fileBuffer.length === 0 || fileBuffer.length > MAX_PDF_SIZE || !fileBuffer.subarray(0, 5).equals(Buffer.from('%PDF-'))) {
+        return res.status(400).json({ error: 'Ukuran atau format file PDF tidak valid (maksimal 4 MB).' });
+    }
+    const base64 = fileBuffer.toString('base64');
+
+    try {
+        const uploadResponse = await fetch(GDRIVE_SCRIPT_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: AbortSignal.timeout(25000),
+            body: JSON.stringify({
+                fileName: fileName.replace(/[\\/:*?"<>|]/g, '_').slice(0, 180),
+                mimeType: 'application/pdf',
+                base64
+            })
+        });
+        const responseText = await uploadResponse.text();
+        let uploadResult;
+        try {
+            uploadResult = JSON.parse(responseText);
+        } catch (error) {
+            console.error('Google Drive upload returned non-JSON response:', error.message);
+            return res.status(502).json({ error: 'Google Drive tidak mengembalikan respons upload yang valid.' });
+        }
+
+        if (!uploadResponse.ok || uploadResult?.success === false || uploadResult?.error) {
+            const message = uploadResult?.error || 'Google Drive gagal menyimpan file.';
+            console.error('Google Drive upload failed:', message);
+            return res.status(502).json({ error: message });
+        }
+
+        const file = uploadResult.file || uploadResult.data || uploadResult;
+        const returnedFileUrl = file.webViewLink || file.viewUrl || file.url;
+        let urlFileId = null;
+        if (typeof returnedFileUrl === 'string') {
+            try {
+                const returnedUrl = new URL(returnedFileUrl);
+                if (returnedUrl.hostname === 'drive.google.com') {
+                    urlFileId = returnedUrl.pathname.match(/\/file\/d\/([A-Za-z0-9_-]+)/)?.[1] || returnedUrl.searchParams.get('id');
+                }
+            } catch (error) {
+                urlFileId = null;
+            }
+        }
+        const fileId = file.fileId || file.id || urlFileId;
+        if (typeof fileId !== 'string' || !/^[A-Za-z0-9_-]+$/.test(fileId)) {
+            console.error('Google Drive upload response is missing a valid file ID.');
+            return res.status(502).json({ error: 'Google Drive tidak mengembalikan ID file yang valid.' });
+        }
+
+        res.json({
+            fileId,
+            name: typeof file.name === 'string' ? file.name : fileName,
+            viewUrl: `https://drive.google.com/file/d/${encodeURIComponent(fileId)}/preview`,
+            downloadUrl: `https://drive.google.com/uc?export=download&id=${encodeURIComponent(fileId)}`
+        });
+    } catch (error) {
+        console.error('Google Drive upload error:', error);
+        res.status(502).json({ error: 'Tidak dapat menghubungi layanan Google Drive.' });
+    }
 });
 
 // Inisialisasi Supabase dengan Service Role Key
@@ -463,6 +556,13 @@ app.post('/api/verify-otp', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
+
+app.use((error, req, res, next) => {
+    if (error?.type === 'entity.too.large') {
+        return res.status(413).json({ error: 'PDF melebihi batas upload 4 MB.' });
+    }
+    next(error);
+});
 
 if (process.env.NODE_ENV !== 'production') {
     app.listen(PORT, () => {

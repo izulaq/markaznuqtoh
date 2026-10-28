@@ -425,6 +425,25 @@
                 </div>
             </div>
 
+            <section id="course-pdf-section"
+                class="hidden bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 space-y-3">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                        <h3 class="font-bold text-gray-800"><i class="fas fa-file-pdf text-red-600 mr-2"></i>Modul PDF
+                        </h3>
+                        <p id="course-pdf-name" class="text-xs text-gray-500 mt-1">Baca modul atau unduh untuk dibaca
+                            nanti.</p>
+                    </div>
+                    <a id="course-pdf-download" href="#" target="_blank" rel="noopener noreferrer"
+                        class="shrink-0 inline-flex items-center justify-center gap-2 bg-primary text-white px-4 py-2 rounded-xl text-xs font-bold">
+                        <i class="fas fa-download"></i> Download PDF
+                    </a>
+                </div>
+                <iframe id="course-pdf-viewer" title="Viewer Modul PDF"
+                    class="w-full h-[65vh] min-h-[420px] rounded-xl border border-gray-200" loading="lazy"
+                    referrerpolicy="no-referrer" allow="fullscreen"></iframe>
+            </section>
+
             <!-- ================= LATIHAN SOAL SECTION ================= -->
             <div id="practice-section" class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
                 <div class="flex items-center justify-between gap-2">
@@ -823,25 +842,61 @@
         ================================================================ */
         function parseBundleInfo(course) {
             const rawLink = String(course?.link || '');
-            if (rawLink.startsWith('BUNDLE::')) {
-                const withoutPrefix = rawLink.substring(8);
-                const parts = withoutPrefix.split('||');
+            const metadataMarker = rawLink.indexOf('||META::');
+            let mainPart = rawLink;
+            let metadata = {};
+            if (metadataMarker !== -1) {
+                mainPart = rawLink.slice(0, metadataMarker);
+                try { metadata = JSON.parse(rawLink.slice(metadataMarker + 8)); } catch (e) { }
+            }
+            if (mainPart.startsWith('BUNDLE::')) {
+                const withoutPrefix = mainPart.substring(8);
+                const divider = withoutPrefix.indexOf('||');
                 try {
-                    const ids = JSON.parse(parts[0]);
+                    const ids = JSON.parse(divider === -1 ? withoutPrefix : withoutPrefix.slice(0, divider));
                     return {
                         isBundle: true,
                         bundledIds: Array.isArray(ids) ? ids : [],
-                        externalLink: parts[1] || ''
+                        externalLink: divider === -1 ? '' : withoutPrefix.slice(divider + 2),
+                        pdf: metadata.pdf || null
                     };
                 } catch (e) {
-                    return { isBundle: true, bundledIds: [], externalLink: '' };
+                    return { isBundle: true, bundledIds: [], externalLink: '', pdf: metadata.pdf || null };
                 }
             }
             return {
                 isBundle: false,
                 bundledIds: [],
-                externalLink: rawLink
+                externalLink: mainPart,
+                pdf: metadata.pdf || null
             };
+        }
+
+        function getCoursePdfInfo(bundleInfo) {
+            const storedPdf = bundleInfo?.pdf;
+            if (storedPdf?.fileId && /^[A-Za-z0-9_-]+$/.test(storedPdf.fileId)) {
+                return {
+                    fileId: storedPdf.fileId,
+                    name: storedPdf.name || 'Modul PDF',
+                    viewUrl: `https://drive.google.com/file/d/${encodeURIComponent(storedPdf.fileId)}/preview`,
+                    downloadUrl: `https://drive.google.com/uc?export=download&id=${encodeURIComponent(storedPdf.fileId)}`
+                };
+            }
+            try {
+                const url = new URL(bundleInfo?.externalLink || '');
+                if (url.hostname !== 'drive.google.com') return null;
+                const fileId = url.pathname.match(/\/file\/d\/([A-Za-z0-9_-]+)/)?.[1] || url.searchParams.get('id');
+                return fileId && /^[A-Za-z0-9_-]+$/.test(fileId)
+                    ? {
+                        fileId,
+                        name: 'Modul PDF',
+                        viewUrl: `https://drive.google.com/file/d/${encodeURIComponent(fileId)}/preview`,
+                        downloadUrl: `https://drive.google.com/uc?export=download&id=${encodeURIComponent(fileId)}`
+                    }
+                    : null;
+            } catch (e) {
+                return null;
+            }
         }
 
         /* ================================================================
@@ -1108,6 +1163,18 @@
                 } else {
                     document.getElementById('user-status-badge').innerHTML = '<i class="fas fa-lock text-amber-300 mr-1"></i> Mode Free Trial';
                     document.getElementById('paywall-container').classList.remove('hidden');
+                }
+
+                const pdfInfo = getCoursePdfInfo(bInfo);
+                const pdfSection = document.getElementById('course-pdf-section');
+                if (pdfInfo && isUserHasAccess) {
+                    document.getElementById('course-pdf-name').textContent = pdfInfo.name;
+                    document.getElementById('course-pdf-viewer').src = pdfInfo.viewUrl;
+                    document.getElementById('course-pdf-download').href = pdfInfo.downloadUrl;
+                    pdfSection.classList.remove('hidden');
+                } else {
+                    document.getElementById('course-pdf-viewer').removeAttribute('src');
+                    pdfSection.classList.add('hidden');
                 }
 
                 // Target ID untuk mengambil Modul Video & Kuis

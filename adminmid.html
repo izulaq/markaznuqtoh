@@ -352,6 +352,23 @@
                             <input type="text" id="link" placeholder="https://..."
                                 class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none">
                         </div>
+                        <div class="md:col-span-2 lg:col-span-2 bg-blue-50 border border-blue-100 p-3 rounded-xl">
+                            <label class="block text-xs font-bold text-blue-900 uppercase mb-1">Modul PDF Google
+                                Drive</label>
+                            <div class="flex flex-col sm:flex-row gap-2">
+                                <input type="file" id="course-pdf-add" accept="application/pdf,.pdf"
+                                    class="min-w-0 flex-1 border border-blue-200 bg-white p-2 rounded-lg text-xs">
+                                <button type="button" onclick="uploadCoursePdf('add')" id="btn-upload-pdf-add"
+                                    class="shrink-0 bg-blue-700 text-white px-3 py-2 rounded-lg text-xs font-bold">
+                                    <i class="fas fa-upload mr-1"></i> Unggah PDF
+                                </button>
+                                <button type="button" onclick="clearCoursePdf('add')"
+                                    class="shrink-0 bg-white border border-gray-200 text-gray-600 px-3 py-2 rounded-lg text-xs font-bold">
+                                    Hapus PDF
+                                </button>
+                            </div>
+                            <p id="course-pdf-status-add" class="mt-2 text-[11px] text-gray-600">Belum ada PDF.</p>
+                        </div>
                         <div class="md:col-span-2 lg:col-span-2">
                             <label class="block text-xs font-bold text-gray-700 uppercase mb-1">URL Gambar Cover
                                 *</label>
@@ -1327,8 +1344,25 @@
                         </div>
                     </div>
                     <div class="md:col-span-2"><label class="block text-xs font-bold text-gray-700 uppercase mb-1">Link
-                            Cadangan</label><input type="text" id="edit-link"
+                            Cadangan</label><input type="text" id="edit-link" oninput="updateCoursePdfStatus('edit')"
                             class="w-full border border-gray-200 p-2.5 rounded-xl text-sm"></div>
+                    <div class="md:col-span-2 bg-blue-50 border border-blue-100 p-3 rounded-xl">
+                        <label class="block text-xs font-bold text-blue-900 uppercase mb-1">Modul PDF Google
+                            Drive</label>
+                        <div class="flex flex-col sm:flex-row gap-2">
+                            <input type="file" id="course-pdf-edit" accept="application/pdf,.pdf"
+                                class="min-w-0 flex-1 border border-blue-200 bg-white p-2 rounded-lg text-xs">
+                            <button type="button" onclick="uploadCoursePdf('edit')" id="btn-upload-pdf-edit"
+                                class="shrink-0 bg-blue-700 text-white px-3 py-2 rounded-lg text-xs font-bold">
+                                <i class="fas fa-upload mr-1"></i> Unggah PDF
+                            </button>
+                            <button type="button" onclick="clearCoursePdf('edit')"
+                                class="shrink-0 bg-white border border-gray-200 text-gray-600 px-3 py-2 rounded-lg text-xs font-bold">
+                                Hapus PDF
+                            </button>
+                        </div>
+                        <p id="course-pdf-status-edit" class="mt-2 text-[11px] text-gray-600">Belum ada PDF.</p>
+                    </div>
                     <div class="md:col-span-2"><label
                             class="block text-xs font-bold text-gray-700 uppercase mb-1">Gambar Cover</label><input
                             type="url" id="edit-image" required
@@ -1573,8 +1607,14 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
         const SUPABASE_URL = 'https://idwrkzekykarxnuoaysu.supabase.co';
+        const UPLOAD_PROVIDER = 'GDRIVE';
+        const GDRIVE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDLSShbz7Zpj9SSvmMIMtTYOcX4NzU0zsBtDzpcJlmq3mpFdZKmvoOR_7ndhlG1bzB/exec';
+        const BACKEND_API_URL = 'https://markaznuqtoh.vercel.app';
         const SUPABASE_KEY = 'sb_publishable_N96gYsm_jeSntalN3qMVCA_TpXloD4u';
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let addCoursePdf = null;
+        let editCoursePdf = null;
 
         let cachedCourses = [];
         let cachedModules = [];
@@ -1679,9 +1719,10 @@
         // ================================================================
         // HELPER ENCODE & PARSE BUNDLING + KONFIGURASI BAGI HASIL & DISKON
         // ================================================================
-        function encodeCourseLinkWithMeta(isBundle, bundledIds, externalLink, sharePct, discountPct) {
+        function encodeCourseLinkWithMeta(isBundle, bundledIds, externalLink, sharePct, discountPct, pdfInfo = null) {
             const cleanLink = String(externalLink || '').split('||META::')[0].trim();
             const metaObj = { share: isNaN(parseFloat(sharePct)) ? 60 : parseFloat(sharePct), discount: isNaN(parseFloat(discountPct)) ? 0 : parseFloat(discountPct) };
+            if (pdfInfo?.fileId) metaObj.pdf = pdfInfo;
             const metaStr = `||META::${JSON.stringify(metaObj)}`;
             if (!isBundle) return `${cleanLink}${metaStr}`;
             const cleanIds = Array.isArray(bundledIds) ? bundledIds : [];
@@ -1690,7 +1731,7 @@
 
         function parseBundleInfo(course) {
             const rawLink = String(course?.link || '');
-            let meta = { share: null, discount: null };
+            let meta = { share: null, discount: null, pdf: null };
             let mainPart = rawLink;
             if (rawLink.includes('||META::')) {
                 const splitMeta = rawLink.split('||META::');
@@ -1707,13 +1748,118 @@
                 const parts = withoutPrefix.split('||');
                 try {
                     const ids = JSON.parse(parts[0]);
-                    return { isBundle: true, bundledIds: Array.isArray(ids) ? ids : [], externalLink: parts[1] || '', sharePct: finalSharePct, discountPct: finalDiscountPct };
+                    return { isBundle: true, bundledIds: Array.isArray(ids) ? ids : [], externalLink: parts[1] || '', sharePct: finalSharePct, discountPct: finalDiscountPct, pdf: meta.pdf || null };
                 } catch (e) {
-                    return { isBundle: true, bundledIds: [], externalLink: '', sharePct: finalSharePct, discountPct: finalDiscountPct };
+                    return { isBundle: true, bundledIds: [], externalLink: '', sharePct: finalSharePct, discountPct: finalDiscountPct, pdf: meta.pdf || null };
                 }
             }
             const titleLooksBundle = String(course?.title || '').toLowerCase().includes('paket');
-            return { isBundle: false, looksLikeBundleByName: titleLooksBundle, bundledIds: [], externalLink: mainPart, sharePct: finalSharePct, discountPct: finalDiscountPct };
+            return { isBundle: false, looksLikeBundleByName: titleLooksBundle, bundledIds: [], externalLink: mainPart, sharePct: finalSharePct, discountPct: finalDiscountPct, pdf: meta.pdf || null };
+        }
+
+        function updateCoursePdfStatus(mode) {
+            const pdfInfo = mode === 'add' ? addCoursePdf : editCoursePdf || getGoogleDrivePdfInfo(document.getElementById('edit-link').value);
+            const status = document.getElementById(`course-pdf-status-${mode}`);
+            if (status) status.textContent = pdfInfo?.name ? `PDF siap: ${pdfInfo.name}` : 'Belum ada PDF.';
+        }
+
+        function getGoogleDrivePdfInfo(link) {
+            try {
+                const url = new URL(link || '');
+                if (url.hostname !== 'drive.google.com') return null;
+                const fileId = url.pathname.match(/\/file\/d\/([A-Za-z0-9_-]+)/)?.[1] || url.searchParams.get('id');
+                return fileId && /^[A-Za-z0-9_-]+$/.test(fileId)
+                    ? {
+                        fileId,
+                        name: 'Modul PDF',
+                        viewUrl: `https://drive.google.com/file/d/${encodeURIComponent(fileId)}/preview`,
+                        downloadUrl: `https://drive.google.com/uc?export=download&id=${encodeURIComponent(fileId)}`
+                    }
+                    : null;
+            } catch (error) {
+                return null;
+            }
+        }
+
+        function clearCoursePdf(mode) {
+            if (mode === 'add') addCoursePdf = null;
+            else {
+                const linkedPdf = getGoogleDrivePdfInfo(document.getElementById('edit-link').value);
+                if (linkedPdf && (!editCoursePdf || linkedPdf.fileId === editCoursePdf.fileId)) {
+                    document.getElementById('edit-link').value = '';
+                }
+                editCoursePdf = null;
+            }
+            const input = document.getElementById(`course-pdf-${mode}`);
+            if (input) input.value = '';
+            updateCoursePdfStatus(mode);
+        }
+
+        async function uploadCoursePdf(mode) {
+            const input = document.getElementById(`course-pdf-${mode}`);
+            const file = input?.files?.[0];
+            if (!file) {
+                showToast('Pilih file PDF terlebih dahulu.', 'warning');
+                return;
+            }
+            if (UPLOAD_PROVIDER !== 'GDRIVE') {
+                showToast('Penyedia upload tidak didukung.', 'error');
+                return;
+            }
+            if (file.type !== 'application/pdf' || !file.name.toLowerCase().endsWith('.pdf')) {
+                showToast('File harus berformat PDF.', 'warning');
+                return;
+            }
+            if (file.size > 4 * 1024 * 1024) {
+                showToast('Ukuran PDF maksimal 4 MB.', 'warning');
+                return;
+            }
+
+            const button = document.getElementById(`btn-upload-pdf-${mode}`);
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Mengunggah...';
+            try {
+                const response = await fetch(`${BACKEND_API_URL}/api/upload-google-drive`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/pdf',
+                        'X-File-Name': encodeURIComponent(file.name),
+                        'X-Upload-Provider': UPLOAD_PROVIDER
+                    },
+                    body: file
+                });
+                const responseText = await response.text();
+                let result;
+                try {
+                    result = JSON.parse(responseText);
+                } catch (error) {
+                    if (response.status === 413) {
+                        throw new Error('Backend produksi masih menolak request upload (HTTP 413). Deploy ulang backend dengan endpoint upload PDF biner terbaru.');
+                    }
+                    const hint = response.status === 404 || response.status === 405
+                        ? ' Pastikan endpoint upload sudah ter-deploy pada backend.'
+                        : '';
+                    throw new Error(`Backend upload mengembalikan respons non-JSON (HTTP ${response.status}).${hint}`);
+                }
+                if (!response.ok) throw new Error(result.error || 'Upload PDF gagal.');
+                if (!result.fileId) throw new Error('Server upload tidak mengembalikan ID file Google Drive.');
+
+                const pdfInfo = {
+                    fileId: result.fileId,
+                    name: result.name || file.name,
+                    viewUrl: result.viewUrl || `https://drive.google.com/file/d/${encodeURIComponent(result.fileId)}/preview`,
+                    downloadUrl: result.downloadUrl || `https://drive.google.com/uc?export=download&id=${encodeURIComponent(result.fileId)}`
+                };
+                if (mode === 'add') addCoursePdf = pdfInfo;
+                else editCoursePdf = pdfInfo;
+                updateCoursePdfStatus(mode);
+                showToast('PDF berhasil diunggah ke Google Drive. Simpan materi untuk menerapkan perubahan.', 'success');
+            } catch (error) {
+                showToast('Gagal mengunggah PDF: ' + escapeHtml(error.message), 'error');
+            } finally {
+                button.disabled = false;
+                button.innerHTML = '<i class="fas fa-upload mr-1"></i> Unggah PDF';
+            }
         }
 
         // ================================================================
@@ -3087,12 +3233,12 @@
             const rawExternalLink = document.getElementById('link').value;
             const sharePct = parseFloat(document.getElementById('instructor_share_pct').value) || 60;
             const discountPct = isBundle ? (parseFloat(document.getElementById('add-bundle-discount').value) || 0) : 0;
-            const finalLinkField = encodeCourseLinkWithMeta(isBundle, selectedBundleCourseIdsAdd, rawExternalLink, sharePct, discountPct);
+            const finalLinkField = encodeCourseLinkWithMeta(isBundle, selectedBundleCourseIdsAdd, rawExternalLink, sharePct, discountPct, addCoursePdf);
             const newCourse = { course_id: document.getElementById('course_id').value, title: document.getElementById('title').value.trim(), category: document.getElementById('category').value, subfilter: document.getElementById('subfilter').value, mode: document.getElementById('mode').value, instructor: document.getElementById('instructor').value.trim(), meetings: formatPertemuan(document.getElementById('meetings').value), class_type: document.getElementById('class_type').value, facility: document.getElementById('facility').value.trim(), quota: document.getElementById('quota').value.trim(), price: formatRupiah(document.getElementById('price').value), price_le: formatLE(document.getElementById('price_le').value), link: finalLinkField, image: document.getElementById('image').value.trim(), position: newPosition };
             try {
                 const { error } = await supabaseClient.from('courses').insert([newCourse]); if (error) throw error;
                 showToast(isBundle ? 'Paket Bundling berhasil ditambahkan!' : 'Materi baru berhasil ditambahkan!', 'success');
-                e.target.reset(); document.getElementById('instructor_share_pct').value = 60; document.getElementById('nuqthah_share_pct').value = 40; selectedBundleCourseIdsAdd = [];
+                e.target.reset(); document.getElementById('instructor_share_pct').value = 60; document.getElementById('nuqthah_share_pct').value = 40; selectedBundleCourseIdsAdd = []; addCoursePdf = null; updateCoursePdfStatus('add');
                 handleBundleTypeChange('add'); updateSharePreview('add'); document.getElementById('subfilter').innerHTML = '<option value="">-- Pilih Kategori Dulu --</option>';
                 await fetchCourses(); renderFinanceDashboard();
             } catch (error) { showToast('Gagal menambah materi: ' + error.message, 'error'); }
@@ -3152,6 +3298,9 @@
             document.getElementById('edit-bundle-discount').value = bInfo.discountPct || 0;
             document.getElementById('edit-bundle-type').value = bInfo.isBundle ? 'paket' : 'satuan';
             selectedBundleCourseIdsEdit = [...bInfo.bundledIds];
+            editCoursePdf = bInfo.pdf || getGoogleDrivePdfInfo(bInfo.externalLink);
+            document.getElementById('course-pdf-edit').value = '';
+            updateCoursePdfStatus('edit');
             handleBundleTypeChange('edit');
             if (bInfo.isBundle) {
                 let baseTotal = 0; selectedBundleCourseIdsEdit.forEach(cid => { const c = cachedCourses.find(x => x.course_id === cid); if (c) baseTotal += parseNumericRupiah(c.price); });
@@ -3174,7 +3323,7 @@
             const rawExternalLink = document.getElementById('edit-link').value;
             const sharePct = parseFloat(document.getElementById('edit-instructor-share').value) || 60;
             const discountPct = isBundle ? (parseFloat(document.getElementById('edit-bundle-discount').value) || 0) : 0;
-            const finalLinkField = encodeCourseLinkWithMeta(isBundle, selectedBundleCourseIdsEdit, rawExternalLink, sharePct, discountPct);
+            const finalLinkField = encodeCourseLinkWithMeta(isBundle, selectedBundleCourseIdsEdit, rawExternalLink, sharePct, discountPct, editCoursePdf);
             const updatedData = { title: document.getElementById('edit-title').value.trim(), category: document.getElementById('edit-category').value, subfilter: document.getElementById('edit-subfilter').value, mode: document.getElementById('edit-mode').value, class_type: document.getElementById('edit-class_type').value, instructor: document.getElementById('edit-instructor').value.trim(), meetings: formatPertemuan(document.getElementById('edit-meetings').value) || '', facility: document.getElementById('edit-facility').value.trim(), quota: document.getElementById('edit-quota').value.trim(), price: formatRupiah(document.getElementById('edit-price').value) || '', price_le: formatLE(document.getElementById('edit-price_le').value) || '', link: finalLinkField, image: document.getElementById('edit-image').value.trim() };
             try {
                 const { error } = await supabaseClient.from('courses').update(updatedData).eq('course_id', courseId); if (error) throw error;
