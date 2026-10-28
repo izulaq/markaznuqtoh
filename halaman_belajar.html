@@ -143,6 +143,20 @@
             cursor: none;
         }
 
+        .nuqthah-player-wrapper.is-sticky-playing {
+            position: sticky;
+            top: 0.75rem;
+            z-index: 40;
+            align-self: start;
+        }
+
+        @media (max-width: 1023px) {
+            #modules-list {
+                max-height: none;
+                overflow-y: visible;
+            }
+        }
+
         .rotate-180 {
             transform: rotate(180deg);
         }
@@ -250,10 +264,10 @@
     </nav>
 
     <!-- Main Container -->
-    <main class="max-w-6xl mx-auto p-3 sm:p-4 md:p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <main id="learning-layout" class="max-w-6xl mx-auto p-3 sm:p-4 md:p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         <!-- Kolom Kiri -->
-        <div class="lg:col-span-2 space-y-6">
+        <div id="course-content-column" class="lg:col-span-2 space-y-6">
 
             <!-- Judul Modul Sesi -->
             <div
@@ -368,6 +382,11 @@
                                 <option value="1.5">1.5×</option>
                                 <option value="1.75">1.75×</option>
                                 <option value="2">2×</option>
+                            </select>
+
+                            <select id="quality-select" aria-label="Kualitas Video" title="Kualitas Video"
+                                class="bg-primary hover:bg-primary/90 text-white text-[9px] sm:text-xs font-bold h-7 sm:h-8 w-[58px] sm:w-auto px-1 sm:px-2 rounded-lg border border-white/20 focus:outline-none cursor-pointer disabled:opacity-60">
+                                <option value="auto">Auto</option>
                             </select>
 
                             <button id="btn-rotate" type="button" title="Putar Layar Lanskap" aria-label="Putar Layar"
@@ -504,7 +523,7 @@
         </div>
 
         <!-- Kolom Kanan: Daftar Modul Sesi Pembelajaran -->
-        <div class="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4 h-fit">
+        <div id="modules-sidebar" class="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4 h-fit">
             <div class="border-b pb-3 space-y-2.5">
                 <div class="flex items-center justify-between">
                     <h3 class="font-bold text-gray-800 text-base flex items-center gap-2">
@@ -842,6 +861,7 @@
         const timeCurrentEl = document.getElementById('time-current');
         const timeDurationEl = document.getElementById('time-duration');
         const speedSelect = document.getElementById('speed-select');
+        const qualitySelect = document.getElementById('quality-select');
         const btnFullscreen = document.getElementById('btn-fullscreen');
         const iconFullscreen = document.getElementById('icon-fullscreen');
         const btnRotate = document.getElementById('btn-rotate');
@@ -999,6 +1019,21 @@
             }
         }
 
+        function updateModuleSidebarPosition() {
+            const layout = document.getElementById('learning-layout');
+            const contentColumn = document.getElementById('course-content-column');
+            const modulesSidebar = document.getElementById('modules-sidebar');
+            const pdfSection = document.getElementById('course-pdf-section');
+
+            if (window.matchMedia('(max-width: 1023px)').matches) {
+                if (modulesSidebar.parentElement !== contentColumn) {
+                    contentColumn.insertBefore(modulesSidebar, pdfSection);
+                }
+            } else if (modulesSidebar.parentElement !== layout) {
+                layout.appendChild(modulesSidebar);
+            }
+        }
+
         function logoutUser() {
             localStorage.removeItem('nuqthah_current_user');
             localStorage.removeItem(`nuqthah_access_${courseId}`);
@@ -1093,6 +1128,14 @@
         };
 
         document.addEventListener('DOMContentLoaded', async () => {
+            updateModuleSidebarPosition();
+            const moduleLayoutQuery = window.matchMedia('(max-width: 1023px)');
+            if (moduleLayoutQuery.addEventListener) {
+                moduleLayoutQuery.addEventListener('change', updateModuleSidebarPosition);
+            } else {
+                moduleLayoutQuery.addListener(updateModuleSidebarPosition);
+            }
+
             if (!courseId) {
                 showToast('Course ID tidak ditemukan. Mengalihkan ke katalog materi...', 'error', 'Kesalahan');
                 setTimeout(() => window.location.href = 'index.html', 1600);
@@ -1170,8 +1213,10 @@
                     bundledCourseIds.forEach((cid, i) => {
                         const subCourse = bundledCoursesMap[cid];
                         if (!subCourse) return;
-                        const item = document.createElement('div');
-                        item.className = 'bg-white p-2.5 rounded-xl border border-amber-200/80 flex items-center gap-2.5 shadow-sm';
+                        const item = document.createElement('a');
+                        item.href = `halaman_belajar.html?course_id=${encodeURIComponent(cid)}`;
+                        item.className = 'bg-white p-2.5 rounded-xl border border-amber-200/80 flex items-center gap-2.5 shadow-sm transition hover:border-amber-400 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary';
+                        item.setAttribute('aria-label', `Buka materi ${subCourse.title}`);
                         item.innerHTML = `
                             <div class="w-7 h-7 rounded-lg bg-primary text-white text-xs font-bold flex items-center justify-center shrink-0">${i + 1}</div>
                             <div class="min-w-0 flex-1">
@@ -1526,6 +1571,7 @@
         function onPlayerReady(event) {
             showLoader(false);
             updateDurationDisplay();
+            refreshQualityOptions();
             const currentVol = player.getVolume ? player.getVolume() : 100;
             volumeSlider.value = currentVol;
             updateRangeBackground(volumeSlider, currentVol);
@@ -1533,8 +1579,10 @@
 
         function onPlayerStateChange(event) {
             const state = event.data;
+            refreshQualityOptions();
 
             if (state === YT.PlayerState.PLAYING) {
+                playerContainer.classList.add('is-sticky-playing');
                 showLoader(false);
                 centerPlayBtn.classList.add('hidden');
                 iconPlayPause.className = 'fas fa-pause text-xs sm:text-sm';
@@ -1542,15 +1590,18 @@
                 startPlayerSync();
                 scheduleHideControls();
             } else if (state === YT.PlayerState.PAUSED) {
+                playerContainer.classList.remove('is-sticky-playing');
                 showLoader(false);
                 centerPlayBtn.classList.remove('hidden');
                 iconPlayPause.className = 'fas fa-play text-xs sm:text-sm';
                 stopPlayerSync();
                 showControls();
             } else if (state === YT.PlayerState.BUFFERING) {
+                playerContainer.classList.remove('is-sticky-playing');
                 showLoader(true);
                 centerPlayBtn.classList.add('hidden');
             } else if (state === YT.PlayerState.ENDED) {
+                playerContainer.classList.remove('is-sticky-playing');
                 showLoader(false);
                 centerPlayBtn.classList.remove('hidden');
                 iconPlayPause.className = 'fas fa-redo text-xs sm:text-sm';
@@ -1561,6 +1612,7 @@
                     localStorage.removeItem(getResumeKey(currentMod.id || activeModuleIndex));
                 }
             } else if (state === YT.PlayerState.CUED) {
+                playerContainer.classList.remove('is-sticky-playing');
                 showLoader(false);
                 centerPlayBtn.classList.remove('hidden');
                 iconPlayPause.className = 'fas fa-play text-xs sm:text-sm';
@@ -1587,6 +1639,37 @@
                 playerLoader.classList.add('hidden');
                 playerLoader.classList.remove('flex');
             }
+        }
+
+        function refreshQualityOptions() {
+            const availableLevels = player && typeof player.getAvailableQualityLevels === 'function'
+                ? player.getAvailableQualityLevels()
+                : [];
+            const selectableLevels = availableLevels.filter(level => level !== 'auto');
+            const qualityLabels = {
+                highres: '4320p',
+                hd2880: '2880p',
+                hd2160: '2160p',
+                hd1440: '1440p',
+                hd1080: '1080p',
+                hd720: '720p',
+                large: '480p',
+                medium: '360p',
+                small: '240p',
+                tiny: '144p'
+            };
+            const currentQuality = qualitySelect.value;
+
+            qualitySelect.innerHTML = '<option value="auto">Auto</option>';
+            selectableLevels.forEach(level => {
+                const option = document.createElement('option');
+                option.value = level;
+                option.textContent = qualityLabels[level] || level;
+                qualitySelect.appendChild(option);
+            });
+
+            qualitySelect.value = selectableLevels.includes(currentQuality) ? currentQuality : 'auto';
+            qualitySelect.disabled = selectableLevels.length === 0;
         }
 
         function showVideoError(msg) {
@@ -1809,7 +1892,7 @@
         function setupCustomPlayerEvents() {
             videoClickArea.addEventListener('click', (e) => {
                 if (e.target.closest('#player-error')) return;
-                togglePlayPause();
+                if (e.target.closest('#center-play-btn')) togglePlayPause();
                 showControls();
             });
 
@@ -1858,6 +1941,13 @@
                 const rate = parseFloat(e.target.value);
                 if (player && typeof player.setPlaybackRate === 'function') {
                     player.setPlaybackRate(rate);
+                }
+            });
+
+            qualitySelect.addEventListener('change', (e) => {
+                const quality = e.target.value;
+                if (player && typeof player.setPlaybackQuality === 'function') {
+                    player.setPlaybackQuality(quality === 'auto' ? 'default' : quality);
                 }
             });
 
