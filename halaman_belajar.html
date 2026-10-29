@@ -80,13 +80,14 @@
             inset: 0;
             width: 100%;
             height: 100%;
-            pointer-events: none;
+            pointer-events: none !important;
         }
 
         .video-iframe-layer iframe {
             width: 100%;
             height: 100%;
             border: 0;
+            pointer-events: none !important;
         }
 
         .custom-range {
@@ -1636,6 +1637,7 @@
                     startSeconds: resumeTime > 2 ? resumeTime : 0
                 };
                 player.loadVideoById(videoOptions);
+                disablePlayerCaptions();
                 return;
             }
 
@@ -1651,6 +1653,7 @@
                     'rel': 0,
                     'modestbranding': 1,
                     'iv_load_policy': 3,
+                    'cc_load_policy': 0,
                     'playsinline': 1,
                     'start': Math.floor(resumeTime > 2 ? resumeTime : 0)
                 },
@@ -1663,6 +1666,9 @@
         }
 
         function onPlayerReady(event) {
+            const playerIframe = event.target.getIframe();
+            if (playerIframe) playerIframe.setAttribute('tabindex', '-1');
+            disablePlayerCaptions();
             showLoader(false);
             updateDurationDisplay();
             const currentVol = player.getVolume ? player.getVolume() : 100;
@@ -1670,10 +1676,17 @@
             updateRangeBackground(volumeSlider, currentVol);
         }
 
+        function disablePlayerCaptions() {
+            if (player && typeof player.unloadModule === 'function') {
+                player.unloadModule('captions');
+            }
+        }
+
         function onPlayerStateChange(event) {
             const state = event.data;
 
             if (state === YT.PlayerState.PLAYING) {
+                disablePlayerCaptions();
                 playerContainer.classList.add('is-sticky-playing');
                 updatePlayerScrollMode();
                 showLoader(false);
