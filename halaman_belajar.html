@@ -404,11 +404,6 @@
                                 <option value="2">2×</option>
                             </select>
 
-                            <select id="quality-select" aria-label="Kualitas Video" title="Kualitas yang disarankan; YouTube dapat menyesuaikan otomatis"
-                                class="bg-primary hover:bg-primary/90 text-white text-[9px] sm:text-xs font-bold h-7 sm:h-8 w-[58px] sm:w-auto px-1 sm:px-2 rounded-lg border border-white/20 focus:outline-none cursor-pointer disabled:opacity-60">
-                                <option value="auto">Auto</option>
-                            </select>
-
                             <button id="btn-rotate" type="button" title="Putar Layar Lanskap" aria-label="Putar Layar"
                                 class="w-7 h-7 sm:w-9 sm:h-9 shrink-0 rounded-lg bg-white/10 hover:bg-white/20 active:bg-white/30 flex items-center justify-center transition border border-white/20">
                                 <i class="fas fa-mobile-alt fa-rotate-90 text-xs sm:text-sm"></i>
@@ -544,7 +539,8 @@
         </div>
 
         <!-- Kolom Kanan: Daftar Modul Sesi Pembelajaran -->
-        <div id="modules-sidebar" class="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4 h-fit">
+        <div id="modules-sidebar"
+            class="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4 h-fit">
             <div class="border-b pb-3 space-y-2.5">
                 <div class="flex items-center justify-between">
                     <h3 class="font-bold text-gray-800 text-base flex items-center gap-2">
@@ -832,7 +828,6 @@
         let player = null;
         let isYtApiReady = false;
         let pendingVideoInit = null;
-        let preferredPlaybackQuality = 'default';
         let playerHomeTop = null;
         let playerPlaceholder = null;
         let pendingPaymentInfo = null;
@@ -888,7 +883,6 @@
         const timeCurrentEl = document.getElementById('time-current');
         const timeDurationEl = document.getElementById('time-duration');
         const speedSelect = document.getElementById('speed-select');
-        const qualitySelect = document.getElementById('quality-select');
         const btnFullscreen = document.getElementById('btn-fullscreen');
         const iconFullscreen = document.getElementById('icon-fullscreen');
         const btnRotate = document.getElementById('btn-rotate');
@@ -1575,9 +1569,6 @@
                     videoId: videoId,
                     startSeconds: resumeTime > 2 ? resumeTime : 0
                 };
-                if (preferredPlaybackQuality !== 'default') {
-                    videoOptions.suggestedQuality = preferredPlaybackQuality;
-                }
                 player.loadVideoById(videoOptions);
                 return;
             }
@@ -1600,7 +1591,6 @@
                 events: {
                     'onReady': onPlayerReady,
                     'onStateChange': onPlayerStateChange,
-                    'onPlaybackQualityChange': onPlaybackQualityChange,
                     'onError': onPlayerError
                 }
             });
@@ -1609,7 +1599,6 @@
         function onPlayerReady(event) {
             showLoader(false);
             updateDurationDisplay();
-            refreshQualityOptions();
             const currentVol = player.getVolume ? player.getVolume() : 100;
             volumeSlider.value = currentVol;
             updateRangeBackground(volumeSlider, currentVol);
@@ -1617,7 +1606,6 @@
 
         function onPlayerStateChange(event) {
             const state = event.data;
-            refreshQualityOptions();
 
             if (state === YT.PlayerState.PLAYING) {
                 playerContainer.classList.add('is-sticky-playing');
@@ -1684,52 +1672,6 @@
                 playerLoader.classList.add('hidden');
                 playerLoader.classList.remove('flex');
             }
-        }
-
-        function refreshQualityOptions() {
-            const availableLevels = player && typeof player.getAvailableQualityLevels === 'function'
-                ? player.getAvailableQualityLevels()
-                : [];
-            const selectableLevels = availableLevels.filter(level => level !== 'auto');
-            const qualityLabels = {
-                highres: '4320p',
-                hd2880: '2880p',
-                hd2160: '2160p',
-                hd1440: '1440p',
-                hd1080: '1080p',
-                hd720: '720p',
-                large: '480p',
-                medium: '360p',
-                small: '240p',
-                tiny: '144p'
-            };
-            const currentQuality = player && typeof player.getPlaybackQuality === 'function'
-                ? player.getPlaybackQuality()
-                : qualitySelect.value;
-
-            qualitySelect.innerHTML = '<option value="auto">Auto</option>';
-            selectableLevels.forEach(level => {
-                const option = document.createElement('option');
-                option.value = level;
-                option.textContent = qualityLabels[level] || level;
-                qualitySelect.appendChild(option);
-            });
-
-            qualitySelect.value = selectableLevels.includes(currentQuality) ? currentQuality : 'auto';
-            qualitySelect.disabled = selectableLevels.length === 0;
-        }
-
-        function onPlaybackQualityChange(event) {
-            const quality = event.data;
-            if (!quality || quality === 'unknown') return;
-
-            if (![...qualitySelect.options].some(option => option.value === quality)) {
-                const option = document.createElement('option');
-                option.value = quality;
-                option.textContent = quality.replace(/^hd/, '') + 'p';
-                qualitySelect.appendChild(option);
-            }
-            qualitySelect.value = quality;
         }
 
         function updatePlayerScrollMode() {
@@ -2040,29 +1982,6 @@
                 const rate = parseFloat(e.target.value);
                 if (player && typeof player.setPlaybackRate === 'function') {
                     player.setPlaybackRate(rate);
-                }
-            });
-
-            qualitySelect.addEventListener('change', (e) => {
-                const selectedQuality = e.target.value;
-                const currentModule = currentModules[activeModuleIndex];
-                const videoId = currentModule ? extractYouTubeId(currentModule.youtube_url) : '';
-                if (!videoId || !player) return;
-
-                preferredPlaybackQuality = selectedQuality === 'auto' ? 'default' : selectedQuality;
-                const currentTime = player.getCurrentTime ? player.getCurrentTime() : 0;
-                const wasPlaying = player.getPlayerState() === YT.PlayerState.PLAYING;
-                const videoOptions = {
-                    videoId,
-                    startSeconds: currentTime
-                };
-                if (preferredPlaybackQuality !== 'default') {
-                    videoOptions.suggestedQuality = preferredPlaybackQuality;
-                }
-                if (wasPlaying && player.loadVideoById) {
-                    player.loadVideoById(videoOptions);
-                } else if (player.cueVideoById) {
-                    player.cueVideoById(videoOptions);
                 }
             });
 
@@ -2755,67 +2674,67 @@
 
         function launchMidtransPayment(paymentInfo, userToUse) {
             window.snap.pay(paymentInfo.token, {
-                    onSuccess: async function () {
-                        clearPendingPayment();
-                        try {
-                            await supabaseClient.from('transactions')
-                                .update({ status: 'success' })
-                                .eq('order_id', paymentInfo.orderId);
+                onSuccess: async function () {
+                    clearPendingPayment();
+                    try {
+                        await supabaseClient.from('transactions')
+                            .update({ status: 'success' })
+                            .eq('order_id', paymentInfo.orderId);
 
-                            // Jika membeli Paket Bundling, buka akses untuk Paket sekaligus seluruh materi di dalam paket
-                            const accessIdsToGrant = isBundleCourse
-                                ? [courseId, ...bundledCourseIds]
-                                : [courseId];
+                        // Jika membeli Paket Bundling, buka akses untuk Paket sekaligus seluruh materi di dalam paket
+                        const accessIdsToGrant = isBundleCourse
+                            ? [courseId, ...bundledCourseIds]
+                            : [courseId];
 
-                            // CEK ANTI-DOUBLE: Hanya insert jika belum dimasukkan oleh Webhook Server
-                            for (const cid of accessIdsToGrant) {
-                                const { data: existingAcc } = await supabaseClient
-                                    .from('user_access')
-                                    .select('id')
-                                    .eq('user_email', userToUse.email)
-                                    .eq('course_id', cid)
-                                    .limit(1);
+                        // CEK ANTI-DOUBLE: Hanya insert jika belum dimasukkan oleh Webhook Server
+                        for (const cid of accessIdsToGrant) {
+                            const { data: existingAcc } = await supabaseClient
+                                .from('user_access')
+                                .select('id')
+                                .eq('user_email', userToUse.email)
+                                .eq('course_id', cid)
+                                .limit(1);
 
-                                if (!existingAcc || existingAcc.length === 0) {
-                                    await supabaseClient.from('user_access').insert([{
-                                        user_id: userToUse.id || null,
-                                        user_email: userToUse.email,
-                                        course_id: cid,
-                                        order_id: paymentInfo.orderId,
-                                        is_active: true
-                                    }]);
-                                }
-                                saveAccessCache(cid, userToUse.email);
+                            if (!existingAcc || existingAcc.length === 0) {
+                                await supabaseClient.from('user_access').insert([{
+                                    user_id: userToUse.id || null,
+                                    user_email: userToUse.email,
+                                    course_id: cid,
+                                    order_id: paymentInfo.orderId,
+                                    is_active: true
+                                }]);
                             }
-                        } catch (dbErr) {
-                            console.warn('Info sinkronisasi akses:', dbErr);
+                            saveAccessCache(cid, userToUse.email);
                         }
-
-                        saveAccessCache(courseId, userToUse.email);
-                        showToast('Pembayaran berhasil! Seluruh materi dan latihan soal kini terbuka.', 'success', 'Alhamdulillah');
-                        setTimeout(() => window.location.reload(), 1400);
-                    },
-                    onPending: function () {
-                        showToast('Pembayaran Anda menunggu penyelesaian. Akses terbuka otomatis setelah dikonfirmasi.', 'warning', 'Menunggu Pembayaran');
-                    },
-                    onError: function () {
-                        showToast('Pembayaran gagal dilakukan. Silakan coba kembali.', 'error', 'Pembayaran Gagal');
-                    },
-                    onClose: async function () {
-                        if (!pendingPaymentInfo) return;
-                        try {
-                            const isStillActive = await checkPendingPaymentStatus();
-                            if (isStillActive) {
-                                showToast('Pembayaran masih aktif. Klik "Lanjutkan Pembayaran" untuk membuka kembali halaman pembayaran.', 'info', 'Pembayaran Belum Selesai');
-                            } else {
-                                showToast('Transaksi pembayaran sudah tidak aktif. Anda dapat memulai pembayaran baru.', 'info', 'Pembayaran Tidak Aktif');
-                            }
-                        } catch (error) {
-                            console.error('Gagal memeriksa status transaksi setelah popup ditutup:', error);
-                            showToast('Popup pembayaran ditutup, tetapi status transaksi belum dapat diperiksa. Silakan coba tombol lanjutkan pembayaran.', 'warning', 'Status Pembayaran');
-                        }
+                    } catch (dbErr) {
+                        console.warn('Info sinkronisasi akses:', dbErr);
                     }
-                });
+
+                    saveAccessCache(courseId, userToUse.email);
+                    showToast('Pembayaran berhasil! Seluruh materi dan latihan soal kini terbuka.', 'success', 'Alhamdulillah');
+                    setTimeout(() => window.location.reload(), 1400);
+                },
+                onPending: function () {
+                    showToast('Pembayaran Anda menunggu penyelesaian. Akses terbuka otomatis setelah dikonfirmasi.', 'warning', 'Menunggu Pembayaran');
+                },
+                onError: function () {
+                    showToast('Pembayaran gagal dilakukan. Silakan coba kembali.', 'error', 'Pembayaran Gagal');
+                },
+                onClose: async function () {
+                    if (!pendingPaymentInfo) return;
+                    try {
+                        const isStillActive = await checkPendingPaymentStatus();
+                        if (isStillActive) {
+                            showToast('Pembayaran masih aktif. Klik "Lanjutkan Pembayaran" untuk membuka kembali halaman pembayaran.', 'info', 'Pembayaran Belum Selesai');
+                        } else {
+                            showToast('Transaksi pembayaran sudah tidak aktif. Anda dapat memulai pembayaran baru.', 'info', 'Pembayaran Tidak Aktif');
+                        }
+                    } catch (error) {
+                        console.error('Gagal memeriksa status transaksi setelah popup ditutup:', error);
+                        showToast('Popup pembayaran ditutup, tetapi status transaksi belum dapat diperiksa. Silakan coba tombol lanjutkan pembayaran.', 'warning', 'Status Pembayaran');
+                    }
+                }
+            });
         }
 
         /* ================================================================
