@@ -150,6 +150,26 @@
             align-self: start;
         }
 
+        .nuqthah-player-placeholder {
+            width: 100%;
+        }
+
+        @media (min-width: 1024px) and (orientation: landscape) {
+            .nuqthah-player-wrapper.is-mini-player {
+                position: fixed !important;
+                top: auto !important;
+                left: auto !important;
+                right: 1rem !important;
+                bottom: 1rem !important;
+                width: min(360px, 32vw) !important;
+                height: auto !important;
+                aspect-ratio: 16 / 9 !important;
+                z-index: 99990 !important;
+                border-radius: 0.75rem !important;
+                box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
+            }
+        }
+
         @media (max-width: 1023px) {
             #modules-list {
                 max-height: none;
@@ -384,7 +404,7 @@
                                 <option value="2">2×</option>
                             </select>
 
-                            <select id="quality-select" aria-label="Kualitas Video" title="Kualitas Video"
+                            <select id="quality-select" aria-label="Kualitas Video" title="Kualitas yang disarankan; YouTube dapat menyesuaikan otomatis"
                                 class="bg-primary hover:bg-primary/90 text-white text-[9px] sm:text-xs font-bold h-7 sm:h-8 w-[58px] sm:w-auto px-1 sm:px-2 rounded-lg border border-white/20 focus:outline-none cursor-pointer disabled:opacity-60">
                                 <option value="auto">Auto</option>
                             </select>
@@ -510,9 +530,10 @@
                     seluruh video sesi, penjelasan mendalam, dan latihan soal interaktif secara penuh.
                 </p>
                 <div class="flex flex-col sm:flex-row items-center justify-center gap-3 pt-1">
-                    <button onclick="openCheckoutModal()"
+                    <button id="course-access-button" onclick="handleCourseAccessClick()"
                         class="w-full sm:w-auto bg-accent text-white font-bold px-8 py-3 rounded-xl text-sm shadow-md hover:bg-opacity-90 transition transform hover:scale-105">
-                        Buka Akses Penuh (<span id="paywall-price">Rp 0</span>)
+                        <span id="course-access-label">Buka Akses Penuh</span>
+                        <span id="paywall-price"> (Rp 0)</span>
                     </button>
                     <button onclick="openOtpModal()"
                         class="w-full sm:w-auto bg-white text-primary border border-primary/30 font-bold px-6 py-3 rounded-xl text-sm hover:bg-gray-50 transition">
@@ -811,6 +832,11 @@
         let player = null;
         let isYtApiReady = false;
         let pendingVideoInit = null;
+        let preferredPlaybackQuality = 'default';
+        let playerHomeTop = null;
+        let playerPlaceholder = null;
+        let pendingPaymentInfo = null;
+        let pendingPaymentStatusInterval = null;
         let currentModules = [];
         let activeModuleIndex = 0;
         let isUserHasAccess = false;
@@ -842,6 +868,7 @@
 
         const urlParams = new URLSearchParams(window.location.search);
         const courseId = urlParams.get('course_id');
+        const pendingPaymentStorageKey = `nuqthah_pending_payment_${courseId}`;
 
         /* Player UI refs */
         const playerContainer = document.getElementById('nuqthah-player-container');
@@ -1129,6 +1156,9 @@
 
         document.addEventListener('DOMContentLoaded', async () => {
             updateModuleSidebarPosition();
+            playerHomeTop = playerContainer.getBoundingClientRect().top + window.scrollY;
+            window.addEventListener('scroll', updatePlayerScrollMode, { passive: true });
+            window.addEventListener('resize', updatePlayerScrollMode);
             const moduleLayoutQuery = window.matchMedia('(max-width: 1023px)');
             if (moduleLayoutQuery.addEventListener) {
                 moduleLayoutQuery.addEventListener('change', updateModuleSidebarPosition);
@@ -1230,6 +1260,8 @@
 
                 // Verifikasi Akses
                 isUserHasAccess = await verifyUserCourseAccess();
+                if (isUserHasAccess) clearPendingPayment();
+                else await restorePendingPayment();
 
                 if (isUserHasAccess) {
                     document.getElementById('user-status-badge').innerHTML = '<i class="fas fa-check-circle text-emerald-300 mr-1"></i> Akses Penuh Terbuka';
@@ -1311,6 +1343,7 @@
 
                 // Muat Latihan Soal (untuk satuan maupun paket)
                 await loadPracticeQuizzes(targetIdsForContent);
+                updateAccessActionButtons();
 
             } catch (err) {
                 console.error(err);
@@ -1538,10 +1571,14 @@
             }
 
             if (player && typeof player.loadVideoById === 'function') {
-                player.loadVideoById({
+                const videoOptions = {
                     videoId: videoId,
                     startSeconds: resumeTime > 2 ? resumeTime : 0
-                });
+                };
+                if (preferredPlaybackQuality !== 'default') {
+                    videoOptions.suggestedQuality = preferredPlaybackQuality;
+                }
+                player.loadVideoById(videoOptions);
                 return;
             }
 
@@ -1563,6 +1600,7 @@
                 events: {
                     'onReady': onPlayerReady,
                     'onStateChange': onPlayerStateChange,
+                    'onPlaybackQualityChange': onPlaybackQualityChange,
                     'onError': onPlayerError
                 }
             });
@@ -1583,6 +1621,7 @@
 
             if (state === YT.PlayerState.PLAYING) {
                 playerContainer.classList.add('is-sticky-playing');
+                updatePlayerScrollMode();
                 showLoader(false);
                 centerPlayBtn.classList.add('hidden');
                 iconPlayPause.className = 'fas fa-pause text-xs sm:text-sm';
@@ -1590,18 +1629,21 @@
                 startPlayerSync();
                 scheduleHideControls();
             } else if (state === YT.PlayerState.PAUSED) {
-                playerContainer.classList.remove('is-sticky-playing');
+                playerContainer.classList.remove('is-sticky-playing', 'is-mini-player');
+                removePlayerPlaceholder();
                 showLoader(false);
                 centerPlayBtn.classList.remove('hidden');
                 iconPlayPause.className = 'fas fa-play text-xs sm:text-sm';
                 stopPlayerSync();
                 showControls();
             } else if (state === YT.PlayerState.BUFFERING) {
-                playerContainer.classList.remove('is-sticky-playing');
+                playerContainer.classList.remove('is-sticky-playing', 'is-mini-player');
+                removePlayerPlaceholder();
                 showLoader(true);
                 centerPlayBtn.classList.add('hidden');
             } else if (state === YT.PlayerState.ENDED) {
-                playerContainer.classList.remove('is-sticky-playing');
+                playerContainer.classList.remove('is-sticky-playing', 'is-mini-player');
+                removePlayerPlaceholder();
                 showLoader(false);
                 centerPlayBtn.classList.remove('hidden');
                 iconPlayPause.className = 'fas fa-redo text-xs sm:text-sm';
@@ -1612,7 +1654,8 @@
                     localStorage.removeItem(getResumeKey(currentMod.id || activeModuleIndex));
                 }
             } else if (state === YT.PlayerState.CUED) {
-                playerContainer.classList.remove('is-sticky-playing');
+                playerContainer.classList.remove('is-sticky-playing', 'is-mini-player');
+                removePlayerPlaceholder();
                 showLoader(false);
                 centerPlayBtn.classList.remove('hidden');
                 iconPlayPause.className = 'fas fa-play text-xs sm:text-sm';
@@ -1623,6 +1666,8 @@
         function onPlayerError(event) {
             showLoader(false);
             stopPlayerSync();
+            playerContainer.classList.remove('is-sticky-playing', 'is-mini-player');
+            removePlayerPlaceholder();
             let message = 'Video tidak dapat dimuat saat ini.';
             if (event.data === 2) message = 'Parameter ID video tidak valid.';
             else if (event.data === 5) message = 'Pemutar HTML5 mengalami kendala teknis.';
@@ -1658,7 +1703,9 @@
                 small: '240p',
                 tiny: '144p'
             };
-            const currentQuality = qualitySelect.value;
+            const currentQuality = player && typeof player.getPlaybackQuality === 'function'
+                ? player.getPlaybackQuality()
+                : qualitySelect.value;
 
             qualitySelect.innerHTML = '<option value="auto">Auto</option>';
             selectableLevels.forEach(level => {
@@ -1670,6 +1717,58 @@
 
             qualitySelect.value = selectableLevels.includes(currentQuality) ? currentQuality : 'auto';
             qualitySelect.disabled = selectableLevels.length === 0;
+        }
+
+        function onPlaybackQualityChange(event) {
+            const quality = event.data;
+            if (!quality || quality === 'unknown') return;
+
+            if (![...qualitySelect.options].some(option => option.value === quality)) {
+                const option = document.createElement('option');
+                option.value = quality;
+                option.textContent = quality.replace(/^hd/, '') + 'p';
+                qualitySelect.appendChild(option);
+            }
+            qualitySelect.value = quality;
+        }
+
+        function updatePlayerScrollMode() {
+            const desktopLandscape = window.matchMedia('(min-width: 1024px) and (orientation: landscape)').matches;
+            const isPlaying = player && window.YT && player.getPlayerState() === YT.PlayerState.PLAYING;
+
+            if (!desktopLandscape || !isPlaying) {
+                playerContainer.classList.remove('is-mini-player');
+                removePlayerPlaceholder();
+                if (isPlaying) playerContainer.classList.add('is-sticky-playing');
+                else playerContainer.classList.remove('is-sticky-playing');
+                return;
+            }
+
+            if (playerHomeTop === null) {
+                playerHomeTop = playerContainer.getBoundingClientRect().top + window.scrollY;
+            }
+
+            const shouldMinimize = window.scrollY > playerHomeTop + 40;
+            if (shouldMinimize && !playerContainer.classList.contains('is-mini-player')) {
+                const bounds = playerContainer.getBoundingClientRect();
+                playerPlaceholder = document.createElement('div');
+                playerPlaceholder.className = 'nuqthah-player-placeholder';
+                playerPlaceholder.style.height = `${bounds.height}px`;
+                playerContainer.before(playerPlaceholder);
+                playerContainer.classList.remove('is-sticky-playing');
+                playerContainer.classList.add('is-mini-player');
+            } else if (!shouldMinimize && playerContainer.classList.contains('is-mini-player')) {
+                playerContainer.classList.remove('is-mini-player');
+                playerContainer.classList.add('is-sticky-playing');
+                removePlayerPlaceholder();
+            }
+        }
+
+        function removePlayerPlaceholder() {
+            if (playerPlaceholder) {
+                playerPlaceholder.remove();
+                playerPlaceholder = null;
+            }
         }
 
         function showVideoError(msg) {
@@ -1945,9 +2044,25 @@
             });
 
             qualitySelect.addEventListener('change', (e) => {
-                const quality = e.target.value;
-                if (player && typeof player.setPlaybackQuality === 'function') {
-                    player.setPlaybackQuality(quality === 'auto' ? 'default' : quality);
+                const selectedQuality = e.target.value;
+                const currentModule = currentModules[activeModuleIndex];
+                const videoId = currentModule ? extractYouTubeId(currentModule.youtube_url) : '';
+                if (!videoId || !player) return;
+
+                preferredPlaybackQuality = selectedQuality === 'auto' ? 'default' : selectedQuality;
+                const currentTime = player.getCurrentTime ? player.getCurrentTime() : 0;
+                const wasPlaying = player.getPlayerState() === YT.PlayerState.PLAYING;
+                const videoOptions = {
+                    videoId,
+                    startSeconds: currentTime
+                };
+                if (preferredPlaybackQuality !== 'default') {
+                    videoOptions.suggestedQuality = preferredPlaybackQuality;
+                }
+                if (wasPlaying && player.loadVideoById) {
+                    player.loadVideoById(videoOptions);
+                } else if (player.cueVideoById) {
+                    player.cueVideoById(videoOptions);
                 }
             });
 
@@ -2128,9 +2243,9 @@
                             Buka akses penuh untuk mengerjakan <b>${allLoadedQuizzes.length} soal latihan interaktif</b>
                             beserta seluruh video pembelajaran ${isBundleCourse ? 'di dalam paket ini' : 'untuk materi ini'}.
                         </p>
-                        <button onclick="openCheckoutModal()"
+                        <button id="practice-access-button" onclick="handleCourseAccessClick()"
                             class="bg-accent text-white font-bold px-6 py-2.5 rounded-xl text-xs shadow-md hover:bg-opacity-90 transition inline-flex items-center gap-1.5">
-                            <i class="fas fa-unlock"></i> Buka Akses Sekarang
+                            <i class="fas fa-unlock"></i> <span id="practice-access-label">Buka Akses Sekarang</span>
                         </button>
                     </div>
                 `;
@@ -2389,6 +2504,130 @@
             document.getElementById('checkout-modal').classList.remove('hidden');
         }
 
+        function updateAccessActionButtons() {
+            const isPending = Boolean(
+                pendingPaymentInfo &&
+                pendingPaymentInfo.courseId === courseId &&
+                pendingPaymentInfo.userEmail === String(currentUser?.email || '').trim().toLowerCase() &&
+                pendingPaymentInfo.active !== false &&
+                (!pendingPaymentInfo.expiresAt || Date.parse(pendingPaymentInfo.expiresAt) > Date.now())
+            );
+            const mainLabel = document.getElementById('course-access-label');
+            const price = document.getElementById('paywall-price');
+            const practiceLabel = document.getElementById('practice-access-label');
+
+            if (mainLabel) mainLabel.textContent = isPending ? 'Lanjutkan Pembayaran' : 'Buka Akses Penuh';
+            if (price) price.classList.toggle('hidden', isPending);
+            if (practiceLabel) practiceLabel.textContent = isPending ? 'Lanjutkan Pembayaran' : 'Buka Akses Sekarang';
+        }
+
+        function savePendingPayment(info) {
+            pendingPaymentInfo = {
+                ...info,
+                courseId,
+                userEmail: String(info.userEmail || '').trim().toLowerCase(),
+                active: true
+            };
+            localStorage.setItem(pendingPaymentStorageKey, JSON.stringify(pendingPaymentInfo));
+            updateAccessActionButtons();
+            startPendingPaymentStatusChecks();
+        }
+
+        function clearPendingPayment() {
+            if (pendingPaymentStatusInterval) {
+                clearInterval(pendingPaymentStatusInterval);
+                pendingPaymentStatusInterval = null;
+            }
+            pendingPaymentInfo = null;
+            localStorage.removeItem(pendingPaymentStorageKey);
+            updateAccessActionButtons();
+        }
+
+        async function checkPendingPaymentStatus() {
+            if (!pendingPaymentInfo) {
+                clearPendingPayment();
+                return false;
+            }
+
+            const query = new URLSearchParams({
+                email: pendingPaymentInfo.userEmail,
+                course_id: courseId
+            });
+            const response = await fetch(
+                `${BACKEND_BASE_URL}/api/transaction-status/${encodeURIComponent(pendingPaymentInfo.orderId)}?${query}`
+            );
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Gagal memeriksa status pembayaran.');
+
+            if (!data.active) {
+                clearPendingPayment();
+                return false;
+            }
+
+            pendingPaymentInfo.active = true;
+            pendingPaymentInfo.expiresAt = data.expires_at || null;
+            localStorage.setItem(pendingPaymentStorageKey, JSON.stringify(pendingPaymentInfo));
+            updateAccessActionButtons();
+            return true;
+        }
+
+        function startPendingPaymentStatusChecks() {
+            if (pendingPaymentStatusInterval) clearInterval(pendingPaymentStatusInterval);
+            pendingPaymentStatusInterval = setInterval(async () => {
+                try {
+                    await checkPendingPaymentStatus();
+                } catch (error) {
+                    console.warn('Pengecekan berkala status pembayaran gagal:', error);
+                }
+            }, 30000);
+        }
+
+        async function restorePendingPayment() {
+            const storedPayment = localStorage.getItem(pendingPaymentStorageKey);
+            if (!storedPayment) return;
+
+            try {
+                const paymentInfo = JSON.parse(storedPayment);
+                if (
+                    paymentInfo.courseId !== courseId ||
+                    !paymentInfo.orderId ||
+                    !paymentInfo.token ||
+                    paymentInfo.userEmail !== String(currentUser?.email || '').trim().toLowerCase()
+                ) {
+                    clearPendingPayment();
+                    return;
+                }
+
+                pendingPaymentInfo = paymentInfo;
+                pendingPaymentInfo.active = true;
+                updateAccessActionButtons();
+                startPendingPaymentStatusChecks();
+                const isActive = await checkPendingPaymentStatus();
+                if (!isActive) {
+                    showToast('Transaksi pembayaran sebelumnya sudah tidak aktif. Silakan mulai pembayaran baru.', 'info', 'Pembayaran Tidak Aktif');
+                }
+            } catch (error) {
+                console.error('Gagal memulihkan transaksi pembayaran:', error);
+                showToast('Status pembayaran belum dapat diperiksa. Coba lanjutkan pembayaran kembali.', 'warning', 'Status Pembayaran');
+            }
+        }
+
+        async function handleCourseAccessClick() {
+            if (pendingPaymentInfo && pendingPaymentInfo.userEmail === String(currentUser?.email || '').trim().toLowerCase()) {
+                try {
+                    if (await checkPendingPaymentStatus()) {
+                        launchMidtransPayment(pendingPaymentInfo, currentUser);
+                        return;
+                    }
+                } catch (error) {
+                    console.error('Gagal memeriksa transaksi pembayaran:', error);
+                    showToast(error.message || 'Status pembayaran belum dapat diperiksa.', 'error', 'Gagal Memeriksa Pembayaran');
+                    return;
+                }
+            }
+            openCheckoutModal();
+        }
+
         function closeCheckoutModal() {
             document.getElementById('checkout-modal').classList.add('hidden');
         }
@@ -2475,6 +2714,16 @@
             }
 
             try {
+                if (
+                    pendingPaymentInfo &&
+                    pendingPaymentInfo.userEmail === String(userToUse.email).trim().toLowerCase() &&
+                    await checkPendingPaymentStatus()
+                ) {
+                    closeCheckoutModal();
+                    launchMidtransPayment(pendingPaymentInfo, userToUse);
+                    return;
+                }
+
                 const response = await fetch(`${BACKEND_BASE_URL}/api/create-transaction`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -2490,13 +2739,28 @@
                 if (!data.token) throw new Error(data.error || 'Gagal mendapatkan token pembayaran.');
 
                 closeCheckoutModal();
+                savePendingPayment({
+                    token: data.token,
+                    orderId: data.order_id,
+                    expiresAt: data.expires_at || null,
+                    userEmail: userToUse.email
+                });
+                launchMidtransPayment(pendingPaymentInfo, userToUse);
 
-                window.snap.pay(data.token, {
+            } catch (err) {
+                console.error(err);
+                showToast(err.message || 'Terjadi kesalahan koneksi ke server pembayaran.', 'error', 'Koneksi Gagal');
+            }
+        }
+
+        function launchMidtransPayment(paymentInfo, userToUse) {
+            window.snap.pay(paymentInfo.token, {
                     onSuccess: async function () {
+                        clearPendingPayment();
                         try {
                             await supabaseClient.from('transactions')
                                 .update({ status: 'success' })
-                                .eq('order_id', data.order_id);
+                                .eq('order_id', paymentInfo.orderId);
 
                             // Jika membeli Paket Bundling, buka akses untuk Paket sekaligus seluruh materi di dalam paket
                             const accessIdsToGrant = isBundleCourse
@@ -2517,7 +2781,7 @@
                                         user_id: userToUse.id || null,
                                         user_email: userToUse.email,
                                         course_id: cid,
-                                        order_id: data.order_id,
+                                        order_id: paymentInfo.orderId,
                                         is_active: true
                                     }]);
                                 }
@@ -2536,13 +2800,22 @@
                     },
                     onError: function () {
                         showToast('Pembayaran gagal dilakukan. Silakan coba kembali.', 'error', 'Pembayaran Gagal');
+                    },
+                    onClose: async function () {
+                        if (!pendingPaymentInfo) return;
+                        try {
+                            const isStillActive = await checkPendingPaymentStatus();
+                            if (isStillActive) {
+                                showToast('Pembayaran masih aktif. Klik "Lanjutkan Pembayaran" untuk membuka kembali halaman pembayaran.', 'info', 'Pembayaran Belum Selesai');
+                            } else {
+                                showToast('Transaksi pembayaran sudah tidak aktif. Anda dapat memulai pembayaran baru.', 'info', 'Pembayaran Tidak Aktif');
+                            }
+                        } catch (error) {
+                            console.error('Gagal memeriksa status transaksi setelah popup ditutup:', error);
+                            showToast('Popup pembayaran ditutup, tetapi status transaksi belum dapat diperiksa. Silakan coba tombol lanjutkan pembayaran.', 'warning', 'Status Pembayaran');
+                        }
                     }
                 });
-
-            } catch (err) {
-                console.error(err);
-                showToast('Terjadi kesalahan koneksi ke server pembayaran.', 'error', 'Koneksi Gagal');
-            }
         }
 
         /* ================================================================

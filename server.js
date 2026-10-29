@@ -468,6 +468,7 @@ app.post('/api/create-transaction', async (req, res) => {
         const studentWa = userData?.whatsapp || '';
         const courseTitle = courseData?.title || course_id;
 
+        // Jangan set expiry global; gunakan masa berlaku default untuk metode yang dipilih di Snap.
         let parameter = {
             transaction_details: {
                 order_id: orderId,
@@ -515,11 +516,63 @@ Apabila ada kendala atau butuh bantuan admin, silakan balas pesan ini. Syukran! 
             await sendFonnteWhatsApp(studentWa, followUpMsg);
         }
 
-        res.json({ token: transaction.token, order_id: orderId });
+        res.json({
+            token: transaction.token,
+            order_id: orderId,
+            expires_at: null
+        });
 
     } catch (error) {
         console.error('Midtrans Error:', error);
         res.status(500).json({ error: error.message });
+    }
+});
+
+app.get('/api/transaction-status/:orderId', async (req, res) => {
+    try {
+        const orderId = String(req.params.orderId || '');
+        const email = String(req.query.email || '').trim().toLowerCase();
+        const courseId = String(req.query.course_id || '');
+
+        if (!/^NUQTHAH-\d+$/.test(orderId) || !email || !courseId) {
+            return res.status(400).json({ error: 'Data transaksi tidak valid.' });
+        }
+
+        const { data: transaction, error: transactionError } = await supabaseAdmin
+            .from('transactions')
+            .select('order_id, user_email, course_id, status')
+            .eq('order_id', orderId)
+            .maybeSingle();
+
+        if (transactionError) throw transactionError;
+        if (!transaction) return res.status(404).json({ error: 'Transaksi tidak ditemukan.' });
+        if (
+            String(transaction.user_email || '').trim().toLowerCase() !== email ||
+            transaction.course_id !== courseId
+        ) {
+            return res.status(403).json({ error: 'Transaksi tidak cocok dengan akun atau materi ini.' });
+        }
+
+        if (transaction.status === 'success') {
+            return res.json({ active: false, status: 'success', expires_at: null });
+        }
+
+        const midtransStatus = await snap.transaction.status(orderId);
+        const expiresAt = midtransStatus.expiry_time
+            ? new Date(midtransStatus.expiry_time)
+            : null;
+        const validExpiry = expiresAt && Number.isFinite(expiresAt.getTime()) ? expiresAt : null;
+        const isPending = midtransStatus.transaction_status === 'pending';
+        const isActive = isPending && (!validExpiry || validExpiry.getTime() > Date.now());
+
+        return res.json({
+            active: isActive,
+            status: midtransStatus.transaction_status || 'unknown',
+            expires_at: validExpiry ? validExpiry.toISOString() : null
+        });
+    } catch (error) {
+        console.error('Gagal memeriksa status transaksi Midtrans:', error);
+        return res.status(502).json({ error: 'Status pembayaran belum dapat diperiksa.' });
     }
 });
 
