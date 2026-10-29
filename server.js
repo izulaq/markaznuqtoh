@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 const midtransClient = require('midtrans-client');
+const isMidtransProduction = process.env.MIDTRANS_IS_PRODUCTION === 'true';
 const { createClient } = require('@supabase/supabase-js');
 const nodemailer = require('nodemailer');
 
@@ -327,7 +328,7 @@ const supabaseAdmin = createClient(
 
 // Inisialisasi Midtrans Snap API Client
 let snap = new midtransClient.Snap({
-    isProduction: false,
+    isProduction: isMidtransProduction,
     serverKey: process.env.MIDTRANS_SERVER_KEY,
     clientKey: process.env.MIDTRANS_CLIENT_KEY
 });
@@ -582,7 +583,7 @@ app.post('/api/midtrans-notification', async (req, res) => {
         let notificationJson = req.body;
         
         let apiClient = new midtransClient.CoreApi({
-            isProduction: false,
+            isProduction: isMidtransProduction,
             serverKey: process.env.MIDTRANS_SERVER_KEY,
             clientKey: process.env.MIDTRANS_CLIENT_KEY
         });
