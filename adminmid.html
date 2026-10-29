@@ -364,14 +364,14 @@
                                     class="min-w-0 flex-1 border border-blue-200 bg-white p-2 rounded-lg text-xs">
                                 <button type="button" onclick="uploadCoursePdf('add')" id="btn-upload-pdf-add"
                                     class="shrink-0 bg-blue-700 text-white px-3 py-2 rounded-lg text-xs font-bold">
-                                    <i class="fas fa-upload mr-1"></i> Unggah PDF
+                                    <i class="fas fa-plus mr-1"></i> Tambah PDF
                                 </button>
                                 <button type="button" onclick="clearCoursePdf('add')"
                                     class="shrink-0 bg-white border border-gray-200 text-gray-600 px-3 py-2 rounded-lg text-xs font-bold">
-                                    Hapus PDF
+                                    <i class="fas fa-trash-alt mr-1"></i> Hapus Semua
                                 </button>
                             </div>
-                            <p id="course-pdf-status-add" class="mt-2 text-[11px] text-gray-600">Belum ada PDF.</p>
+                            <div id="course-pdf-status-add" class="mt-2 text-[11px] text-gray-600">Belum ada PDF.</div>
                         </div>
                         <div class="md:col-span-2 lg:col-span-2 bg-emerald-50 border border-emerald-100 p-3 rounded-xl">
                             <label class="block text-xs font-bold text-emerald-900 uppercase mb-1">Upload Cover Materi
@@ -1377,14 +1377,14 @@
                                 class="min-w-0 flex-1 border border-blue-200 bg-white p-2 rounded-lg text-xs">
                             <button type="button" onclick="uploadCoursePdf('edit')" id="btn-upload-pdf-edit"
                                 class="shrink-0 bg-blue-700 text-white px-3 py-2 rounded-lg text-xs font-bold">
-                                <i class="fas fa-upload mr-1"></i> Unggah PDF
+                                <i class="fas fa-plus mr-1"></i> Tambah PDF
                             </button>
                             <button type="button" onclick="clearCoursePdf('edit')"
                                 class="shrink-0 bg-white border border-gray-200 text-gray-600 px-3 py-2 rounded-lg text-xs font-bold">
-                                Hapus PDF
+                                <i class="fas fa-trash-alt mr-1"></i> Hapus Semua
                             </button>
                         </div>
-                        <p id="course-pdf-status-edit" class="mt-2 text-[11px] text-gray-600">Belum ada PDF.</p>
+                        <div id="course-pdf-status-edit" class="mt-2 text-[11px] text-gray-600">Belum ada PDF.</div>
                     </div>
                     <div class="md:col-span-2 bg-emerald-50 border border-emerald-100 p-3 rounded-xl">
                         <label class="block text-xs font-bold text-emerald-900 uppercase mb-1">Upload Cover
@@ -1658,8 +1658,8 @@
         const SUPABASE_KEY = 'sb_publishable_N96gYsm_jeSntalN3qMVCA_TpXloD4u';
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        let addCoursePdf = null;
-        let editCoursePdf = null;
+        let addCoursePdf = [];
+        let editCoursePdf = [];
         let addCourseImage = null;
 
         let cachedCourses = [];
@@ -1765,10 +1765,15 @@
         // ================================================================
         // HELPER ENCODE & PARSE BUNDLING + KONFIGURASI BAGI HASIL & DISKON
         // ================================================================
-        function encodeCourseLinkWithMeta(isBundle, bundledIds, externalLink, sharePct, discountPct, pdfInfo = null) {
+        function encodeCourseLinkWithMeta(isBundle, bundledIds, externalLink, sharePct, discountPct, pdfInfos = []) {
             const cleanLink = String(externalLink || '').split('||META::')[0].trim();
             const metaObj = { share: isNaN(parseFloat(sharePct)) ? 60 : parseFloat(sharePct), discount: isNaN(parseFloat(discountPct)) ? 0 : parseFloat(discountPct) };
-            if (pdfInfo?.fileId) metaObj.pdf = pdfInfo;
+            const pdfList = (Array.isArray(pdfInfos) ? pdfInfos : pdfInfos?.fileId ? [pdfInfos] : [])
+                .filter(pdf => pdf?.fileId && /^[A-Za-z0-9_-]+$/.test(pdf.fileId));
+            if (pdfList.length) {
+                metaObj.pdfs = pdfList;
+                metaObj.pdf = pdfList[0];
+            }
             const metaStr = `||META::${JSON.stringify(metaObj)}`;
             if (!isBundle) return `${cleanLink}${metaStr}`;
             const cleanIds = Array.isArray(bundledIds) ? bundledIds : [];
@@ -1777,7 +1782,7 @@
 
         function parseBundleInfo(course) {
             const rawLink = String(course?.link || '');
-            let meta = { share: null, discount: null, pdf: null };
+            let meta = { share: null, discount: null, pdf: null, pdfs: [] };
             let mainPart = rawLink;
             if (rawLink.includes('||META::')) {
                 const splitMeta = rawLink.split('||META::');
@@ -1794,19 +1799,37 @@
                 const parts = withoutPrefix.split('||');
                 try {
                     const ids = JSON.parse(parts[0]);
-                    return { isBundle: true, bundledIds: Array.isArray(ids) ? ids : [], externalLink: parts[1] || '', sharePct: finalSharePct, discountPct: finalDiscountPct, pdf: meta.pdf || null };
+                    const pdfs = Array.isArray(meta.pdfs) && meta.pdfs.length ? meta.pdfs : (meta.pdf ? [meta.pdf] : []);
+                    return { isBundle: true, bundledIds: Array.isArray(ids) ? ids : [], externalLink: parts[1] || '', sharePct: finalSharePct, discountPct: finalDiscountPct, pdf: pdfs[0] || null, pdfs };
                 } catch (e) {
-                    return { isBundle: true, bundledIds: [], externalLink: '', sharePct: finalSharePct, discountPct: finalDiscountPct, pdf: meta.pdf || null };
+                    const pdfs = Array.isArray(meta.pdfs) && meta.pdfs.length ? meta.pdfs : (meta.pdf ? [meta.pdf] : []);
+                    return { isBundle: true, bundledIds: [], externalLink: '', sharePct: finalSharePct, discountPct: finalDiscountPct, pdf: pdfs[0] || null, pdfs };
                 }
             }
             const titleLooksBundle = String(course?.title || '').toLowerCase().includes('paket');
-            return { isBundle: false, looksLikeBundleByName: titleLooksBundle, bundledIds: [], externalLink: mainPart, sharePct: finalSharePct, discountPct: finalDiscountPct, pdf: meta.pdf || null };
+            const pdfs = Array.isArray(meta.pdfs) && meta.pdfs.length ? meta.pdfs : (meta.pdf ? [meta.pdf] : []);
+            return { isBundle: false, looksLikeBundleByName: titleLooksBundle, bundledIds: [], externalLink: mainPart, sharePct: finalSharePct, discountPct: finalDiscountPct, pdf: pdfs[0] || null, pdfs };
         }
 
         function updateCoursePdfStatus(mode) {
-            const pdfInfo = mode === 'add' ? addCoursePdf : editCoursePdf || getGoogleDrivePdfInfo(document.getElementById('edit-link').value);
             const status = document.getElementById(`course-pdf-status-${mode}`);
-            if (status) status.textContent = pdfInfo?.name ? `PDF siap: ${pdfInfo.name}` : 'Belum ada PDF.';
+            const pdfs = mode === 'add'
+                ? addCoursePdf
+                : (editCoursePdf.length ? editCoursePdf : [getGoogleDrivePdfInfo(document.getElementById('edit-link').value)].filter(Boolean));
+            if (!status) return;
+            if (!pdfs.length) {
+                status.textContent = 'Belum ada PDF.';
+                return;
+            }
+            status.innerHTML = `<ul class="space-y-1">${pdfs.map((pdf, index) => `
+                <li class="flex min-w-0 items-center justify-between gap-2 rounded-lg bg-white/70 px-2 py-1">
+                    <span class="min-w-0 truncate">PDF ${index + 1}: ${escapeHtml(pdf.name || 'Modul PDF')}</span>
+                    <button type="button" onclick="removeCoursePdf('${mode}', ${index})"
+                        aria-label="Hapus ${escapeHtml(pdf.name || `PDF ${index + 1}`)}"
+                        class="shrink-0 px-2 py-1 text-red-600 hover:text-red-800">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </li>`).join('')}</ul>`;
         }
 
         function getGoogleDrivePdfInfo(link) {
@@ -1828,16 +1851,29 @@
         }
 
         function clearCoursePdf(mode) {
-            if (mode === 'add') addCoursePdf = null;
+            if (mode === 'add') addCoursePdf = [];
             else {
-                const linkedPdf = getGoogleDrivePdfInfo(document.getElementById('edit-link').value);
-                if (linkedPdf && (!editCoursePdf || linkedPdf.fileId === editCoursePdf.fileId)) {
+                if (getGoogleDrivePdfInfo(document.getElementById('edit-link').value)) {
                     document.getElementById('edit-link').value = '';
                 }
-                editCoursePdf = null;
+                editCoursePdf = [];
             }
             const input = document.getElementById(`course-pdf-${mode}`);
             if (input) input.value = '';
+            updateCoursePdfStatus(mode);
+        }
+
+        function removeCoursePdf(mode, index) {
+            const pdfs = mode === 'add' ? addCoursePdf : editCoursePdf;
+            const removedPdf = pdfs.length
+                ? pdfs.splice(index, 1)[0]
+                : mode === 'edit' ? getGoogleDrivePdfInfo(document.getElementById('edit-link').value) : null;
+            if (mode === 'edit') {
+                const linkedPdf = getGoogleDrivePdfInfo(document.getElementById('edit-link').value);
+                if (linkedPdf && linkedPdf.fileId === removedPdf?.fileId) {
+                    document.getElementById('edit-link').value = '';
+                }
+            }
             updateCoursePdfStatus(mode);
         }
 
@@ -1896,15 +1932,16 @@
                     viewUrl: result.viewUrl || `https://drive.google.com/file/d/${encodeURIComponent(result.fileId)}/preview`,
                     downloadUrl: result.downloadUrl || `https://drive.google.com/uc?export=download&id=${encodeURIComponent(result.fileId)}`
                 };
-                if (mode === 'add') addCoursePdf = pdfInfo;
-                else editCoursePdf = pdfInfo;
+                const pdfs = mode === 'add' ? addCoursePdf : editCoursePdf;
+                if (!pdfs.some(pdf => pdf.fileId === pdfInfo.fileId)) pdfs.push(pdfInfo);
+                input.value = '';
                 updateCoursePdfStatus(mode);
-                showToast('PDF berhasil diunggah ke Google Drive. Simpan materi untuk menerapkan perubahan.', 'success');
+                showToast('PDF berhasil ditambahkan ke materi. Simpan materi untuk menerapkan perubahan.', 'success');
             } catch (error) {
                 showToast('Gagal mengunggah PDF: ' + escapeHtml(error.message), 'error');
             } finally {
                 button.disabled = false;
-                button.innerHTML = '<i class="fas fa-upload mr-1"></i> Unggah PDF';
+                button.innerHTML = '<i class="fas fa-plus mr-1"></i> Tambah PDF';
             }
         }
 
@@ -3434,7 +3471,7 @@
             try {
                 const { error } = await supabaseClient.from('courses').insert([newCourse]); if (error) throw error;
                 showToast(isBundle ? 'Paket Bundling berhasil ditambahkan!' : 'Materi baru berhasil ditambahkan!', 'success');
-                e.target.reset(); document.getElementById('instructor_share_pct').value = 60; document.getElementById('nuqthah_share_pct').value = 40; selectedBundleCourseIdsAdd = []; addCoursePdf = null; addCourseImage = null; updateCoursePdfStatus('add'); updateCourseCoverStatus('add');
+                e.target.reset(); document.getElementById('instructor_share_pct').value = 60; document.getElementById('nuqthah_share_pct').value = 40; selectedBundleCourseIdsAdd = []; addCoursePdf = []; addCourseImage = null; updateCoursePdfStatus('add'); updateCourseCoverStatus('add');
                 handleBundleTypeChange('add'); updateSharePreview('add'); document.getElementById('subfilter').innerHTML = '<option value="">-- Pilih Kategori Dulu --</option>';
                 await fetchCourses(); renderFinanceDashboard();
             } catch (error) { showToast('Gagal menambah materi: ' + error.message, 'error'); }
@@ -3495,7 +3532,7 @@
             document.getElementById('edit-bundle-type').value = bInfo.isBundle ? 'paket' : 'satuan';
             selectedBundleCourseIdsEdit = [...bInfo.bundledIds];
             document.getElementById('course-cover-edit').value = '';
-            editCoursePdf = bInfo.pdf || getGoogleDrivePdfInfo(bInfo.externalLink);
+            editCoursePdf = bInfo.pdfs.length ? [...bInfo.pdfs] : [getGoogleDrivePdfInfo(bInfo.externalLink)].filter(Boolean);
             document.getElementById('course-pdf-edit').value = '';
             updateCoursePdfStatus('edit');
             handleBundleTypeChange('edit');

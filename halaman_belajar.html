@@ -464,25 +464,8 @@
 
             <section id="course-pdf-section"
                 class="hidden bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 space-y-3">
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div>
-                        <h3 class="font-bold text-gray-800"><i class="fas fa-file-pdf text-red-600 mr-2"></i>Modul PDF
-                        </h3>
-                        <p id="course-pdf-name" class="text-xs text-gray-500 mt-1">Baca modul atau unduh untuk dibaca
-                            nanti.</p>
-                    </div>
-                    <div class="flex flex-col sm:flex-row gap-2">
-                        <button id="course-pdf-toggle" type="button" onclick="toggleCoursePdfViewer()"
-                            aria-expanded="false"
-                            class="shrink-0 inline-flex items-center justify-center gap-2 bg-primary text-white px-4 py-2 rounded-xl text-xs font-bold">
-                            <i class="fas fa-book-open"></i> Buka / Baca PDF
-                        </button>
-                        <a id="course-pdf-download" href="#"
-                            class="shrink-0 inline-flex items-center justify-center gap-2 bg-primary text-white px-4 py-2 rounded-xl text-xs font-bold">
-                            <i class="fas fa-download"></i> Download PDF
-                        </a>
-                    </div>
-                </div>
+                <h3 class="font-bold text-gray-800"><i class="fas fa-file-pdf text-red-600 mr-2"></i>Modul PDF</h3>
+                <div id="course-pdf-list" class="space-y-2"></div>
                 <iframe id="course-pdf-viewer" title="Viewer Modul PDF"
                     class="hidden w-full h-[65vh] min-h-[420px] rounded-xl border border-gray-200" loading="lazy"
                     referrerpolicy="no-referrer" allow="fullscreen"></iframe>
@@ -839,7 +822,8 @@
         let activeModuleIndex = 0;
         let isUserHasAccess = false;
         let userAccessibleCourseIds = [];
-        let currentCoursePdfInfo = null;
+        let currentCoursePdfInfos = [];
+        let activeCoursePdfIndex = null;
         let courseData = null;
 
         // State Bundling (Paket)
@@ -911,62 +895,73 @@
                         isBundle: true,
                         bundledIds: Array.isArray(ids) ? ids : [],
                         externalLink: divider === -1 ? '' : withoutPrefix.slice(divider + 2),
-                        pdf: metadata.pdf || null
+                        pdf: metadata.pdf || null,
+                        pdfs: Array.isArray(metadata.pdfs) && metadata.pdfs.length ? metadata.pdfs : (metadata.pdf ? [metadata.pdf] : [])
                     };
                 } catch (e) {
-                    return { isBundle: true, bundledIds: [], externalLink: '', pdf: metadata.pdf || null };
+                    return { isBundle: true, bundledIds: [], externalLink: '', pdf: metadata.pdf || null, pdfs: Array.isArray(metadata.pdfs) && metadata.pdfs.length ? metadata.pdfs : (metadata.pdf ? [metadata.pdf] : []) };
                 }
             }
             return {
                 isBundle: false,
                 bundledIds: [],
                 externalLink: mainPart,
-                pdf: metadata.pdf || null
+                pdf: metadata.pdf || null,
+                pdfs: Array.isArray(metadata.pdfs) && metadata.pdfs.length ? metadata.pdfs : (metadata.pdf ? [metadata.pdf] : [])
             };
         }
 
-        function getCoursePdfInfo(bundleInfo) {
-            const storedPdf = bundleInfo?.pdf;
-            if (storedPdf?.fileId && /^[A-Za-z0-9_-]+$/.test(storedPdf.fileId)) {
-                return {
-                    fileId: storedPdf.fileId,
-                    name: storedPdf.name || 'Modul PDF',
-                    viewUrl: `https://drive.google.com/file/d/${encodeURIComponent(storedPdf.fileId)}/preview`,
-                    downloadUrl: `https://drive.google.com/uc?export=download&id=${encodeURIComponent(storedPdf.fileId)}`
-                };
-            }
+        function getCoursePdfInfos(bundleInfo) {
+            const storedPdfs = Array.isArray(bundleInfo?.pdfs) && bundleInfo.pdfs.length
+                ? bundleInfo.pdfs
+                : (bundleInfo?.pdf ? [bundleInfo.pdf] : []);
+            const pdfs = storedPdfs
+                .filter(pdf => pdf?.fileId && /^[A-Za-z0-9_-]+$/.test(pdf.fileId))
+                .map(pdf => ({
+                    fileId: pdf.fileId,
+                    name: pdf.name || 'Modul PDF',
+                    viewUrl: `https://drive.google.com/file/d/${encodeURIComponent(pdf.fileId)}/preview`,
+                    downloadUrl: `https://drive.google.com/uc?export=download&id=${encodeURIComponent(pdf.fileId)}`
+                }));
+            if (pdfs.length) return pdfs;
             try {
                 const url = new URL(bundleInfo?.externalLink || '');
-                if (url.hostname !== 'drive.google.com') return null;
+                if (url.hostname !== 'drive.google.com') return [];
                 const fileId = url.pathname.match(/\/file\/d\/([A-Za-z0-9_-]+)/)?.[1] || url.searchParams.get('id');
                 return fileId && /^[A-Za-z0-9_-]+$/.test(fileId)
-                    ? {
+                    ? [{
                         fileId,
                         name: 'Modul PDF',
                         viewUrl: `https://drive.google.com/file/d/${encodeURIComponent(fileId)}/preview`,
                         downloadUrl: `https://drive.google.com/uc?export=download&id=${encodeURIComponent(fileId)}`
-                    }
-                    : null;
+                    }]
+                    : [];
             } catch (e) {
-                return null;
+                return [];
             }
         }
 
-        function toggleCoursePdfViewer() {
+        function toggleCoursePdfViewer(index) {
             const viewer = document.getElementById('course-pdf-viewer');
-            const button = document.getElementById('course-pdf-toggle');
-            const isOpening = viewer.classList.contains('hidden');
+            const isSamePdfOpen = !viewer.classList.contains('hidden') && activeCoursePdfIndex === index;
 
-            if (isOpening && currentCoursePdfInfo) {
-                viewer.src = currentCoursePdfInfo.viewUrl;
+            document.querySelectorAll('[data-course-pdf-toggle]').forEach(button => {
+                button.innerHTML = '<i class="fas fa-book-open"></i><span class="hidden sm:inline">Buka / Baca PDF</span>';
+                button.setAttribute('aria-label', `Buka / baca ${button.dataset.pdfName}`);
+                button.setAttribute('aria-expanded', 'false');
+            });
+            if (!isSamePdfOpen && currentCoursePdfInfos[index]) {
+                viewer.src = currentCoursePdfInfos[index].viewUrl;
                 viewer.classList.remove('hidden');
-                button.innerHTML = '<i class="fas fa-eye-slash"></i> Tutup PDF';
+                const button = document.querySelector(`[data-course-pdf-toggle="${index}"]`);
+                button.innerHTML = '<i class="fas fa-eye-slash"></i><span class="hidden sm:inline">Tutup PDF</span>';
+                button.setAttribute('aria-label', `Tutup PDF ${button.dataset.pdfName}`);
                 button.setAttribute('aria-expanded', 'true');
+                activeCoursePdfIndex = index;
             } else {
                 viewer.removeAttribute('src');
                 viewer.classList.add('hidden');
-                button.innerHTML = '<i class="fas fa-book-open"></i> Buka / Baca PDF';
-                button.setAttribute('aria-expanded', 'false');
+                activeCoursePdfIndex = null;
             }
         }
 
@@ -1268,35 +1263,57 @@
                     document.getElementById('paywall-container').classList.remove('hidden');
                 }
 
-                let pdfInfo = getCoursePdfInfo(bInfo);
-                if (!pdfInfo) {
+                let pdfInfos = getCoursePdfInfos(bInfo);
+                if (!pdfInfos.length) {
                     for (const parentBundleId of parentBundleIdsContainingCurrentCourse) {
                         if (!userAccessibleCourseIds.includes(parentBundleId)) continue;
                         const parentBundle = bundledCoursesMap[parentBundleId];
-                        pdfInfo = getCoursePdfInfo(parseBundleInfo(parentBundle));
-                        if (pdfInfo) break;
+                        pdfInfos = getCoursePdfInfos(parseBundleInfo(parentBundle));
+                        if (pdfInfos.length) break;
                     }
                 }
                 const pdfSection = document.getElementById('course-pdf-section');
-                if (pdfInfo && isUserHasAccess) {
-                    currentCoursePdfInfo = pdfInfo;
-                    document.getElementById('course-pdf-name').textContent = pdfInfo.name;
-                    const downloadParams = new URLSearchParams({
-                        fileId: pdfInfo.fileId,
-                        fileName: pdfInfo.name || 'Modul.pdf'
-                    });
-                    document.getElementById('course-pdf-download').href =
-                        `${BACKEND_BASE_URL}/api/download-google-drive?${downloadParams.toString()}`;
+                const pdfList = document.getElementById('course-pdf-list');
+                if (pdfInfos.length && isUserHasAccess) {
+                    currentCoursePdfInfos = pdfInfos;
+                    activeCoursePdfIndex = null;
+                    pdfList.innerHTML = pdfInfos.map((pdfInfo, index) => {
+                        const downloadParams = new URLSearchParams({
+                            fileId: pdfInfo.fileId,
+                            fileName: pdfInfo.name || 'Modul.pdf'
+                        });
+                        const downloadUrl = `${BACKEND_BASE_URL}/api/download-google-drive?${downloadParams.toString()}`;
+                        const accessibleName = escapeHtml(pdfInfo.name || `Modul PDF ${index + 1}`);
+                        return `
+                            <div class="flex min-w-0 items-center justify-between gap-2 rounded-xl border border-gray-100 p-3">
+                                <div class="flex min-w-0 items-center gap-2">
+                                    <i class="fas fa-file-pdf text-red-600 shrink-0"></i>
+                                    <span class="min-w-0 truncate text-sm font-semibold text-gray-800" title="${accessibleName}">${accessibleName}</span>
+                                </div>
+                                <div class="flex shrink-0 items-center gap-1.5">
+                                    <button type="button" data-course-pdf-toggle="${index}" data-pdf-name="${accessibleName}"
+                                        onclick="toggleCoursePdfViewer(${index})" aria-expanded="false"
+                                        aria-label="Buka / baca ${accessibleName}" title="Buka / Baca PDF"
+                                        class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-bold text-white">
+                                        <i class="fas fa-book-open"></i><span class="hidden sm:inline">Buka / Baca PDF</span>
+                                    </button>
+                                    <a href="${downloadUrl}" aria-label="Download ${accessibleName}" title="Download PDF"
+                                        class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-bold text-white">
+                                        <i class="fas fa-download"></i><span class="hidden sm:inline">Download PDF</span>
+                                    </a>
+                                </div>
+                            </div>`;
+                    }).join('');
                     const pdfViewer = document.getElementById('course-pdf-viewer');
                     pdfViewer.removeAttribute('src');
                     pdfViewer.classList.add('hidden');
-                    const pdfToggle = document.getElementById('course-pdf-toggle');
-                    pdfToggle.innerHTML = '<i class="fas fa-book-open"></i> Buka / Baca PDF';
-                    pdfToggle.setAttribute('aria-expanded', 'false');
                     pdfSection.classList.remove('hidden');
                 } else {
-                    currentCoursePdfInfo = null;
+                    currentCoursePdfInfos = [];
+                    activeCoursePdfIndex = null;
                     document.getElementById('course-pdf-viewer').removeAttribute('src');
+                    document.getElementById('course-pdf-viewer').classList.add('hidden');
+                    pdfList.innerHTML = '';
                     pdfSection.classList.add('hidden');
                 }
 
