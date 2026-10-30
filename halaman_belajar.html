@@ -811,21 +811,22 @@
 
             <div id="pq-session-modal"
                 class="fixed inset-0 z-[1000000] hidden items-center justify-center bg-black/60 p-4">
-                <div class="w-full max-w-md rounded-3xl bg-white p-6 text-center shadow-2xl">
+                <div class="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-3xl bg-white p-5 text-center shadow-2xl sm:p-6">
                     <div
                         class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 text-2xl">
                         <i class="fas fa-check"></i>
                     </div>
                     <h2 id="pq-session-title" class="mb-2 text-2xl font-bold text-primary">Sesi Selesai!</h2>
-                    <p id="pq-session-summary" class="mb-6 text-sm text-gray-600">0 Benar, 0 Salah</p>
+                    <p id="pq-session-summary" class="mb-4 text-sm text-gray-600">0 Benar, 0 Salah</p>
+                    <div id="pq-session-wrong-list" class="mb-4 space-y-2 text-left"></div>
                     <div class="flex flex-col gap-3 sm:flex-row">
-                        <button onclick="continuePracticeSession()"
-                            class="w-full rounded-xl bg-primary px-4 py-3 text-sm font-bold text-white transition hover:bg-opacity-90">
-                            Lanjut ke Sesi Berikutnya
+                        <button id="pq-retry-wrong-btn" onclick="retryPracticeWrongQuestions()"
+                            class="hidden w-full rounded-xl bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800 transition hover:bg-amber-100">
+                            Ulangi Soal yang Salah
                         </button>
-                        <button onclick="closePracticeSessionAndShowResult()"
-                            class="w-full rounded-xl bg-gray-100 px-4 py-3 text-sm font-bold text-gray-700 transition hover:bg-gray-200">
-                            Tutup &amp; Lihat Hasil Sementara
+                        <button id="pq-continue-session-btn" onclick="continuePracticeSession()"
+                            class="w-full rounded-xl bg-primary px-4 py-3 text-sm font-bold text-white transition hover:bg-opacity-90">
+                            Lanjut
                         </button>
                     </div>
                 </div>
@@ -891,6 +892,10 @@
         let pqScore = 0;
         let pqTotalSessions = 0;
         let pqSessionStartScore = 0;
+        let pqReviewMode = false;
+        let pqReviewQuestions = [];
+        let pqReviewIndex = 0;
+        let pqPendingSessionResult = null;
         let pqSelected = null;
 
         let playerSyncInterval = null;
@@ -2311,9 +2316,7 @@
 
         function getPracticeActionLabel(courseId) {
             const progress = getPracticeProgress(courseId);
-            if (progress && !progress.isCompleted && progress.lastIndex > 0) {
-                return `Lanjutkan (Sesi ${progress.currentSession} - Soal ${progress.lastIndex + 1})`;
-            }
+            if (progress && !progress.isCompleted && progress.lastIndex > 0) return 'Lanjut';
             return 'Mulai';
         }
 
@@ -2349,6 +2352,68 @@
                 date: new Date().toISOString()
             });
             localStorage.setItem(key, JSON.stringify(history));
+        }
+
+        function getPracticeQuestionKey(question) {
+            return question.id || `${question.course_id || ''}|${question.question || ''}`;
+        }
+
+        function getPracticeWrongQuestions() {
+            try {
+                const questions = JSON.parse(localStorage.getItem(`nuqthah_quiz_wrong_${activePracticeCourseId}`) || '[]');
+                return Array.isArray(questions) ? questions : [];
+            } catch (error) {
+                console.warn('Daftar soal latihan yang salah tidak valid:', error);
+                return [];
+            }
+        }
+
+        function savePracticeWrongQuestions(questions) {
+            if (activePracticeCourseId) {
+                localStorage.setItem(`nuqthah_quiz_wrong_${activePracticeCourseId}`, JSON.stringify(questions));
+            }
+        }
+
+        function addPracticeWrongQuestion(question) {
+            const wrongQuestions = getPracticeWrongQuestions();
+            const key = getPracticeQuestionKey(question);
+            if (!wrongQuestions.some(item => item.key === key)) {
+                wrongQuestions.push({ key, question });
+                savePracticeWrongQuestions(wrongQuestions);
+            }
+        }
+
+        function removePracticeWrongQuestion(question) {
+            const key = getPracticeQuestionKey(question);
+            savePracticeWrongQuestions(getPracticeWrongQuestions().filter(item => item.key !== key));
+        }
+
+        function getPracticeExplanation(question) {
+            return question.explanation || question.pembahasan || question.discussion ||
+                question.answer_explanation || question.explanation_text || '';
+        }
+
+        function renderPracticeWrongQuestions() {
+            const container = document.getElementById('pq-session-wrong-list');
+            const retryButton = document.getElementById('pq-retry-wrong-btn');
+            const wrongQuestions = getPracticeWrongQuestions();
+            retryButton.classList.toggle('hidden', wrongQuestions.length === 0);
+            container.innerHTML = wrongQuestions.length ? `
+                <p class="text-xs font-bold text-gray-700">Soal yang perlu diulang (${wrongQuestions.length})</p>
+                <div class="max-h-44 space-y-2 overflow-y-auto pr-1">
+                    ${wrongQuestions.map((item, index) => {
+                        const question = item.question || {};
+                        const key = String(question.correct_answer || '').toLowerCase();
+                        const answerText = question[`option_${key}`] || question[`option_-${key}`] || '';
+                        const explanation = getPracticeExplanation(question);
+                        return `<article class="rounded-xl border border-amber-100 bg-amber-50/60 p-3">
+                            <p class="text-xs font-semibold text-gray-800">${index + 1}. ${escapeHtml(question.question || 'Soal')}</p>
+                            <p class="mt-1 text-[11px] font-bold text-emerald-700">Kunci: ${escapeHtml(String(question.correct_answer || '').toUpperCase())}${answerText ? ` · ${escapeHtml(answerText)}` : ''}</p>
+                            ${explanation ? `<p class="mt-1 text-[11px] leading-relaxed text-gray-600">Pembahasan: ${escapeHtml(explanation)}</p>` : ''}
+                        </article>`;
+                    }).join('')}
+                </div>
+            ` : '<p class="text-xs text-emerald-700">Tidak ada soal yang perlu diulang.</p>';
         }
 
         function renderPracticeSection() {
@@ -2403,13 +2468,13 @@
                     const progressId = getPracticeCourseGroupIds(cId)[0] || cId;
 
                     cardsHtml += `
-                        <div class="p-3.5 rounded-xl border border-gray-200 bg-gray-50/60 hover:bg-white flex items-center justify-between gap-3 transition shadow-sm">
+                        <div class="p-3.5 rounded-xl border border-gray-200 bg-gray-50/60 hover:bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition shadow-sm">
                             <div class="min-w-0">
                                 <h4 class="text-xs sm:text-sm font-bold text-gray-800 truncate">${escapeHtml(title)}</h4>
                                 <span class="text-[11px] text-emerald-700 font-semibold">${qList.length} Soal Tersedia</span>
                             </div>
                             <button onclick="startPracticeQuizByCourse('${cId}')"
-                                class="shrink-0 bg-primary text-white font-bold px-3.5 py-2 rounded-xl text-xs hover:bg-opacity-90 transition inline-flex items-center gap-1.5 shadow-sm">
+                                class="w-full sm:w-auto shrink-0 whitespace-nowrap bg-primary text-white font-bold px-3.5 py-2 rounded-xl text-xs hover:bg-opacity-90 transition inline-flex items-center justify-center gap-1.5 shadow-sm">
                                 <i class="fas fa-play text-[10px]"></i> ${escapeHtml(getPracticeActionLabel(progressId))}
                             </button>
                         </div>
@@ -2426,8 +2491,8 @@
                                 <p class="text-xs text-emerald-700 mt-0.5">Kerjakan seluruh ${allLoadedQuizzes.length} soal dari semua materi di dalam paket ini sekaligus.</p>
                             </div>
                             <button onclick="startPracticeQuizAll()"
-                                class="shrink-0 bg-accent text-white font-bold px-4 py-2.5 rounded-xl text-xs shadow-md hover:bg-opacity-90 transition inline-flex items-center justify-center gap-1.5">
-                                <i class="fas fa-bolt"></i> ${escapeHtml(getPracticeActionLabel(courseId))} Semua (${allLoadedQuizzes.length} Soal)
+                                class="w-full sm:w-auto shrink-0 whitespace-nowrap bg-accent text-white font-bold px-4 py-2.5 rounded-xl text-xs shadow-md hover:bg-opacity-90 transition inline-flex items-center justify-center gap-1.5">
+                                <i class="fas fa-bolt"></i> ${escapeHtml(getPracticeActionLabel(courseId) === 'Lanjut' ? 'Lanjut' : `Mulai Semua (${allLoadedQuizzes.length} Soal)`)}
                             </button>
                         </div>
                         <div class="text-xs font-bold text-gray-500 uppercase tracking-wider pt-1">Atau Pilih Latihan per Materi:</div>
@@ -2442,7 +2507,7 @@
             /* === Sudah punya akses & Materi SATUAN === */
             container.innerHTML = `
                 <div class="bg-emerald-50 border border-emerald-100 rounded-xl p-4">
-                    <div class="flex items-center justify-between gap-3">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div class="flex-1 min-w-0">
                             <p class="text-sm font-bold text-emerald-800 flex items-center gap-1.5">
                                 <i class="fas fa-circle-check text-emerald-600"></i> Latihan Soal Terbuka
@@ -2450,7 +2515,7 @@
                             <p class="text-xs text-emerald-600 mt-0.5">${allLoadedQuizzes.length} soal siap dikerjakan untuk menguji pemahaman Anda.</p>
                         </div>
                         <button onclick="startPracticeQuizAll()"
-                            class="shrink-0 bg-primary text-white font-bold px-4 py-2.5 rounded-xl text-xs shadow-md hover:bg-opacity-90 transition inline-flex items-center gap-1.5">
+                            class="w-full sm:w-auto shrink-0 whitespace-nowrap bg-primary text-white font-bold px-4 py-2.5 rounded-xl text-xs shadow-md hover:bg-opacity-90 transition inline-flex items-center justify-center gap-1.5">
                             <i class="fas fa-play"></i> ${escapeHtml(getPracticeActionLabel(getPracticeCourseGroupIds(courseId)[0] || courseId))}
                         </button>
                     </div>
@@ -2494,6 +2559,10 @@
             pqTotalSessions = Math.ceil(activePracticeQuizzes.length / SOAL_PER_SESI);
             const progress = activePracticeCourseId ? getPracticeProgress(activePracticeCourseId) : null;
             const canResume = resume && progress && !progress.isCompleted && progress.lastIndex > 0;
+            pqReviewMode = false;
+            pqPendingSessionResult = null;
+            pqReviewQuestions = [];
+            pqReviewIndex = 0;
             pqIndex = canResume ? Math.min(progress.lastIndex, activePracticeQuizzes.length - 1) : 0;
             pqScore = canResume ? Math.min(Number(progress.totalCorrect) || 0, pqIndex) : 0;
             pqSessionStartScore = canResume
@@ -2536,14 +2605,16 @@
             }
 
             pqSelected = null;
-            const q = activePracticeQuizzes[pqIndex];
+            const q = pqReviewMode ? pqReviewQuestions[pqReviewIndex] : activePracticeQuizzes[pqIndex];
             const total = activePracticeQuizzes.length;
 
             const currentSession = Math.floor(pqIndex / SOAL_PER_SESI) + 1;
-            document.getElementById('pq-counter').textContent =
-                `Soal ${pqIndex + 1} dari ${total} · Sesi ${currentSession} dari ${pqTotalSessions}`;
+            document.getElementById('pq-counter').textContent = pqReviewMode
+                ? `Ulangi Soal Salah ${pqReviewIndex + 1} dari ${pqReviewQuestions.length}`
+                : `Soal ${pqIndex + 1} dari ${total} · Sesi ${currentSession} dari ${pqTotalSessions}`;
             document.getElementById('pq-score').textContent = `Skor: ${pqScore}`;
-            document.getElementById('pq-progress').style.width = `${((pqIndex + 1) / total) * 100}%`;
+            document.getElementById('pq-progress').style.width =
+                `${((pqReviewMode ? pqReviewIndex + 1 : pqIndex + 1) / (pqReviewMode ? pqReviewQuestions.length : total)) * 100}%`;
             document.getElementById('pq-question').textContent = q.question || '';
 
             const subjTag = document.getElementById('pq-subject-tag');
@@ -2581,7 +2652,9 @@
             const nextBtn = document.getElementById('pq-next-btn');
             nextBtn.disabled = true;
             nextBtn.className = 'w-full bg-gray-300 text-white font-bold py-3.5 rounded-xl cursor-not-allowed transition-all text-sm sm:text-base flex items-center justify-center gap-2';
-            nextBtn.innerHTML = (pqIndex === activePracticeQuizzes.length - 1) ? 'Lihat Hasil <i class="fas fa-flag-checkered"></i>' : 'Lanjut <i class="fas fa-arrow-right"></i>';
+            nextBtn.innerHTML = pqReviewMode
+                ? 'Lanjut'
+                : (pqIndex === activePracticeQuizzes.length - 1) ? 'Lihat Hasil <i class="fas fa-flag-checkered"></i>' : 'Lanjut <i class="fas fa-arrow-right"></i>';
 
             const body = document.querySelector('#pq-question-view .overflow-y-auto');
             if (body) body.scrollTop = 0;
@@ -2609,9 +2682,31 @@
         function nextPracticeQuestion() {
             if (pqSelected === null) return;
 
+            if (pqReviewMode) {
+                const reviewedQuestion = pqReviewQuestions[pqReviewIndex];
+                if (pqSelected === reviewedQuestion.correct_answer) {
+                    removePracticeWrongQuestion(reviewedQuestion);
+                }
+                pqReviewIndex++;
+                if (pqReviewIndex < pqReviewQuestions.length) {
+                    renderPracticeQuestion();
+                } else {
+                    pqReviewMode = false;
+                    showPracticeSessionComplete(
+                        pqPendingSessionResult.session,
+                        pqPendingSessionResult.correct,
+                        pqPendingSessionResult.total,
+                        pqPendingSessionResult.isFinal
+                    );
+                }
+                return;
+            }
+
             const q = activePracticeQuizzes[pqIndex];
             if (pqSelected === q.correct_answer) {
                 pqScore++;
+            } else {
+                addPracticeWrongQuestion(q);
             }
             document.getElementById('pq-score').textContent = `Skor: ${pqScore}`;
 
@@ -2620,32 +2715,33 @@
             if (activePracticeCourseId) {
                 localStorage.setItem(`nuqthah_quiz_session_start_${activePracticeCourseId}`, String(pqSessionStartScore));
             }
-            if (pqIndex < activePracticeQuizzes.length) {
-                if (pqIndex % SOAL_PER_SESI === 0) {
-                    const session = pqIndex / SOAL_PER_SESI;
-                    const correct = pqScore - pqSessionStartScore;
-                    savePracticeSessionHistory(session, correct, SOAL_PER_SESI);
-                    pqSessionStartScore = pqScore;
-                    if (activePracticeCourseId) {
-                        localStorage.setItem(`nuqthah_quiz_session_start_${activePracticeCourseId}`, String(pqScore));
-                    }
-                    showPracticeSessionComplete(session, correct, SOAL_PER_SESI);
-                    return;
-                }
+            if (pqIndex < activePracticeQuizzes.length && pqIndex % SOAL_PER_SESI !== 0) {
                 renderPracticeQuestion();
             } else {
                 const session = Math.ceil(pqIndex / SOAL_PER_SESI);
                 const totalInSession = pqIndex - ((session - 1) * SOAL_PER_SESI);
                 savePracticeSessionHistory(session, pqScore - pqSessionStartScore, totalInSession);
-                savePracticeProgress(true);
-                showPracticeResult();
+                pqPendingSessionResult = {
+                    session,
+                    correct: pqScore - pqSessionStartScore,
+                    total: totalInSession,
+                    isFinal: pqIndex >= activePracticeQuizzes.length
+                };
+                if (pqPendingSessionResult.isFinal) savePracticeProgress(true);
+                pqSessionStartScore = pqScore;
+                if (activePracticeCourseId) {
+                    localStorage.setItem(`nuqthah_quiz_session_start_${activePracticeCourseId}`, String(pqScore));
+                }
+                showPracticeSessionComplete(session, pqPendingSessionResult.correct, totalInSession, pqPendingSessionResult.isFinal);
             }
         }
 
-        function showPracticeSessionComplete(session, correct, total) {
+        function showPracticeSessionComplete(session, correct, total, isFinal = false) {
             document.getElementById('pq-session-title').textContent = `Sesi ${session} Selesai!`;
             document.getElementById('pq-session-summary').textContent =
                 `${correct} Benar, ${total - correct} Salah`;
+            document.getElementById('pq-continue-session-btn').textContent = isFinal ? 'Lihat Hasil' : 'Lanjut';
+            renderPracticeWrongQuestions();
             const modal = document.getElementById('pq-session-modal');
             modal.classList.remove('hidden');
             modal.classList.add('flex');
@@ -2659,12 +2755,25 @@
 
         function continuePracticeSession() {
             closePracticeSessionModal();
+            if (pqPendingSessionResult?.isFinal) {
+                pqPendingSessionResult = null;
+                showPracticeResult();
+                return;
+            }
+            pqPendingSessionResult = null;
             renderPracticeQuestion();
         }
 
-        function closePracticeSessionAndShowResult() {
+        function retryPracticeWrongQuestions() {
+            pqReviewQuestions = getPracticeWrongQuestions().map(item => item.question).filter(Boolean);
+            if (!pqReviewQuestions.length) {
+                renderPracticeWrongQuestions();
+                return;
+            }
+            pqReviewIndex = 0;
+            pqReviewMode = true;
             closePracticeSessionModal();
-            showPracticeResult(true);
+            renderPracticeQuestion();
         }
 
         function showPracticeResult(isPartial = false) {
