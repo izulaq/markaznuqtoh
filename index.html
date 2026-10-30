@@ -428,13 +428,21 @@
         </div>
     </section>
 
+    <section id="quiz-evaluation-section" class="hidden bg-gray-50 border-t border-gray-100">
+        <div class="max-w-screen-xl mx-auto px-4 md:px-6 py-6">
+            <div class="flex items-center gap-2 mb-4">
+                <i class="fas fa-chart-line text-primary"></i>
+                <h2 class="text-lg font-bold text-gray-800">Evaluasi Pemahaman Kuis</h2>
+            </div>
+            <div id="quiz-evaluation-container"></div>
+        </div>
+    </section>
 
     <!-- ================= KATALOG & PENCARIAN ================= -->
     <section id="katalog-section" class="bg-white border-t border-gray-100">
 
         <!-- Header Katalog & Search Bar -->
-        <div
-            class="sticky-filter sticky bg-white border-b border-gray-100 shadow-sm transition-all duration-300">
+        <div class="sticky-filter sticky bg-white border-b border-gray-100 shadow-sm transition-all duration-300">
             <div
                 class="max-w-screen-xl mx-auto px-4 md:px-6 py-3 flex flex-col md:flex-row items-center justify-between gap-3">
 
@@ -1289,6 +1297,94 @@
             } else {
                 continueSection.classList.add('hidden');
             }
+            renderQuizEvaluation();
+        }
+
+        function renderQuizEvaluation() {
+            const section = document.getElementById('quiz-evaluation-section');
+            const container = document.getElementById('quiz-evaluation-container');
+            if (!section || !container) return;
+
+            if (!isLoggedIn || !currentUser?.email) {
+                section.classList.add('hidden');
+                container.innerHTML = '';
+                return;
+            }
+
+            const email = currentUser.email.trim().toLowerCase();
+            const history = [];
+            Object.keys(localStorage).forEach(key => {
+                if (!key.startsWith('nuqthah_quiz_history_') ||
+                    key.slice('nuqthah_quiz_history_'.length).toLowerCase() !== email) return;
+                try {
+                    const records = JSON.parse(localStorage.getItem(key) || '[]');
+                    if (Array.isArray(records)) history.push(...records);
+                } catch (error) {
+                    console.warn('Riwayat evaluasi kuis tidak valid:', error);
+                }
+            });
+
+            const validHistory = history.filter(item =>
+                item && Number.isFinite(Number(item.correct)) && Number.isFinite(Number(item.total)) &&
+                Number(item.total) > 0
+            );
+            if (validHistory.length === 0) {
+                section.classList.add('hidden');
+                container.innerHTML = '';
+                return;
+            }
+
+            const totalAnswered = validHistory.reduce((sum, item) => sum + Number(item.total), 0);
+            const totalCorrect = validHistory.reduce((sum, item) => sum + Number(item.correct), 0);
+            const percentage = totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0;
+            const barColor = percentage > 75
+                ? 'bg-emerald-500'
+                : percentage >= 50 ? 'bg-amber-400' : 'bg-red-500';
+            const recentHistory = validHistory
+                .slice()
+                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                .slice(0, 3);
+
+            section.classList.remove('hidden');
+            container.innerHTML = `
+                <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                    <div class="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="rounded-xl bg-blue-50 p-3">
+                                <p class="text-[10px] font-bold uppercase tracking-wide text-blue-600">Total Soal</p>
+                                <p class="mt-1 text-2xl font-extrabold text-gray-800">${totalAnswered}</p>
+                            </div>
+                            <div class="rounded-xl bg-emerald-50 p-3">
+                                <p class="text-[10px] font-bold uppercase tracking-wide text-emerald-600">Jawaban Benar</p>
+                                <p class="mt-1 text-2xl font-extrabold text-gray-800">${totalCorrect}</p>
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <div class="mb-2 flex items-center justify-between">
+                                <span class="text-xs font-bold text-gray-600">Pemahaman</span>
+                                <span class="text-sm font-extrabold text-gray-800">${percentage}%</span>
+                            </div>
+                            <div class="h-2.5 overflow-hidden rounded-full bg-gray-100">
+                                <div class="${barColor} h-full rounded-full transition-all duration-500" style="width:${Math.min(percentage, 100)}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm lg:col-span-2">
+                        <h3 class="mb-3 text-sm font-bold text-gray-800">Riwayat Latihan Terakhir</h3>
+                        <div class="space-y-2">
+                            ${recentHistory.map(item => `
+                                <div class="flex items-center justify-between gap-3 rounded-xl bg-gray-50 px-3 py-2.5">
+                                    <div class="min-w-0">
+                                        <p class="truncate text-xs font-bold text-gray-800">${escapeHtml(item.courseTitle || 'Materi')} (Sesi ${Number(item.session) || 1})</p>
+                                        <p class="mt-0.5 text-[10px] text-gray-500">${item.date && !Number.isNaN(new Date(item.date).getTime()) ? new Date(item.date).toLocaleDateString('id-ID') : ''}</p>
+                                    </div>
+                                    <span class="shrink-0 rounded-lg bg-white px-2.5 py-1 text-xs font-bold text-primary">${Number(item.correct)}/${Number(item.total)}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
         }
 
         // ================================================================
@@ -1734,6 +1830,7 @@
             const overlay = document.getElementById('page-loading-overlay');
 
             await checkSession();
+            renderQuizEvaluation();
             await fetchDynamicCourses();
             await loadSavedMaterials(); // Di dalam fungsi ini juga memanggil fetchUpcomingSchedules
 
