@@ -529,6 +529,108 @@ Apabila ada kendala atau butuh bantuan admin, silakan balas pesan ini. Syukran! 
     }
 });
 
+app.get('/api/pending-transaction', async (req, res) => {
+    try {
+        const email = String(req.query.email || '').trim().toLowerCase();
+        const courseId = String(req.query.course_id || '');
+
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !courseId || courseId.length > 200) {
+            return res.status(400).json({ error: 'Data transaksi tidak valid.' });
+        }
+
+        const { data: transactions, error: transactionsError } = await supabaseAdmin
+            .from('transactions')
+            .select('order_id, user_id, status, payment_type')
+            .eq('user_email', email)
+            .eq('course_id', courseId)
+            .in('status', ['pending', 'success'])
+            .order('created_at', { ascending: false })
+            .limit(10);
+
+        if (transactionsError) throw transactionsError;
+
+        const grantTransactionAccess = async transaction => {
+            const { data: course, error } = await supabaseAdmin
+                .from('courses')
+                .select('link')
+                .eq('course_id', courseId)
+                .maybeSingle();
+            if (error) throw error;
+
+            const courseIds = Array.from(new Set([
+                courseId,
+                ...parseBundleIdsFromLink(course?.link)
+            ]));
+            for (const id of courseIds) {
+                await grantUserAccessSafely({
+                    userId: transaction.user_id,
+                    userEmail: email,
+                    courseId: id,
+                    orderId: transaction.order_id
+                });
+            }
+        };
+
+        for (const transaction of transactions || []) {
+            if (transaction.status === 'success') {
+                await grantTransactionAccess(transaction);
+                return res.json({ active: false, status: 'success' });
+            }
+
+            const midtransStatus = await snap.transaction.status(transaction.order_id);
+            const status = midtransStatus.transaction_status;
+            const paymentType = midtransStatus.payment_type || transaction.payment_type || null;
+            const expiresAt = midtransStatus.expiry_time ? new Date(midtransStatus.expiry_time) : null;
+            const validExpiry = expiresAt && Number.isFinite(expiresAt.getTime()) ? expiresAt : null;
+            const isSuccessful = ['capture', 'settlement'].includes(status) &&
+                (midtransStatus.fraud_status === 'accept' || !midtransStatus.fraud_status);
+
+            if (isSuccessful) {
+                const { error } = await supabaseAdmin
+                    .from('transactions')
+                    .update({ status: 'success', payment_type: paymentType })
+                    .eq('order_id', transaction.order_id);
+                if (error) throw error;
+
+                await grantTransactionAccess(transaction);
+                return res.json({ active: false, status: 'success' });
+            }
+
+            const isActive = status === 'pending' &&
+                Boolean(paymentType) &&
+                (!validExpiry || validExpiry.getTime() > Date.now());
+
+            if (isActive) {
+                const { error } = await supabaseAdmin
+                    .from('transactions')
+                    .update({ status: 'pending', payment_type: paymentType })
+                    .eq('order_id', transaction.order_id);
+                if (error) throw error;
+
+                return res.json({
+                    active: true,
+                    order_id: transaction.order_id,
+                    payment_type: paymentType,
+                    expires_at: validExpiry ? validExpiry.toISOString() : null
+                });
+            }
+
+            if (['cancel', 'deny', 'expire'].includes(status)) {
+                const { error } = await supabaseAdmin
+                    .from('transactions')
+                    .update({ status: 'failed', payment_type: paymentType })
+                    .eq('order_id', transaction.order_id);
+                if (error) throw error;
+            }
+        }
+
+        return res.json({ active: false });
+    } catch (error) {
+        console.error('Gagal memeriksa transaksi aktif akun:', error);
+        return res.status(502).json({ error: 'Status pembayaran belum dapat diperiksa.' });
+    }
+});
+
 app.get('/api/transaction-status/:orderId', async (req, res) => {
     try {
         const orderId = String(req.params.orderId || '');
