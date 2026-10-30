@@ -402,6 +402,17 @@
             </div>
         </div>
 
+        <div id="pending-payment-section" class="mb-6 hidden">
+            <div class="flex items-center justify-between mb-3 px-1">
+                <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                    <i class="fas fa-credit-card text-amber-500"></i> Pembayaran Belum Selesai
+                </h2>
+            </div>
+            <div id="pending-payment-container" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <!-- Diisi oleh JS -->
+            </div>
+        </div>
+
         <!-- Bagian "Lanjutkan Belajar" (Hanya Muncul Jika Punya Materi) -->
         <div id="continue-learning-section" class="mb-4 hidden">
             <div class="flex items-center justify-between mb-3 px-1">
@@ -644,6 +655,7 @@
 
         let currentUser = null;
         let savedItems = [];
+        let pendingPaymentItems = [];
         let isLoggedIn = false;
         let allCourses = [];
         let purchasedCourseIds = new Set();
@@ -823,6 +835,7 @@
 
             // LANGSUNG KOSONGKAN TAMPILAN DRAWER SAAT LOGOUT
             savedItems = [];
+            pendingPaymentItems = [];
             updateMaterimuUI();
 
             updateAuthUI();
@@ -911,6 +924,38 @@
             return ids;
         }
 
+        async function fetchPendingPaymentItems() {
+            pendingPaymentItems = [];
+            if (!currentUser?.email || !isLoggedIn) return;
+
+            const { data, error } = await supabaseClient
+                .from('transactions')
+                .select('order_id, course_id, gross_amount, payment_type, created_at')
+                .eq('user_email', currentUser.email)
+                .eq('status', 'pending')
+                .not('payment_type', 'is', null)
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                console.error('Gagal memuat pembayaran tertunda di dashboard:', error);
+                return;
+            }
+
+            const latestByCourse = new Map();
+            (data || []).forEach(transaction => {
+                if (!transaction.course_id || !transaction.payment_type || purchasedCourseIds.has(transaction.course_id) || latestByCourse.has(transaction.course_id)) return;
+                const course = allCourses.find(item => item.course_id === transaction.course_id);
+                latestByCourse.set(transaction.course_id, {
+                    course_id: transaction.course_id,
+                    title: course?.title || transaction.course_id,
+                    link: `halaman_belajar.html?course_id=${encodeURIComponent(transaction.course_id)}`,
+                    gross_amount: transaction.gross_amount,
+                    payment_type: transaction.payment_type
+                });
+            });
+            pendingPaymentItems = Array.from(latestByCourse.values());
+        }
+
         async function loadSavedMaterials() {
             try {
                 let dbItems = [];
@@ -919,6 +964,7 @@
                     if (data) dbItems = data;
                 }
                 purchasedCourseIds = await fetchPurchasedCourseIds();
+                await fetchPendingPaymentItems();
 
                 let purchasedCourses = [];
                 const purchasedIdsArr = Array.from(purchasedCourseIds).filter(id => !id.startsWith('manual-'));
@@ -1085,6 +1131,41 @@
             const statPurchased = document.getElementById('stat-purchased');
             const continueSection = document.getElementById('continue-learning-section');
             const continueContainer = document.getElementById('continue-learning-container');
+            const pendingSection = document.getElementById('pending-payment-section');
+            const pendingContainer = document.getElementById('pending-payment-container');
+
+            if (pendingSection && pendingContainer) {
+                pendingContainer.innerHTML = '';
+                if (isLoggedIn && pendingPaymentItems.length > 0) {
+                    pendingSection.classList.remove('hidden');
+                    pendingPaymentItems.forEach(item => {
+                        const card = document.createElement('a');
+                        card.href = item.link;
+                        card.className = 'bg-white rounded-xl border border-amber-200 p-3 md:p-4 flex items-center gap-3 shadow-sm hover:shadow-md transition-shadow group';
+                        const amount = new Intl.NumberFormat('id-ID', {
+                            style: 'currency',
+                            currency: 'IDR',
+                            maximumFractionDigits: 0
+                        }).format(Number(item.gross_amount) || 0);
+                        card.innerHTML = `
+                            <div class="w-11 h-11 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <div class="min-w-0 flex-grow">
+                                <span class="text-[9px] font-bold text-amber-700 uppercase tracking-wide">Menunggu Pembayaran</span>
+                                <h3 class="text-sm font-bold text-gray-800 truncate">${escapeHtml(item.title)}</h3>
+                                <p class="text-[11px] text-gray-500">${escapeHtml(String(item.payment_type).replace(/_/g, ' '))} · ${amount}</p>
+                            </div>
+                            <span class="text-[10px] md:text-xs font-bold text-primary whitespace-nowrap group-hover:underline">
+                                Lanjutkan Pembayaran <i class="fas fa-arrow-right ml-1"></i>
+                            </span>
+                        `;
+                        pendingContainer.appendChild(card);
+                    });
+                } else {
+                    pendingSection.classList.add('hidden');
+                }
+            }
 
             const purchasedItems = savedItems.filter(i => i.purchased);
 
