@@ -2533,14 +2533,24 @@
             startPendingPaymentStatusChecks();
         }
 
-        function clearPendingPayment() {
-            if (pendingPaymentStatusInterval) {
+        function clearPendingPayment(stopStatusChecks = true) {
+            if (stopStatusChecks && pendingPaymentStatusInterval) {
                 clearInterval(pendingPaymentStatusInterval);
                 pendingPaymentStatusInterval = null;
             }
             pendingPaymentInfo = null;
             localStorage.removeItem(pendingPaymentStorageKey);
             updateAccessActionButtons();
+        }
+
+        function refreshAccessAfterExternalPayment() {
+            clearPendingPayment();
+            isUserHasAccess = true;
+            if (currentUser?.email) saveAccessCache(courseId, currentUser.email);
+            document.getElementById('user-status-badge').innerHTML = '<i class="fas fa-check-circle text-emerald-300 mr-1"></i> Akses Penuh Terbuka';
+            document.getElementById('paywall-container').classList.add('hidden');
+            showToast('Pembayaran berhasil! Akses materi sedang diperbarui.', 'success', 'Pembayaran Berhasil');
+            setTimeout(() => window.location.reload(), 1000);
         }
 
         async function checkPendingPaymentStatus() {
@@ -2559,8 +2569,13 @@
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || 'Gagal memeriksa status pembayaran.');
 
+            if (data.status === 'success') {
+                refreshAccessAfterExternalPayment();
+                return false;
+            }
+
             if (!data.active) {
-                clearPendingPayment();
+                clearPendingPayment(false);
                 return false;
             }
 
@@ -2577,48 +2592,92 @@
             if (pendingPaymentStatusInterval) clearInterval(pendingPaymentStatusInterval);
             pendingPaymentStatusInterval = setInterval(async () => {
                 try {
-                    await checkPendingPaymentStatus();
+                    if (pendingPaymentInfo) await checkPendingPaymentStatus();
+                    else await restorePendingPayment(true);
                 } catch (error) {
                     console.warn('Pengecekan berkala status pembayaran gagal:', error);
                 }
             }, 30000);
         }
 
-        async function restorePendingPayment() {
-            const storedPayment = localStorage.getItem(pendingPaymentStorageKey);
-            if (!storedPayment) return;
-
+        async function restorePendingPayment(silent = false) {
+            const userEmail = String(currentUser?.email || '').trim().toLowerCase();
+            if (!userEmail) return false;
             try {
-                const paymentInfo = JSON.parse(storedPayment);
-                if (
-                    paymentInfo.courseId !== courseId ||
-                    !paymentInfo.orderId ||
-                    !paymentInfo.token ||
-                    paymentInfo.userEmail !== String(currentUser?.email || '').trim().toLowerCase()
-                ) {
-                    clearPendingPayment();
-                    return;
+                const storedPayment = localStorage.getItem(pendingPaymentStorageKey);
+                const localPayment = storedPayment ? JSON.parse(storedPayment) : null;
+                const query = new URLSearchParams({ email: userEmail, course_id: courseId });
+                const response = await fetch(`${BACKEND_BASE_URL}/api/pending-transaction?${query}`);
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || 'Gagal memeriksa transaksi pembayaran.');
+
+                if (data.status === 'success') {
+                    refreshAccessAfterExternalPayment();
+                    return false;
                 }
 
-                pendingPaymentInfo = paymentInfo;
-                pendingPaymentInfo.active = true;
-                if (pendingPaymentInfo.methodSelected === true) updateAccessActionButtons();
-                startPendingPaymentStatusChecks();
-                const isActive = await checkPendingPaymentStatus();
-                if (!isActive) {
-                    showToast('Transaksi pembayaran sebelumnya sudah tidak aktif. Silakan mulai pembayaran baru.', 'info', 'Pembayaran Tidak Aktif');
+                if (!data.active) {
+                    clearPendingPayment(false);
+                    startPendingPaymentStatusChecks();
+                    return false;
                 }
+
+                const sameLocalTransaction = localPayment?.orderId === data.order_id &&
+                    localPayment?.userEmail === userEmail;
+                pendingPaymentInfo = {
+                    ...(sameLocalTransaction ? localPayment : {}),
+                    orderId: data.order_id,
+                    courseId,
+                    userEmail,
+                    active: true,
+                    methodSelected: true,
+                    paymentType: data.payment_type || null,
+                    expiresAt: data.expires_at || null
+                };
+                localStorage.setItem(pendingPaymentStorageKey, JSON.stringify(pendingPaymentInfo));
+                updateAccessActionButtons();
+                startPendingPaymentStatusChecks();
+                return true;
             } catch (error) {
                 console.error('Gagal memulihkan transaksi pembayaran:', error);
-                showToast('Status pembayaran belum dapat diperiksa. Coba lanjutkan pembayaran kembali.', 'warning', 'Status Pembayaran');
+                const storedPayment = localStorage.getItem(pendingPaymentStorageKey);
+                if (storedPayment) {
+                    try {
+                        const localPayment = JSON.parse(storedPayment);
+                        if (
+                            localPayment.courseId === courseId &&
+                            localPayment.userEmail === userEmail &&
+                            localPayment.methodSelected === true
+                        ) {
+                            pendingPaymentInfo = localPayment;
+                            updateAccessActionButtons();
+                            startPendingPaymentStatusChecks();
+                        }
+                    } catch (parseError) {
+                        console.warn('Data pembayaran tersimpan di perangkat tidak valid:', parseError);
+                        localStorage.removeItem(pendingPaymentStorageKey);
+                    }
+                }
+                if (!silent) {
+                    showToast('Status pembayaran belum dapat diperiksa. Coba muat ulang halaman.', 'warning', 'Status Pembayaran');
+                }
+                return false;
             }
         }
 
         async function handleCourseAccessClick() {
+            if (!pendingPaymentInfo && currentUser?.email) {
+                await restorePendingPayment(true);
+            }
+            if (isUserHasAccess) return;
             if (pendingPaymentInfo && pendingPaymentInfo.userEmail === String(currentUser?.email || '').trim().toLowerCase()) {
                 try {
                     if (await checkPendingPaymentStatus()) {
-                        launchMidtransPayment(pendingPaymentInfo, currentUser);
+                        if (pendingPaymentInfo.token) {
+                            launchMidtransPayment(pendingPaymentInfo, currentUser);
+                        } else {
+                            showToast('Pembayaran ini dimulai di perangkat lain. Untuk menghindari transaksi ganda, selesaikan pembayaran dari perangkat tersebut.', 'info', 'Pembayaran Sedang Berjalan');
+                        }
                         return;
                     }
                 } catch (error) {
@@ -2627,6 +2686,7 @@
                     return;
                 }
             }
+            if (isUserHasAccess) return;
             openCheckoutModal();
         }
 
@@ -2721,10 +2781,16 @@
                     pendingPaymentInfo.userEmail === String(userToUse.email).trim().toLowerCase() &&
                     await checkPendingPaymentStatus()
                 ) {
+                    if (!pendingPaymentInfo.token) {
+                        showToast('Pembayaran untuk materi ini sedang berjalan di perangkat lain. Selesaikan transaksi tersebut terlebih dahulu.', 'info', 'Pembayaran Sedang Berjalan');
+                        return;
+                    }
                     closeCheckoutModal();
                     launchMidtransPayment(pendingPaymentInfo, userToUse);
                     return;
                 }
+
+                if (isUserHasAccess) return;
 
                 const response = await fetch(`${BACKEND_BASE_URL}/api/create-transaction`, {
                     method: 'POST',
