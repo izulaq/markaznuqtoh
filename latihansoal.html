@@ -266,6 +266,26 @@
             </button>
         </div>
 
+        <div id="session-complete-modal" class="fixed inset-0 z-[1000000] hidden items-center justify-center bg-black/60 p-4">
+            <div class="w-full max-w-md rounded-3xl bg-white p-6 text-center shadow-2xl">
+                <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 text-2xl">
+                    <i class="fas fa-check"></i>
+                </div>
+                <h2 id="session-complete-title" class="mb-2 text-2xl font-bold text-primary">Sesi Selesai!</h2>
+                <p id="session-complete-summary" class="mb-6 text-sm text-gray-600">0 Benar, 0 Salah</p>
+                <div class="flex flex-col gap-3 sm:flex-row">
+                    <button onclick="continueNextSession()"
+                        class="w-full rounded-xl bg-primary px-4 py-3 text-sm font-bold text-white transition hover:bg-opacity-90">
+                        Lanjut ke Sesi Berikutnya
+                    </button>
+                    <button onclick="closeSessionAndShowResult()"
+                        class="w-full rounded-xl bg-gray-100 px-4 py-3 text-sm font-bold text-gray-700 transition hover:bg-gray-200">
+                        Tutup &amp; Lihat Hasil Sementara
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- ================= HASIL / SKOR ================= -->
         <div id="result-container" class="bg-white p-8 rounded-3xl shadow-xl border border-gray-100 text-center hidden">
             <div
@@ -438,6 +458,7 @@
 
         const BACKEND_BASE_URL = 'https://markaznuqtoh.vercel.app';
         const TRIAL_LIMIT = 6;
+        const SOAL_PER_SESI = 20;
 
         const PROGRAMS = {
             syariah: { label: 'Bimbel Syariah', subs: ['Tingkat 1', 'Tingkat 2', 'Tingkat 3'], color: 'bg-emerald-50 text-emerald-900 border-emerald-200 hover:bg-emerald-100' },
@@ -457,6 +478,8 @@
         let currentQuestions = [];
         let currentIndex = 0;
         let score = 0;
+        let totalSessions = 0;
+        let sessionStartScore = 0;
         let selectedOption = null;
         let hasFullAccess = false;
 
@@ -507,6 +530,74 @@
             return String(str ?? '').replace(/[&<>"']/g, c => ({
                 '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
             }[c]));
+        }
+
+        function getQuizProgress(courseId) {
+            try {
+                return JSON.parse(localStorage.getItem(`nuqthah_quiz_progress_${courseId}`) || 'null');
+            } catch (error) {
+                console.warn('Progres kuis tersimpan tidak valid:', error);
+                return null;
+            }
+        }
+
+        function getQuizHistory() {
+            if (!currentUser?.email) return [];
+            const email = currentUser.email.trim().toLowerCase();
+            const history = [];
+
+            Object.keys(localStorage).forEach(key => {
+                if (!key.startsWith('nuqthah_quiz_history_') ||
+                    key.slice('nuqthah_quiz_history_'.length).toLowerCase() !== email) return;
+                try {
+                    const records = JSON.parse(localStorage.getItem(key) || '[]');
+                    if (Array.isArray(records)) history.push(...records);
+                } catch (error) {
+                    console.warn('Riwayat kuis tersimpan tidak valid:', error);
+                }
+            });
+            return history;
+        }
+
+        function getSessionStartScoreStorageKey(courseId) {
+            return `nuqthah_quiz_session_start_${courseId}`;
+        }
+
+        function saveQuizProgress(courseId, isCompleted = false) {
+            localStorage.setItem(`nuqthah_quiz_progress_${courseId}`, JSON.stringify({
+                lastIndex: currentIndex,
+                currentSession: Math.min(totalSessions, Math.floor(currentIndex / SOAL_PER_SESI) + 1),
+                totalCorrect: score,
+                totalAnswered: currentIndex,
+                isCompleted
+            }));
+        }
+
+        function saveQuizSessionHistory(session, correct, total) {
+            if (!currentUser?.email || !selectedCourseObj) return;
+
+            const email = currentUser.email.trim().toLowerCase();
+            const key = `nuqthah_quiz_history_${email}`;
+            const history = getQuizHistory();
+            history.push({
+                courseTitle: cleanCourseTitle(selectedCourseObj.title),
+                session,
+                correct,
+                total,
+                date: new Date().toISOString()
+            });
+            localStorage.setItem(key, JSON.stringify(history));
+        }
+
+        function updateStartQuizButton() {
+            const courseId = document.getElementById('course-select').value;
+            const button = document.getElementById('start-quiz-btn');
+            const progress = courseId ? getQuizProgress(courseId) : null;
+            const canResume = progress && !progress.isCompleted && progress.lastIndex > 0;
+
+            button.textContent = canResume
+                ? `Lanjutkan Kuis (Sesi ${progress.currentSession} - Soal ${progress.lastIndex + 1})`
+                : 'Mulai Tantangan Kuis 🚀';
         }
 
         function showToast(message, type = 'info', title = '') {
@@ -663,9 +754,12 @@
             try {
                 const { data, error } = await supabaseClient.from('courses').select('*');
                 if (!error && data) {
-                    allRawCoursesData = data;
+                    allRawCoursesData = [...data].sort((a, b) =>
+                        (Number(a.position) || 0) - (Number(b.position) || 0) ||
+                        String(a.course_id).localeCompare(String(b.course_id))
+                    );
                     // Saring agar materi Paket Bundling tidak muncul di dropdown materi spesifik
-                    allCoursesData = data.filter(c => !parseBundleInfo(c).isBundle && !String(c.title || '').toLowerCase().includes('paket'));
+                    allCoursesData = allRawCoursesData.filter(c => !parseBundleInfo(c).isBundle && !String(c.title || '').toLowerCase().includes('paket'));
                 }
             } catch (e) {
                 console.warn('Gagal memuat data kursus:', e);
@@ -723,6 +817,24 @@
             return String(title || '').replace(/\s*\(?(Online|Offline)\)?/gi, '').trim();
         }
 
+        function sortQuizQuestions(questions, courseIds) {
+            const courseOrder = new Map(courseIds.map((id, index) => [String(id), index]));
+            return [...questions].sort((a, b) => {
+                const courseDifference =
+                    (courseOrder.get(String(a.course_id)) ?? Number.MAX_SAFE_INTEGER) -
+                    (courseOrder.get(String(b.course_id)) ?? Number.MAX_SAFE_INTEGER);
+                if (courseDifference !== 0) return courseDifference;
+
+                const questionA = [a.question, a.option_a || a['option_-a'], a.option_b || a['option_-b'],
+                    a.option_c || a['option_-c'], a.option_d || a['option_-d'], a.correct_answer]
+                    .map(value => String(value || '')).join('|');
+                const questionB = [b.question, b.option_a || b['option_-a'], b.option_b || b['option_-b'],
+                    b.option_c || b['option_-c'], b.option_d || b['option_-d'], b.correct_answer]
+                    .map(value => String(value || '')).join('|');
+                return questionA.localeCompare(questionB);
+            });
+        }
+
         function populateCourseDropdown() {
             const select = document.getElementById('course-select');
             select.innerHTML = '<option value="">-- Pilih Materi Spesifik --</option>';
@@ -742,6 +854,7 @@
 
             if (uniqueMap.size === 0) {
                 select.innerHTML = '<option value="">Belum ada materi untuk kategori ini</option>';
+                updateStartQuizButton();
                 return;
             }
 
@@ -751,6 +864,7 @@
                 opt.textContent = item.title;
                 select.appendChild(opt);
             });
+            updateStartQuizButton();
         }
 
         function backToCategory() {
@@ -800,9 +914,19 @@
                     return;
                 }
 
-                currentQuestions = data;
-                currentIndex = 0;
-                score = 0;
+                currentQuestions = sortQuizQuestions(data, targetCourseIds);
+                totalSessions = Math.ceil(currentQuestions.length / SOAL_PER_SESI);
+                const progress = getQuizProgress(courseId);
+                const canResume = progress && !progress.isCompleted && progress.lastIndex > 0;
+                currentIndex = canResume ? Math.min(progress.lastIndex, currentQuestions.length - 1) : 0;
+                score = canResume ? Math.min(progress.totalCorrect || 0, currentIndex) : 0;
+                const savedSessionStart = Number(localStorage.getItem(getSessionStartScoreStorageKey(courseId)));
+                sessionStartScore = canResume && Number.isFinite(savedSessionStart)
+                    ? Math.min(savedSessionStart, score)
+                    : 0;
+                if (!canResume) {
+                    localStorage.setItem(getSessionStartScoreStorageKey(courseId), '0');
+                }
                 selectedOption = null;
 
                 hasFullAccess = await checkCourseAccess(targetCourseIds);
@@ -820,14 +944,18 @@
                 document.getElementById('step-course').classList.add('hidden');
                 document.getElementById('quiz-container').classList.remove('hidden');
 
-                renderQuestion();
+                if (!hasFullAccess && currentIndex >= TRIAL_LIMIT && currentIndex < currentQuestions.length) {
+                    showQuizLocked();
+                } else {
+                    renderQuestion();
+                }
 
             } catch (err) {
                 console.error(err);
                 showToast('Terjadi kesalahan saat memuat soal. Silakan coba lagi.', 'error', 'Gagal Memuat');
             } finally {
                 startBtn.disabled = false;
-                startBtn.innerHTML = 'Mulai Tantangan Kuis 🚀';
+                updateStartQuizButton();
             }
         }
 
@@ -846,7 +974,9 @@
             const q = currentQuestions[currentIndex];
             const total = currentQuestions.length;
 
-            document.getElementById('question-counter').textContent = `Soal ${currentIndex + 1} dari ${total}`;
+            const currentSession = Math.floor(currentIndex / SOAL_PER_SESI) + 1;
+            document.getElementById('question-counter').textContent =
+                `Soal ${currentIndex + 1} dari ${total} · Sesi ${currentSession} dari ${totalSessions}`;
             document.getElementById('score-badge').textContent = `Skor: ${score}`;
             document.getElementById('progress-bar').style.width = `${(currentIndex / total) * 100}%`;
             document.getElementById('question-text').textContent = q.question || '';
@@ -902,20 +1032,63 @@
             document.getElementById('score-badge').textContent = `Skor: ${score}`;
 
             const nextIndex = currentIndex + 1;
+            currentIndex = nextIndex;
+            const courseId = selectedCourseObj?.course_id;
+            if (courseId) saveQuizProgress(courseId);
 
-            if (!hasFullAccess && nextIndex >= TRIAL_LIMIT && nextIndex < currentQuestions.length) {
-                currentIndex = nextIndex;
+            if (!hasFullAccess && currentIndex >= TRIAL_LIMIT && currentIndex < currentQuestions.length) {
                 showQuizLocked();
                 return;
             }
 
-            currentIndex = nextIndex;
-
             if (currentIndex < currentQuestions.length) {
+                if (currentIndex % SOAL_PER_SESI === 0) {
+                    const session = currentIndex / SOAL_PER_SESI;
+                    const correct = score - sessionStartScore;
+                    saveQuizSessionHistory(session, correct, SOAL_PER_SESI);
+                    sessionStartScore = score;
+                    if (courseId) {
+                        localStorage.setItem(getSessionStartScoreStorageKey(courseId), String(score));
+                    }
+                    showSessionComplete(session, correct, SOAL_PER_SESI);
+                    return;
+                }
                 renderQuestion();
             } else {
+                const session = Math.ceil(currentIndex / SOAL_PER_SESI);
+                const totalInSession = currentIndex - ((session - 1) * SOAL_PER_SESI);
+                saveQuizSessionHistory(session, score - sessionStartScore, totalInSession);
+                if (courseId) {
+                    localStorage.setItem(getSessionStartScoreStorageKey(courseId), String(score));
+                    saveQuizProgress(courseId, true);
+                }
                 showResult();
             }
+        }
+
+        function showSessionComplete(session, correct, total) {
+            document.getElementById('session-complete-title').textContent = `Sesi ${session} Selesai!`;
+            document.getElementById('session-complete-summary').textContent =
+                `${correct} Benar, ${total - correct} Salah`;
+            const modal = document.getElementById('session-complete-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeSessionCompleteModal() {
+            const modal = document.getElementById('session-complete-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function continueNextSession() {
+            closeSessionCompleteModal();
+            renderQuestion();
+        }
+
+        function closeSessionAndShowResult() {
+            closeSessionCompleteModal();
+            showResult(true);
         }
 
         function showQuizLocked() {
@@ -995,6 +1168,8 @@
             currentQuestions = [];
             currentIndex = 0;
             score = 0;
+            totalSessions = 0;
+            sessionStartScore = 0;
             selectedOption = null;
             hasFullAccess = false;
 
@@ -1004,6 +1179,7 @@
             document.getElementById('step-course').classList.add('hidden');
             document.getElementById('step-subfilter').classList.add('hidden');
             document.getElementById('step-category').classList.remove('hidden');
+            updateStartQuizButton();
         }
 
         /* ================================================================
@@ -1275,6 +1451,7 @@
            BOOTSTRAP
         ================================================================ */
         document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('course-select').addEventListener('change', updateStartQuizButton);
             updateNavUserBadge();
             initQuizApp();
         });
