@@ -266,21 +266,25 @@
             </button>
         </div>
 
-        <div id="session-complete-modal" class="fixed inset-0 z-[1000000] hidden items-center justify-center bg-black/60 p-4">
-            <div class="w-full max-w-md rounded-3xl bg-white p-6 text-center shadow-2xl">
-                <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 text-2xl">
+        <div id="session-complete-modal"
+            class="fixed inset-0 z-[1000000] hidden items-center justify-center bg-black/60 p-4">
+            <div
+                class="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-3xl bg-white p-5 text-center shadow-2xl sm:p-6">
+                <div
+                    class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 text-2xl">
                     <i class="fas fa-check"></i>
                 </div>
                 <h2 id="session-complete-title" class="mb-2 text-2xl font-bold text-primary">Sesi Selesai!</h2>
-                <p id="session-complete-summary" class="mb-6 text-sm text-gray-600">0 Benar, 0 Salah</p>
+                <p id="session-complete-summary" class="mb-4 text-sm text-gray-600">0 Benar, 0 Salah</p>
+                <div id="session-wrong-list" class="mb-4 space-y-2 text-left"></div>
                 <div class="flex flex-col gap-3 sm:flex-row">
-                    <button onclick="continueNextSession()"
-                        class="w-full rounded-xl bg-primary px-4 py-3 text-sm font-bold text-white transition hover:bg-opacity-90">
-                        Lanjut ke Sesi Berikutnya
+                    <button id="retry-wrong-btn" onclick="retryWrongQuestions()"
+                        class="hidden w-full rounded-xl bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800 transition hover:bg-amber-100">
+                        Ulangi Soal yang Salah
                     </button>
-                    <button onclick="closeSessionAndShowResult()"
-                        class="w-full rounded-xl bg-gray-100 px-4 py-3 text-sm font-bold text-gray-700 transition hover:bg-gray-200">
-                        Tutup &amp; Lihat Hasil Sementara
+                    <button id="continue-session-btn" onclick="continueNextSession()"
+                        class="w-full rounded-xl bg-primary px-4 py-3 text-sm font-bold text-white transition hover:bg-opacity-90">
+                        Lanjut
                     </button>
                 </div>
             </div>
@@ -480,6 +484,10 @@
         let score = 0;
         let totalSessions = 0;
         let sessionStartScore = 0;
+        let isReviewMode = false;
+        let reviewQuestions = [];
+        let reviewIndex = 0;
+        let pendingSessionResult = null;
         let selectedOption = null;
         let hasFullAccess = false;
 
@@ -589,15 +597,81 @@
             localStorage.setItem(key, JSON.stringify(history));
         }
 
+        function getQuestionReviewKey(question) {
+            return question.id || `${question.course_id || ''}|${question.question || ''}`;
+        }
+
+        function getWrongQuestions(courseId) {
+            try {
+                const questions = JSON.parse(localStorage.getItem(`nuqthah_quiz_wrong_${courseId}`) || '[]');
+                return Array.isArray(questions) ? questions : [];
+            } catch (error) {
+                console.warn('Daftar soal yang perlu diulang tidak valid:', error);
+                return [];
+            }
+        }
+
+        function saveWrongQuestions(courseId, questions) {
+            if (courseId) localStorage.setItem(`nuqthah_quiz_wrong_${courseId}`, JSON.stringify(questions));
+        }
+
+        function addWrongQuestion(question) {
+            const courseId = selectedCourseObj?.course_id;
+            if (!courseId) return;
+            const wrongQuestions = getWrongQuestions(courseId);
+            const key = getQuestionReviewKey(question);
+            if (!wrongQuestions.some(item => item.key === key)) {
+                wrongQuestions.push({ key, question });
+                saveWrongQuestions(courseId, wrongQuestions);
+            }
+        }
+
+        function removeWrongQuestion(question) {
+            const courseId = selectedCourseObj?.course_id;
+            if (!courseId) return;
+            const key = getQuestionReviewKey(question);
+            saveWrongQuestions(courseId, getWrongQuestions(courseId).filter(item => item.key !== key));
+        }
+
+        function getCorrectOptionText(question) {
+            const key = String(question.correct_answer || '').toLowerCase();
+            return question[`option_${key}`] || question[`option_-${key}`] || '';
+        }
+
+        function getQuestionExplanation(question) {
+            return question.explanation || question.pembahasan || question.discussion ||
+                question.answer_explanation || question.explanation_text || '';
+        }
+
+        function renderSessionWrongQuestions() {
+            const container = document.getElementById('session-wrong-list');
+            const retryButton = document.getElementById('retry-wrong-btn');
+            const wrongQuestions = getWrongQuestions(selectedCourseObj?.course_id);
+            retryButton.classList.toggle('hidden', wrongQuestions.length === 0);
+            container.innerHTML = wrongQuestions.length ? `
+                <p class="text-xs font-bold text-gray-700">Soal yang perlu diulang (${wrongQuestions.length})</p>
+                <div class="max-h-44 space-y-2 overflow-y-auto pr-1">
+                    ${wrongQuestions.map((item, index) => {
+                const question = item.question || {};
+                const explanation = getQuestionExplanation(question);
+                const optionText = getCorrectOptionText(question);
+                return `<article class="rounded-xl border border-amber-100 bg-amber-50/60 p-3">
+                            <p class="text-xs font-semibold text-gray-800">${index + 1}. ${escapeHtml(question.question || 'Soal')}</p>
+                            <p class="mt-1 text-[11px] font-bold text-emerald-700">Kunci: ${escapeHtml(String(question.correct_answer || '').toUpperCase())}${optionText ? ` · ${escapeHtml(optionText)}` : ''}</p>
+                            ${explanation ? `<p class="mt-1 text-[11px] leading-relaxed text-gray-600">Pembahasan: ${escapeHtml(explanation)}</p>` : ''}
+                        </article>`;
+            }).join('')}
+                </div>
+            ` : '<p class="text-xs text-emerald-700">Tidak ada soal yang perlu diulang.</p>';
+        }
+
         function updateStartQuizButton() {
             const courseId = document.getElementById('course-select').value;
             const button = document.getElementById('start-quiz-btn');
             const progress = courseId ? getQuizProgress(courseId) : null;
             const canResume = progress && !progress.isCompleted && progress.lastIndex > 0;
 
-            button.textContent = canResume
-                ? `Lanjutkan Kuis (Sesi ${progress.currentSession} - Soal ${progress.lastIndex + 1})`
-                : 'Mulai Tantangan Kuis 🚀';
+            button.textContent = canResume ? 'Lanjut' : 'Mulai Tantangan Kuis 🚀';
         }
 
         function showToast(message, type = 'info', title = '') {
@@ -826,10 +900,10 @@
                 if (courseDifference !== 0) return courseDifference;
 
                 const questionA = [a.question, a.option_a || a['option_-a'], a.option_b || a['option_-b'],
-                    a.option_c || a['option_-c'], a.option_d || a['option_-d'], a.correct_answer]
+                a.option_c || a['option_-c'], a.option_d || a['option_-d'], a.correct_answer]
                     .map(value => String(value || '')).join('|');
                 const questionB = [b.question, b.option_a || b['option_-a'], b.option_b || b['option_-b'],
-                    b.option_c || b['option_-c'], b.option_d || b['option_-d'], b.correct_answer]
+                b.option_c || b['option_-c'], b.option_d || b['option_-d'], b.correct_answer]
                     .map(value => String(value || '')).join('|');
                 return questionA.localeCompare(questionB);
             });
@@ -897,7 +971,11 @@
                 if (selectedCourseObj) {
                     const clean = cleanCourseTitle(selectedCourseObj.title);
                     targetCourseIds = allCoursesData
-                        .filter(c => cleanCourseTitle(c.title) === clean)
+                        .filter(c =>
+                            cleanCourseTitle(c.title).toLowerCase() === clean.toLowerCase() &&
+                            c.category === selectedCourseObj.category &&
+                            c.subfilter === selectedCourseObj.subfilter
+                        )
                         .map(c => c.course_id);
                     if (!targetCourseIds.includes(courseId)) targetCourseIds.push(courseId);
                 } else {
@@ -928,6 +1006,10 @@
                     localStorage.setItem(getSessionStartScoreStorageKey(courseId), '0');
                 }
                 selectedOption = null;
+                isReviewMode = false;
+                reviewQuestions = [];
+                reviewIndex = 0;
+                pendingSessionResult = null;
 
                 hasFullAccess = await checkCourseAccess(targetCourseIds);
 
@@ -971,14 +1053,15 @@
             selectedOption = null;
             document.getElementById('next-btn').classList.add('hidden');
 
-            const q = currentQuestions[currentIndex];
+            const q = isReviewMode ? reviewQuestions[reviewIndex] : currentQuestions[currentIndex];
             const total = currentQuestions.length;
 
             const currentSession = Math.floor(currentIndex / SOAL_PER_SESI) + 1;
-            document.getElementById('question-counter').textContent =
-                `Soal ${currentIndex + 1} dari ${total} · Sesi ${currentSession} dari ${totalSessions}`;
+            document.getElementById('question-counter').textContent = isReviewMode
+                ? `Ulangi Soal Salah ${reviewIndex + 1} dari ${reviewQuestions.length}`
+                : `Soal ${currentIndex + 1} dari ${total} · Sesi ${currentSession} dari ${totalSessions}`;
             document.getElementById('score-badge').textContent = `Skor: ${score}`;
-            document.getElementById('progress-bar').style.width = `${(currentIndex / total) * 100}%`;
+            document.getElementById('progress-bar').style.width = `${((isReviewMode ? reviewIndex : currentIndex) / (isReviewMode ? reviewQuestions.length : total)) * 100}%`;
             document.getElementById('question-text').textContent = q.question || '';
 
             const optsContainer = document.getElementById('options-container');
@@ -1000,6 +1083,9 @@
                 btn.onclick = () => selectAnswer(label, btn);
                 optsContainer.appendChild(btn);
             });
+            document.getElementById('next-btn').innerHTML = isReviewMode
+                ? 'Lanjut'
+                : (currentIndex === currentQuestions.length - 1 ? 'Lihat Hasil <i class="fas fa-flag-checkered ml-1"></i>' : 'Lanjut <i class="fas fa-arrow-right ml-1"></i>');
         }
 
         function selectAnswer(ansKey, btnElement) {
@@ -1025,9 +1111,26 @@
         function nextQuestion() {
             if (selectedOption === null) return;
 
+            if (isReviewMode) {
+                const reviewedQuestion = reviewQuestions[reviewIndex];
+                if (selectedOption === reviewedQuestion.correct_answer) {
+                    removeWrongQuestion(reviewedQuestion);
+                }
+                reviewIndex++;
+                if (reviewIndex < reviewQuestions.length) {
+                    renderQuestion();
+                } else {
+                    isReviewMode = false;
+                    showSessionComplete(pendingSessionResult.session, pendingSessionResult.correct, pendingSessionResult.total, pendingSessionResult.isFinal);
+                }
+                return;
+            }
+
             const q = currentQuestions[currentIndex];
             if (selectedOption === q.correct_answer) {
                 score++;
+            } else {
+                addWrongQuestion(q);
             }
             document.getElementById('score-badge').textContent = `Skor: ${score}`;
 
@@ -1041,18 +1144,7 @@
                 return;
             }
 
-            if (currentIndex < currentQuestions.length) {
-                if (currentIndex % SOAL_PER_SESI === 0) {
-                    const session = currentIndex / SOAL_PER_SESI;
-                    const correct = score - sessionStartScore;
-                    saveQuizSessionHistory(session, correct, SOAL_PER_SESI);
-                    sessionStartScore = score;
-                    if (courseId) {
-                        localStorage.setItem(getSessionStartScoreStorageKey(courseId), String(score));
-                    }
-                    showSessionComplete(session, correct, SOAL_PER_SESI);
-                    return;
-                }
+            if (currentIndex < currentQuestions.length && currentIndex % SOAL_PER_SESI !== 0) {
                 renderQuestion();
             } else {
                 const session = Math.ceil(currentIndex / SOAL_PER_SESI);
@@ -1060,16 +1152,25 @@
                 saveQuizSessionHistory(session, score - sessionStartScore, totalInSession);
                 if (courseId) {
                     localStorage.setItem(getSessionStartScoreStorageKey(courseId), String(score));
-                    saveQuizProgress(courseId, true);
                 }
-                showResult();
+                pendingSessionResult = {
+                    session,
+                    correct: score - sessionStartScore,
+                    total: totalInSession,
+                    isFinal: currentIndex >= currentQuestions.length
+                };
+                if (pendingSessionResult.isFinal && courseId) saveQuizProgress(courseId, true);
+                sessionStartScore = score;
+                showSessionComplete(session, pendingSessionResult.correct, totalInSession, pendingSessionResult.isFinal);
             }
         }
 
-        function showSessionComplete(session, correct, total) {
+        function showSessionComplete(session, correct, total, isFinal = false) {
             document.getElementById('session-complete-title').textContent = `Sesi ${session} Selesai!`;
             document.getElementById('session-complete-summary').textContent =
                 `${correct} Benar, ${total - correct} Salah`;
+            document.getElementById('continue-session-btn').textContent = isFinal ? 'Lihat Hasil' : 'Lanjut';
+            renderSessionWrongQuestions();
             const modal = document.getElementById('session-complete-modal');
             modal.classList.remove('hidden');
             modal.classList.add('flex');
@@ -1083,12 +1184,27 @@
 
         function continueNextSession() {
             closeSessionCompleteModal();
+            if (pendingSessionResult?.isFinal) {
+                const courseId = selectedCourseObj?.course_id;
+                if (courseId) saveQuizProgress(courseId, true);
+                pendingSessionResult = null;
+                showResult();
+                return;
+            }
+            pendingSessionResult = null;
             renderQuestion();
         }
 
-        function closeSessionAndShowResult() {
+        function retryWrongQuestions() {
+            reviewQuestions = getWrongQuestions(selectedCourseObj?.course_id).map(item => item.question).filter(Boolean);
+            if (!reviewQuestions.length) {
+                renderSessionWrongQuestions();
+                return;
+            }
+            reviewIndex = 0;
+            isReviewMode = true;
             closeSessionCompleteModal();
-            showResult(true);
+            renderQuestion();
         }
 
         function showQuizLocked() {
@@ -1146,7 +1262,9 @@
             const msg = document.getElementById('result-message');
 
             if (isPartial) {
-                msg.innerHTML = `Anda telah menjawab <b>${answered} dari ${currentQuestions.length}</b> soal. Buka akses penuh untuk menyelesaikan seluruh soal latihan.`;
+                msg.innerHTML = hasFullAccess
+                    ? `Anda telah menjawab <b>${answered} dari ${currentQuestions.length}</b> soal. Progres kuis tersimpan dan dapat dilanjutkan.`
+                    : `Anda telah menjawab <b>${answered} dari ${currentQuestions.length}</b> soal. Buka akses penuh untuk menyelesaikan seluruh soal latihan.`;
             } else if (pct === 100) {
                 msg.textContent = 'Luar biasa! Kamu menguasai materi ini dengan sempurna! 🎉';
             } else if (pct >= 70) {
@@ -1155,7 +1273,7 @@
                 msg.textContent = 'Terus tingkatkan belajarmu! Coba baca materinya kembali dan ulangi kuisnya. 📚';
             }
 
-            document.getElementById('result-unlock-btn').classList.toggle('hidden', !isPartial);
+            document.getElementById('result-unlock-btn').classList.toggle('hidden', !isPartial || hasFullAccess);
         }
 
         function showPartialResult() {
@@ -1170,6 +1288,10 @@
             score = 0;
             totalSessions = 0;
             sessionStartScore = 0;
+            isReviewMode = false;
+            reviewQuestions = [];
+            reviewIndex = 0;
+            pendingSessionResult = null;
             selectedOption = null;
             hasFullAccess = false;
 
