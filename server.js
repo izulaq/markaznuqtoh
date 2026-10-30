@@ -432,34 +432,58 @@ async function sendFonnteWhatsApp(targetPhone, messageText) {
 // ================= HELPER: GRANT ACCESS ANTI-DUPLIKAT =================
 async function grantUserAccessSafely({ userId, userEmail, courseId, orderId }) {
     const cleanEmail = (userEmail || '').trim().toLowerCase();
-    if (!cleanEmail || !courseId) return;
+    if (!cleanEmail || !courseId) return false;
 
-    // Cek apakah kombinasi user_email + course_id sudah ada di tabel user_access
-    const { data: existing } = await supabaseAdmin
+    const { data: existing, error: existingError } = await supabaseAdmin
         .from('user_access')
-        .select('id')
+        .select('id, is_active')
         .eq('user_email', cleanEmail)
         .eq('course_id', courseId)
-        .limit(1);
+        .limit(1)
+        .maybeSingle();
 
-    if (existing && existing.length > 0) {
-        // Jika sudah ada, cukup aktifkan tanpa membuat baris baru
-        await supabaseAdmin
-            .from('user_access')
-            .update({ is_active: true, order_id: orderId })
-            .eq('id', existing[0].id);
-    } else {
-        // Jika belum ada, buat 1 baris baru
-        await supabaseAdmin
-            .from('user_access')
-            .insert([{
-                user_id: userId || null,
-                user_email: cleanEmail,
-                course_id: courseId,
-                order_id: orderId,
-                is_active: true
-            }]);
+    if (existingError) throw existingError;
+    if (existing) return existing.is_active === true;
+
+    const { error: insertError } = await supabaseAdmin
+        .from('user_access')
+        .insert([{
+            user_id: userId || null,
+            user_email: cleanEmail,
+            course_id: courseId,
+            order_id: orderId,
+            is_active: true
+        }]);
+
+    if (insertError) throw insertError;
+    return true;
+}
+
+async function grantTransactionAccessSafely({ userId, userEmail, courseId, orderId }) {
+    const { data: course, error } = await supabaseAdmin
+        .from('courses')
+        .select('link')
+        .eq('course_id', courseId)
+        .maybeSingle();
+    if (error) throw error;
+
+    const courseIds = Array.from(new Set([
+        courseId,
+        ...parseBundleIdsFromLink(course?.link)
+    ]));
+    for (const id of courseIds) {
+        await grantUserAccessSafely({ userId, userEmail, courseId: id, orderId });
     }
+
+    const { data: activeAccess, error: accessError } = await supabaseAdmin
+        .from('user_access')
+        .select('id')
+        .eq('user_email', String(userEmail || '').trim().toLowerCase())
+        .eq('course_id', courseId)
+        .eq('is_active', true)
+        .limit(1);
+    if (accessError) throw accessError;
+    return Boolean(activeAccess?.length);
 }
 
 // ================= ENDPOINT TRANSAKSI & FOLLOW-UP WA =================
@@ -542,7 +566,8 @@ Apabila ada kendala atau butuh bantuan admin, silakan balas pesan ini. Syukran! 
         res.json({
             token: transaction.token,
             order_id: orderId,
-            expires_at: null
+            expires_at: null,
+            finish_url: getLearningUrl(course_id)
         });
 
     } catch (error) {
@@ -571,32 +596,15 @@ app.get('/api/pending-transaction', async (req, res) => {
 
         if (transactionsError) throw transactionsError;
 
-        const grantTransactionAccess = async transaction => {
-            const { data: course, error } = await supabaseAdmin
-                .from('courses')
-                .select('link')
-                .eq('course_id', courseId)
-                .maybeSingle();
-            if (error) throw error;
-
-            const courseIds = Array.from(new Set([
-                courseId,
-                ...parseBundleIdsFromLink(course?.link)
-            ]));
-            for (const id of courseIds) {
-                await grantUserAccessSafely({
-                    userId: transaction.user_id,
-                    userEmail: email,
-                    courseId: id,
-                    orderId: transaction.order_id
-                });
-            }
-        };
-
         for (const transaction of transactions || []) {
             if (transaction.status === 'success') {
-                await grantTransactionAccess(transaction);
-                return res.json({ active: false, status: 'success' });
+                const accessGranted = await grantTransactionAccessSafely({
+                    userId: transaction.user_id,
+                    userEmail: email,
+                    courseId,
+                    orderId: transaction.order_id
+                });
+                return res.json({ active: false, status: 'success', access_granted: accessGranted });
             }
 
             const midtransStatus = await snap.transaction.status(transaction.order_id);
@@ -613,8 +621,13 @@ app.get('/api/pending-transaction', async (req, res) => {
                     .eq('order_id', transaction.order_id);
                 if (error) throw error;
 
-                await grantTransactionAccess(transaction);
-                return res.json({ active: false, status: 'success' });
+                const accessGranted = await grantTransactionAccessSafely({
+                    userId: transaction.user_id,
+                    userEmail: email,
+                    courseId,
+                    orderId: transaction.order_id
+                });
+                return res.json({ active: false, status: 'success', access_granted: accessGranted });
             }
 
             const isActive = status === 'pending' &&
@@ -666,7 +679,7 @@ app.get('/api/transaction-status/:orderId', async (req, res) => {
 
         const { data: transaction, error: transactionError } = await supabaseAdmin
             .from('transactions')
-            .select('order_id, user_email, course_id, status')
+            .select('order_id, user_id, user_email, course_id, status')
             .eq('order_id', orderId)
             .maybeSingle();
 
@@ -680,7 +693,13 @@ app.get('/api/transaction-status/:orderId', async (req, res) => {
         }
 
         if (transaction.status === 'success') {
-            return res.json({ active: false, status: 'success', expires_at: null });
+            const accessGranted = await grantTransactionAccessSafely({
+                userId: transaction.user_id,
+                userEmail: email,
+                courseId,
+                orderId
+            });
+            return res.json({ active: false, status: 'success', access_granted: accessGranted, expires_at: null });
         }
 
         const midtransStatus = await snap.transaction.status(orderId);
@@ -688,6 +707,29 @@ app.get('/api/transaction-status/:orderId', async (req, res) => {
         const isPending = midtransStatus.transaction_status === 'pending';
         const paymentType = midtransStatus.payment_type || null;
         const isActive = isPending && Boolean(paymentType) && (!validExpiry || validExpiry.getTime() > Date.now());
+        const isSuccessful = ['capture', 'settlement'].includes(midtransStatus.transaction_status) &&
+            (midtransStatus.fraud_status === 'accept' || !midtransStatus.fraud_status);
+
+        if (isSuccessful) {
+            const { error } = await supabaseAdmin
+                .from('transactions')
+                .update({ status: 'success', payment_type: paymentType })
+                .eq('order_id', orderId);
+            if (error) throw error;
+
+            const accessGranted = await grantTransactionAccessSafely({
+                userId: transaction.user_id,
+                userEmail: email,
+                courseId,
+                orderId
+            });
+            return res.json({
+                active: false,
+                status: 'success',
+                access_granted: accessGranted,
+                expires_at: null
+            });
+        }
 
         if (isPending && paymentType) {
             const { error } = await supabaseAdmin
@@ -767,18 +809,12 @@ app.post('/api/midtrans-notification', async (req, res) => {
                     })
                     .eq('order_id', orderId);
 
-                const bundledIds = parseBundleIdsFromLink(courseData?.link);
-                const allCourseIdsToGrant = Array.from(new Set([trx.course_id, ...bundledIds]));
-
-                // Buka akses untuk materi utama maupun seluruh materi di dalam Paket Bundling
-                for (const cid of allCourseIdsToGrant) {
-                    await grantUserAccessSafely({
-                        userId: trx.user_id || userData?.id || null,
-                        userEmail: trx.user_email,
-                        courseId: cid,
-                        orderId: orderId
-                    });
-                }
+                await grantTransactionAccessSafely({
+                    userId: trx.user_id || userData?.id || null,
+                    userEmail: trx.user_email,
+                    courseId: trx.course_id,
+                    orderId
+                });
 
                 if (!wasAlreadySuccess && studentWa) {
                     const formattedRupiah = 'Rp ' + new Intl.NumberFormat('id-ID').format(trx.gross_amount || 0);
