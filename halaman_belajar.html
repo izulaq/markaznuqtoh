@@ -1174,19 +1174,13 @@
                 return false;
 
             } catch (e) {
-                console.warn('Koneksi ke database terganggu, memeriksa fallback cache lokal:', e);
-                // 3. FALLBACK DARURAT SAAT JARINGAN BURUK / OFFLINE:
-                // Agar siswa yang sudah punya akses sah tidak ter-logout/terkunci saat sinyal hilang
-                for (const cid of validAccessIds) {
-                    const localAccessEmail = localStorage.getItem(`nuqthah_access_${cid}_email`);
-                    if (localStorage.getItem(`nuqthah_access_${cid}`) === 'granted' && localAccessEmail === currentUser.email) {
-                        userAccessibleCourseIds.push(cid);
-                    }
-                }
-                return userAccessibleCourseIds.length > 0;
+                console.error('Verifikasi akses gagal; akses ditolak sementara demi keamanan:', e);
+                validAccessIds.forEach(cid => {
+                    localStorage.removeItem(`nuqthah_access_${cid}`);
+                    localStorage.removeItem(`nuqthah_access_${cid}_email`);
+                });
+                return false;
             }
-
-            return false;
         }
 
         /* ================================================================
@@ -2853,8 +2847,16 @@
             updateAccessActionButtons();
         }
 
-        function refreshAccessAfterExternalPayment() {
+        function refreshAccessAfterExternalPayment(accessGranted) {
             clearPendingPayment();
+            if (accessGranted !== true) {
+                isUserHasAccess = false;
+                localStorage.removeItem(`nuqthah_access_${courseId}`);
+                localStorage.removeItem(`nuqthah_access_${courseId}_email`);
+                showToast('Pembayaran berhasil, tetapi akses materi ini sedang diblokir admin. Hubungi admin untuk bantuan.', 'warning', 'Akses Diblokir');
+                return;
+            }
+
             isUserHasAccess = true;
             if (currentUser?.email) saveAccessCache(courseId, currentUser.email);
             document.getElementById('user-status-badge').innerHTML = '<i class="fas fa-check-circle text-emerald-300 mr-1"></i> Akses Penuh Terbuka';
@@ -2880,7 +2882,7 @@
             if (!response.ok) throw new Error(data.error || 'Gagal memeriksa status pembayaran.');
 
             if (data.status === 'success') {
-                refreshAccessAfterExternalPayment();
+                refreshAccessAfterExternalPayment(data.access_granted);
                 return false;
             }
 
@@ -2922,7 +2924,7 @@
                 if (!response.ok) throw new Error(data.error || 'Gagal memeriksa transaksi pembayaran.');
 
                 if (data.status === 'success') {
-                    refreshAccessAfterExternalPayment();
+                    refreshAccessAfterExternalPayment(data.access_granted);
                     return false;
                 }
 
@@ -3121,6 +3123,7 @@
                     token: data.token,
                     orderId: data.order_id,
                     expiresAt: data.expires_at || null,
+                    finishUrl: data.finish_url || null,
                     userEmail: userToUse.email
                 };
                 launchMidtransPayment(paymentInfo, userToUse);
@@ -3131,47 +3134,26 @@
             }
         }
 
+        function getPaymentFinishUrl(paymentInfo) {
+            try {
+                const finishUrl = new URL(paymentInfo.finishUrl || window.location.href, window.location.href);
+                return finishUrl.origin === window.location.origin ? finishUrl.toString() : window.location.href;
+            } catch (error) {
+                console.error('URL kembali setelah pembayaran tidak valid:', error);
+                return window.location.href;
+            }
+        }
+
         function launchMidtransPayment(paymentInfo, userToUse) {
             window.snap.pay(paymentInfo.token, {
-                onSuccess: async function () {
-                    clearPendingPayment();
-                    try {
-                        await supabaseClient.from('transactions')
-                            .update({ status: 'success' })
-                            .eq('order_id', paymentInfo.orderId);
-
-                        // Jika membeli Paket Bundling, buka akses untuk Paket sekaligus seluruh materi di dalam paket
-                        const accessIdsToGrant = isBundleCourse
-                            ? [courseId, ...bundledCourseIds]
-                            : [courseId];
-
-                        // CEK ANTI-DOUBLE: Hanya insert jika belum dimasukkan oleh Webhook Server
-                        for (const cid of accessIdsToGrant) {
-                            const { data: existingAcc } = await supabaseClient
-                                .from('user_access')
-                                .select('id')
-                                .eq('user_email', userToUse.email)
-                                .eq('course_id', cid)
-                                .limit(1);
-
-                            if (!existingAcc || existingAcc.length === 0) {
-                                await supabaseClient.from('user_access').insert([{
-                                    user_id: userToUse.id || null,
-                                    user_email: userToUse.email,
-                                    course_id: cid,
-                                    order_id: paymentInfo.orderId,
-                                    is_active: true
-                                }]);
-                            }
-                            saveAccessCache(cid, userToUse.email);
-                        }
-                    } catch (dbErr) {
-                        console.warn('Info sinkronisasi akses:', dbErr);
-                    }
-
-                    saveAccessCache(courseId, userToUse.email);
-                    showToast('Pembayaran berhasil! Seluruh materi dan latihan soal kini terbuka.', 'success', 'Alhamdulillah');
-                    setTimeout(() => window.location.reload(), 1400);
+                onSuccess: function () {
+                    savePendingPayment({
+                        ...paymentInfo,
+                        userEmail: userToUse.email,
+                        methodSelected: true,
+                        active: true
+                    });
+                    window.location.assign(getPaymentFinishUrl(paymentInfo));
                 },
                 onPending: function (result) {
                     savePendingPayment({
