@@ -540,7 +540,7 @@ app.get('/api/pending-transaction', async (req, res) => {
 
         const { data: transactions, error: transactionsError } = await supabaseAdmin
             .from('transactions')
-            .select('order_id, user_id, status, payment_type')
+            .select('order_id, user_id, status, payment_type, gross_amount')
             .eq('user_email', email)
             .eq('course_id', courseId)
             .in('status', ['pending', 'success'])
@@ -611,7 +611,9 @@ app.get('/api/pending-transaction', async (req, res) => {
                     active: true,
                     order_id: transaction.order_id,
                     payment_type: paymentType,
-                    expires_at: validExpiry ? validExpiry.toISOString() : null
+                    gross_amount: transaction.gross_amount,
+                    expires_at: validExpiry ? validExpiry.toISOString() : null,
+                    server_time: new Date().toISOString()
                 });
             }
 
