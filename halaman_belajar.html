@@ -2507,6 +2507,7 @@
                 pendingPaymentInfo &&
                 pendingPaymentInfo.courseId === courseId &&
                 pendingPaymentInfo.userEmail === String(currentUser?.email || '').trim().toLowerCase() &&
+                pendingPaymentInfo.methodSelected === true &&
                 pendingPaymentInfo.active !== false &&
                 (!pendingPaymentInfo.expiresAt || Date.parse(pendingPaymentInfo.expiresAt) > Date.now())
             );
@@ -2524,6 +2525,7 @@
                 ...info,
                 courseId,
                 userEmail: String(info.userEmail || '').trim().toLowerCase(),
+                methodSelected: true,
                 active: true
             };
             localStorage.setItem(pendingPaymentStorageKey, JSON.stringify(pendingPaymentInfo));
@@ -2563,6 +2565,8 @@
             }
 
             pendingPaymentInfo.active = true;
+            pendingPaymentInfo.methodSelected = Boolean(data.payment_type);
+            pendingPaymentInfo.paymentType = data.payment_type || pendingPaymentInfo.paymentType || null;
             pendingPaymentInfo.expiresAt = data.expires_at || null;
             localStorage.setItem(pendingPaymentStorageKey, JSON.stringify(pendingPaymentInfo));
             updateAccessActionButtons();
@@ -2598,7 +2602,7 @@
 
                 pendingPaymentInfo = paymentInfo;
                 pendingPaymentInfo.active = true;
-                updateAccessActionButtons();
+                if (pendingPaymentInfo.methodSelected === true) updateAccessActionButtons();
                 startPendingPaymentStatusChecks();
                 const isActive = await checkPendingPaymentStatus();
                 if (!isActive) {
@@ -2737,13 +2741,13 @@
                 if (!data.token) throw new Error(data.error || 'Gagal mendapatkan token pembayaran.');
 
                 closeCheckoutModal();
-                savePendingPayment({
+                const paymentInfo = {
                     token: data.token,
                     orderId: data.order_id,
                     expiresAt: data.expires_at || null,
                     userEmail: userToUse.email
-                });
-                launchMidtransPayment(pendingPaymentInfo, userToUse);
+                };
+                launchMidtransPayment(paymentInfo, userToUse);
 
             } catch (err) {
                 console.error(err);
@@ -2793,7 +2797,16 @@
                     showToast('Pembayaran berhasil! Seluruh materi dan latihan soal kini terbuka.', 'success', 'Alhamdulillah');
                     setTimeout(() => window.location.reload(), 1400);
                 },
-                onPending: function () {
+                onPending: function (result) {
+                    savePendingPayment({
+                        ...paymentInfo,
+                        userEmail: userToUse.email,
+                        paymentType: result?.payment_type || null
+                    });
+                    checkPendingPaymentStatus().catch(error => {
+                        console.error('Gagal menyinkronkan metode pembayaran:', error);
+                        showToast('Metode pembayaran dipilih, tetapi status transaksi belum dapat disinkronkan.', 'warning', 'Status Pembayaran');
+                    });
                     showToast('Pembayaran Anda menunggu penyelesaian. Akses terbuka otomatis setelah dikonfirmasi.', 'warning', 'Menunggu Pembayaran');
                 },
                 onError: function () {
