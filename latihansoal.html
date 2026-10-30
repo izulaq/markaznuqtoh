@@ -1435,7 +1435,9 @@
                         saveAccessCache(selectedCourseObj.course_id, userToUse.email);
 
                         showToast('Pembayaran berhasil! Seluruh soal dan materi kini terbuka untuk akun Anda.', 'success', 'Alhamdulillah');
-                        resumeQuizAfterAccess();
+                        const learningUrl = new URL('halaman_belajar.html', window.location.href);
+                        learningUrl.searchParams.set('course_id', selectedCourseObj.course_id);
+                        window.location.assign(learningUrl.toString());
                     },
                     onPending: function () {
                         showToast('Pembayaran Anda sedang menunggu penyelesaian. Akses terbuka otomatis setelah pembayaran dikonfirmasi.', 'warning', 'Menunggu Pembayaran');
