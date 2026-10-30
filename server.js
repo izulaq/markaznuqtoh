@@ -357,6 +357,19 @@ function parseBundleIdsFromLink(rawLink) {
     }
 }
 
+function parseMidtransExpiryTime(value) {
+    if (!value) return null;
+
+    const expiryTime = String(value).trim();
+    const normalizedTime = expiryTime.includes('T')
+        ? expiryTime
+        : expiryTime.replace(' ', 'T');
+    const hasTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(normalizedTime);
+    const parsedTime = new Date(hasTimezone ? normalizedTime : `${normalizedTime}+07:00`);
+
+    return Number.isFinite(parsedTime.getTime()) ? parsedTime : null;
+}
+
 // ================= HELPER: NORMALISASI NOMOR & KIRIM WA FONNTE =================
 function normalizePhoneNumber(phone) {
     if (!phone) return '';
@@ -580,8 +593,7 @@ app.get('/api/pending-transaction', async (req, res) => {
             const midtransStatus = await snap.transaction.status(transaction.order_id);
             const status = midtransStatus.transaction_status;
             const paymentType = midtransStatus.payment_type || transaction.payment_type || null;
-            const expiresAt = midtransStatus.expiry_time ? new Date(midtransStatus.expiry_time) : null;
-            const validExpiry = expiresAt && Number.isFinite(expiresAt.getTime()) ? expiresAt : null;
+            const validExpiry = parseMidtransExpiryTime(midtransStatus.expiry_time);
             const isSuccessful = ['capture', 'settlement'].includes(status) &&
                 (midtransStatus.fraud_status === 'accept' || !midtransStatus.fraud_status);
 
@@ -663,10 +675,7 @@ app.get('/api/transaction-status/:orderId', async (req, res) => {
         }
 
         const midtransStatus = await snap.transaction.status(orderId);
-        const expiresAt = midtransStatus.expiry_time
-            ? new Date(midtransStatus.expiry_time)
-            : null;
-        const validExpiry = expiresAt && Number.isFinite(expiresAt.getTime()) ? expiresAt : null;
+        const validExpiry = parseMidtransExpiryTime(midtransStatus.expiry_time);
         const isPending = midtransStatus.transaction_status === 'pending';
         const paymentType = midtransStatus.payment_type || null;
         const isActive = isPending && Boolean(paymentType) && (!validExpiry || validExpiry.getTime() > Date.now());
