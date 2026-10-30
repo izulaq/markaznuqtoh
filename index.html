@@ -656,6 +656,8 @@
         let currentUser = null;
         let savedItems = [];
         let pendingPaymentItems = [];
+        let pendingPaymentCountdownInterval = null;
+        let isRefreshingExpiredPayments = false;
         let isLoggedIn = false;
         let allCourses = [];
         let purchasedCourseIds = new Set();
@@ -946,6 +948,7 @@
                 if (!transaction.course_id || !transaction.payment_type || purchasedCourseIds.has(transaction.course_id) || latestByCourse.has(transaction.course_id)) return;
                 const course = allCourses.find(item => item.course_id === transaction.course_id);
                 latestByCourse.set(transaction.course_id, {
+                    order_id: transaction.order_id,
                     course_id: transaction.course_id,
                     title: course?.title || transaction.course_id,
                     link: `halaman_belajar.html?course_id=${encodeURIComponent(transaction.course_id)}`,
@@ -953,7 +956,85 @@
                     payment_type: transaction.payment_type
                 });
             });
-            pendingPaymentItems = Array.from(latestByCourse.values());
+
+            const verifiedPayments = await Promise.all(Array.from(latestByCourse.values()).map(async item => {
+                try {
+                    const query = new URLSearchParams({
+                        email: String(currentUser.email).trim().toLowerCase(),
+                        course_id: item.course_id
+                    });
+                    const response = await fetch(`${BACKEND_BASE_URL}/api/pending-transaction?${query}`);
+                    const status = await response.json();
+                    if (!response.ok) throw new Error(status.error || 'Gagal memeriksa transaksi tertunda.');
+                    if (!status.active) return null;
+
+                    const courseTransaction = (data || []).find(transaction =>
+                        transaction.order_id === status.order_id
+                    );
+                    return {
+                        ...item,
+                        order_id: status.order_id,
+                        gross_amount: status.gross_amount ?? courseTransaction?.gross_amount ?? item.gross_amount,
+                        payment_type: status.payment_type || item.payment_type,
+                        expires_at: status.expires_at || null,
+                        server_offset_ms: status.server_time
+                            ? Date.parse(status.server_time) - Date.now()
+                            : 0
+                    };
+                } catch (verificationError) {
+                    console.error(`Gagal memverifikasi pembayaran materi ${item.course_id}:`, verificationError);
+                    return null;
+                }
+            }));
+            pendingPaymentItems = verifiedPayments.filter(Boolean);
+        }
+
+        function formatPaymentCountdown(milliseconds) {
+            const totalSeconds = Math.max(0, Math.floor(milliseconds / 1000));
+            const hours = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
+            const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
+            const seconds = String(totalSeconds % 60).padStart(2, '0');
+            return `${hours}:${minutes}:${seconds}`;
+        }
+
+        function refreshPendingPaymentsAfterExpiry() {
+            if (isRefreshingExpiredPayments) return;
+            isRefreshingExpiredPayments = true;
+            fetchPendingPaymentItems()
+                .then(renderDashboardWidgets)
+                .catch(error => console.error('Gagal memperbarui pembayaran kedaluwarsa:', error))
+                .finally(() => { isRefreshingExpiredPayments = false; });
+        }
+
+        function updatePendingPaymentCountdowns() {
+            const countdowns = document.querySelectorAll('[data-payment-countdown]');
+            let hasActiveCountdown = false;
+            let hasExpiredCountdown = false;
+
+            countdowns.forEach(countdown => {
+                const expiresAt = Date.parse(countdown.dataset.expiresAt || '');
+                if (!Number.isFinite(expiresAt)) {
+                    countdown.textContent = 'Waktu pembayaran tidak tersedia';
+                    return;
+                }
+
+                const remainingMs = expiresAt - Date.now() - Number(countdown.dataset.serverOffsetMs || 0);
+                if (remainingMs <= 0) {
+                    countdown.textContent = '00:00:00';
+                    countdown.classList.add('text-red-600');
+                    hasExpiredCountdown = true;
+                    return;
+                }
+
+                countdown.textContent = formatPaymentCountdown(remainingMs);
+                hasActiveCountdown = true;
+            });
+
+            if (hasExpiredCountdown) refreshPendingPaymentsAfterExpiry();
+            if (!hasActiveCountdown && pendingPaymentCountdownInterval) {
+                clearInterval(pendingPaymentCountdownInterval);
+                pendingPaymentCountdownInterval = null;
+            }
         }
 
         async function loadSavedMaterials() {
@@ -1135,6 +1216,10 @@
             const pendingContainer = document.getElementById('pending-payment-container');
 
             if (pendingSection && pendingContainer) {
+                if (pendingPaymentCountdownInterval) {
+                    clearInterval(pendingPaymentCountdownInterval);
+                    pendingPaymentCountdownInterval = null;
+                }
                 pendingContainer.innerHTML = '';
                 if (isLoggedIn && pendingPaymentItems.length > 0) {
                     pendingSection.classList.remove('hidden');
@@ -1155,6 +1240,9 @@
                                 <span class="text-[9px] font-bold text-amber-700 uppercase tracking-wide">Menunggu Pembayaran</span>
                                 <h3 class="text-sm font-bold text-gray-800 truncate">${escapeHtml(item.title)}</h3>
                                 <p class="text-[11px] text-gray-500">${escapeHtml(String(item.payment_type).replace(/_/g, ' '))} · ${amount}</p>
+                                <p class="text-[11px] font-semibold text-amber-700 mt-1">
+                                    Bayar dalam <span data-payment-countdown data-expires-at="${escapeHtml(item.expires_at || '')}" data-server-offset-ms="${item.server_offset_ms || 0}">--:--:--</span>
+                                </p>
                             </div>
                             <span class="text-[10px] md:text-xs font-bold text-primary whitespace-nowrap group-hover:underline">
                                 Lanjutkan Pembayaran <i class="fas fa-arrow-right ml-1"></i>
@@ -1162,6 +1250,8 @@
                         `;
                         pendingContainer.appendChild(card);
                     });
+                    updatePendingPaymentCountdowns();
+                    pendingPaymentCountdownInterval = setInterval(updatePendingPaymentCountdowns, 1000);
                 } else {
                     pendingSection.classList.add('hidden');
                 }
