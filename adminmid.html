@@ -2097,12 +2097,49 @@
         function toLocalDatetimeInput(isoString) {
             if (!isoString) return '';
             const date = new Date(isoString);
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-            const hours = String(date.getHours()).padStart(2, '0');
-            const minutes = String(date.getMinutes()).padStart(2, '0');
-            return `${year}-${month}-${day}T${hours}:${minutes}`;
+            const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
+                timeZone: 'Africa/Cairo',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                hourCycle: 'h23'
+            }).formatToParts(date).map(part => [part.type, part.value]));
+            return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
+        }
+
+        function cairoDateTimeToIso(dateTime) {
+            const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(dateTime);
+            if (!match) throw new Error('Tanggal dan jam Kairo tidak valid.');
+
+            const [, year, month, day, hour, minute] = match.map(Number);
+            const targetUtc = Date.UTC(year, month - 1, day, hour, minute);
+            let timestamp = targetUtc;
+            const formatter = new Intl.DateTimeFormat('en-CA', {
+                timeZone: 'Africa/Cairo',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hourCycle: 'h23'
+            });
+
+            for (let attempt = 0; attempt < 4; attempt++) {
+                const parts = Object.fromEntries(formatter.formatToParts(new Date(timestamp))
+                    .map(part => [part.type, Number(part.value)]));
+                const displayedUtc = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second);
+                const correctedTimestamp = timestamp + targetUtc - displayedUtc;
+                if (correctedTimestamp === timestamp) break;
+                timestamp = correctedTimestamp;
+            }
+
+            if (toLocalDatetimeInput(new Date(timestamp).toISOString()) !== dateTime) {
+                throw new Error('Waktu tersebut tidak valid dalam zona waktu Kairo.');
+            }
+            return new Date(timestamp).toISOString();
         }
 
         // ================================================================
@@ -2813,7 +2850,7 @@
                     categoryScheduleTable.appendChild(courseContent);
 
                     schedules.forEach(s => {
-                    const dateFormatted = new Date(s.start_time).toLocaleString('id-ID', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                    const dateFormatted = new Date(s.start_time).toLocaleString('id-ID', { timeZone: 'Africa/Cairo', hourCycle: 'h23', weekday: 'long', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' CLT';
 
                     let statusBadge = '';
                     if (s.status === 'scheduled') statusBadge = `<span class="px-2 py-1 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">Terjadwal</span>`;
@@ -2873,10 +2910,10 @@
                     if (!datetime) throw new Error("Waktu spesifik wajib diisi.");
 
                     scheduleData.push({
-                        course_id, title: `${titlePrefix} 1`, start_time: new Date(datetime).toISOString(), meeting_link, status: 'scheduled', is_rescheduled: false, reschedule_reason: null
+                        course_id, title: `${titlePrefix} 1`, start_time: cairoDateTimeToIso(datetime), meeting_link, status: 'scheduled', is_rescheduled: false, reschedule_reason: null
                     });
                 } else {
-                    const startDate = new Date(document.getElementById('jadwal-start_date').value);
+                    const startDate = new Date(`${document.getElementById('jadwal-start_date').value}T00:00:00Z`);
                     const totalMeetings = parseInt(document.getElementById('jadwal-total_meetings').value);
                     const checkedDays = Array.from(document.querySelectorAll('input[name="jadwal_days"]:checked')).map(cb => parseInt(cb.value));
 
@@ -2896,19 +2933,15 @@
                     let count = 0;
 
                     while (count < totalMeetings) {
-                        const currentDayOfWeek = currentDate.getDay();
+                        const currentDayOfWeek = currentDate.getUTCDay();
                         if (checkedDays.includes(currentDayOfWeek)) {
                             const timeVal = document.getElementById(`time-day-${currentDayOfWeek}`).value;
-                            const [hours, minutes] = timeVal.split(':');
-
-                            // Set jam spesifik untuk hari tersebut
-                            const meetingDate = new Date(currentDate);
-                            meetingDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+                            const meetingDate = currentDate.toISOString().slice(0, 10);
 
                             scheduleData.push({
                                 course_id,
                                 title: `${titlePrefix} ${count + 1}`,
-                                start_time: meetingDate.toISOString(),
+                                start_time: cairoDateTimeToIso(`${meetingDate}T${timeVal}`),
                                 meeting_link,
                                 status: 'scheduled',
                                 is_rescheduled: false,
@@ -2916,7 +2949,7 @@
                             });
                             count++;
                         }
-                        currentDate.setDate(currentDate.getDate() + 1);
+                        currentDate.setUTCDate(currentDate.getUTCDate() + 1);
                     }
                 }
 
@@ -2990,7 +3023,7 @@
             const updateData = {
                 course_id: document.getElementById('edit-jadwal-course_id').value,
                 title: document.getElementById('edit-jadwal-title').value.trim(),
-                start_time: new Date(document.getElementById('edit-jadwal-start_time').value).toISOString(),
+                start_time: cairoDateTimeToIso(document.getElementById('edit-jadwal-start_time').value),
                 meeting_link: document.getElementById('edit-jadwal-meeting_link').value.trim(),
                 status: document.getElementById('edit-jadwal-status').value,
                 is_rescheduled: isRescheduled,

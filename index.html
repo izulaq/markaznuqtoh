@@ -1025,8 +1025,8 @@
 
             // Format Tanggal
             const dateObj = new Date(schedule.start_time);
-            const options = { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' };
-            const formattedDate = dateObj.toLocaleDateString('id-ID', options).replace('.', ':') + ' WIB';
+            const options = { timeZone: 'Africa/Cairo', hourCycle: 'h23', weekday: 'long', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' };
+            const formattedDate = dateObj.toLocaleString('id-ID', options) + ' CLT';
             const courseTitle = schedule.courses?.title || 'Kelas Anda';
             const instructor = schedule.courses?.instructor || 'Pengajar';
 
