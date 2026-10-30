@@ -370,6 +370,12 @@ function parseMidtransExpiryTime(value) {
     return Number.isFinite(parsedTime.getTime()) ? parsedTime : null;
 }
 
+function getLearningUrl(courseId) {
+    const url = new URL('https://markaz.nuqthahlearning.my.id/halaman_belajar.html');
+    url.searchParams.set('course_id', String(courseId));
+    return url.toString();
+}
+
 // ================= HELPER: NORMALISASI NOMOR & KIRIM WA FONNTE =================
 function normalizePhoneNumber(phone) {
     if (!phone) return '';
@@ -492,6 +498,9 @@ app.post('/api/create-transaction', async (req, res) => {
                 first_name: studentName,
                 email: user_email || 'student@nuqthah.com',
                 phone: studentWa
+            },
+            callbacks: {
+                finish: getLearningUrl(course_id)
             }
         };
 
@@ -510,7 +519,7 @@ app.post('/api/create-transaction', async (req, res) => {
 
         if (studentWa) {
             const formattedRupiah = 'Rp ' + new Intl.NumberFormat('id-ID').format(cleanPrice);
-            const learningUrl = `https://markaz.nuqthahlearning.my.id/halaman_belajar.html?course_id=${course_id}`;
+            const learningUrl = getLearningUrl(course_id);
 
             const followUpMsg = 
 `Assalamu'alaikum *${studentName}* 👋
@@ -743,7 +752,7 @@ app.post('/api/midtrans-notification', async (req, res) => {
         const studentName = userData?.name || 'Sahabat Nuqthah';
         const studentWa = userData?.whatsapp || '';
         const courseTitle = courseData?.title || trx.course_id;
-        const learningUrl = `https://markaz.nuqthahlearning.my.id/halaman_belajar.html?course_id=${trx.course_id}`;
+        const learningUrl = getLearningUrl(trx.course_id);
 
         if (transactionStatus == 'capture' || transactionStatus == 'settlement') {
             if (fraudStatus == 'accept' || !fraudStatus) {
