@@ -83,7 +83,8 @@
 
         .course-card {
             box-shadow: 0 4px 15px -3px rgba(0, 0, 0, 0.05);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            will-change: transform;
         }
 
         .course-card:hover {
@@ -422,7 +423,7 @@
 
         <!-- Header Katalog & Search Bar -->
         <div
-            class="sticky-filter sticky bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-sm transition-all duration-300">
+            class="sticky-filter sticky bg-white border-b border-gray-100 shadow-sm transition-all duration-300">
             <div
                 class="max-w-screen-xl mx-auto px-4 md:px-6 py-3 flex flex-col md:flex-row items-center justify-between gap-3">
 
@@ -1265,6 +1266,7 @@
         function renderCoursesToDOM() {
             const grid = document.getElementById('course-grid');
             grid.querySelectorAll('.course-card').forEach(el => el.remove());
+            const fragment = document.createDocumentFragment();
 
             allCourses.forEach(course => {
                 const isPurchased = purchasedCourseIds.has(course.course_id);
@@ -1297,7 +1299,7 @@
 
                 cardDiv.innerHTML = `
                     <div class="relative overflow-hidden group aspect-[4/3] bg-gray-100">
-                        <img src="${course.image || DEFAULT_IMG}" alt="${escapeHtml(course.title)}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
+                        <img src="${course.image || DEFAULT_IMG}" alt="${escapeHtml(course.title)}" loading="lazy" decoding="async" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
                         ${topBadgesHtml}
                         <button onclick="saveToMaterimu('${course.course_id}')" title="Simpan ke Materimu" class="absolute top-2 right-2 z-20 w-7 h-7 bg-white/90 backdrop-blur-sm text-gray-600 hover:text-primary rounded-md flex items-center justify-center shadow-sm transition-colors text-xs cursor-pointer">
                             <i class="far fa-bookmark"></i>
@@ -1324,8 +1326,9 @@
                         </div>
                     </div>
                 `;
-                grid.appendChild(cardDiv);
+                fragment.appendChild(cardDiv);
             });
+            grid.appendChild(fragment);
             applyFilters();
         }
 
