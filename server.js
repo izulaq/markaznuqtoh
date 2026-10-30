@@ -564,11 +564,21 @@ app.get('/api/transaction-status/:orderId', async (req, res) => {
             : null;
         const validExpiry = expiresAt && Number.isFinite(expiresAt.getTime()) ? expiresAt : null;
         const isPending = midtransStatus.transaction_status === 'pending';
-        const isActive = isPending && (!validExpiry || validExpiry.getTime() > Date.now());
+        const paymentType = midtransStatus.payment_type || null;
+        const isActive = isPending && Boolean(paymentType) && (!validExpiry || validExpiry.getTime() > Date.now());
+
+        if (isPending && paymentType) {
+            const { error } = await supabaseAdmin
+                .from('transactions')
+                .update({ status: 'pending', payment_type: paymentType })
+                .eq('order_id', orderId);
+            if (error) throw error;
+        }
 
         return res.json({
             active: isActive,
             status: midtransStatus.transaction_status || 'unknown',
+            payment_type: paymentType,
             expires_at: validExpiry ? validExpiry.toISOString() : null
         });
     } catch (error) {
@@ -671,6 +681,17 @@ Selamat belajar, semoga ilmunya bermanfaat dan berkah! 🌟
 
                     await sendFonnteWhatsApp(studentWa, successMsg);
                 }
+            }
+        } else if (transactionStatus == 'pending') {
+            if (trx.status !== 'success') {
+                const { error } = await supabaseAdmin
+                    .from('transactions')
+                    .update({
+                        status: 'pending',
+                        payment_type: paymentType
+                    })
+                    .eq('order_id', orderId);
+                if (error) throw error;
             }
         } else if (transactionStatus == 'cancel' || transactionStatus == 'deny' || transactionStatus == 'expire') {
             const wasAlreadyFailed = trx.status === 'failed';
