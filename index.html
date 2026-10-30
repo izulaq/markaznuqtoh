@@ -1334,55 +1334,50 @@
                 return;
             }
 
-            const totalAnswered = validHistory.reduce((sum, item) => sum + Number(item.total), 0);
-            const totalCorrect = validHistory.reduce((sum, item) => sum + Number(item.correct), 0);
-            const percentage = totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0;
-            const barColor = percentage > 75
-                ? 'bg-emerald-500'
-                : percentage >= 50 ? 'bg-amber-400' : 'bg-red-500';
-            const recentHistory = validHistory
-                .slice()
-                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                .slice(0, 3);
+            const courseEvaluations = new Map();
+            validHistory.forEach(item => {
+                const title = String(item.courseTitle || 'Materi').trim();
+                const normalizedTitle = title.toLowerCase();
+                const evaluation = courseEvaluations.get(normalizedTitle) || {
+                    title, total: 0, correct: 0, latest: null
+                };
+                evaluation.total += Number(item.total);
+                evaluation.correct += Number(item.correct);
+                if (!evaluation.latest || new Date(item.date).getTime() > new Date(evaluation.latest.date).getTime()) {
+                    evaluation.latest = item;
+                }
+                courseEvaluations.set(normalizedTitle, evaluation);
+            });
 
             section.classList.remove('hidden');
             container.innerHTML = `
-                <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
-                    <div class="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-                        <div class="grid grid-cols-2 gap-3">
-                            <div class="rounded-xl bg-blue-50 p-3">
-                                <p class="text-[10px] font-bold uppercase tracking-wide text-blue-600">Total Soal</p>
-                                <p class="mt-1 text-2xl font-extrabold text-gray-800">${totalAnswered}</p>
-                            </div>
-                            <div class="rounded-xl bg-emerald-50 p-3">
-                                <p class="text-[10px] font-bold uppercase tracking-wide text-emerald-600">Jawaban Benar</p>
-                                <p class="mt-1 text-2xl font-extrabold text-gray-800">${totalCorrect}</p>
-                            </div>
-                        </div>
-                        <div class="mt-4">
-                            <div class="mb-2 flex items-center justify-between">
-                                <span class="text-xs font-bold text-gray-600">Pemahaman</span>
-                                <span class="text-sm font-extrabold text-gray-800">${percentage}%</span>
-                            </div>
-                            <div class="h-2.5 overflow-hidden rounded-full bg-gray-100">
-                                <div class="${barColor} h-full rounded-full transition-all duration-500" style="width:${Math.min(percentage, 100)}%"></div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm lg:col-span-2">
-                        <h3 class="mb-3 text-sm font-bold text-gray-800">Riwayat Latihan Terakhir</h3>
-                        <div class="space-y-2">
-                            ${recentHistory.map(item => `
-                                <div class="flex items-center justify-between gap-3 rounded-xl bg-gray-50 px-3 py-2.5">
-                                    <div class="min-w-0">
-                                        <p class="truncate text-xs font-bold text-gray-800">${escapeHtml(item.courseTitle || 'Materi')} (Sesi ${Number(item.session) || 1})</p>
-                                        <p class="mt-0.5 text-[10px] text-gray-500">${item.date && !Number.isNaN(new Date(item.date).getTime()) ? new Date(item.date).toLocaleDateString('id-ID') : ''}</p>
-                                    </div>
-                                    <span class="shrink-0 rounded-lg bg-white px-2.5 py-1 text-xs font-bold text-primary">${Number(item.correct)}/${Number(item.total)}</span>
+                <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                    ${Array.from(courseEvaluations.values())
+                    .sort((a, b) => new Date(b.latest?.date || 0).getTime() - new Date(a.latest?.date || 0).getTime())
+                    .map(item => {
+                        const percentage = item.total > 0 ? Math.round((item.correct / item.total) * 100) : 0;
+                        const level = percentage <= 50
+                            ? { label: 'Perlu Belajar Lagi', color: 'text-red-700', background: 'bg-red-50', bar: 'bg-red-500' }
+                            : percentage <= 80
+                                ? { label: 'Cukup Memahami', color: 'text-amber-700', background: 'bg-amber-50', bar: 'bg-amber-400' }
+                                : { label: 'Mahir / Siap Ujian', color: 'text-emerald-700', background: 'bg-emerald-50', bar: 'bg-emerald-500' };
+                        return `
+                            <article class="rounded-xl border border-gray-100 bg-white px-3 py-2.5 shadow-sm">
+                                <div class="flex min-w-0 items-center justify-between gap-2">
+                                    <h3 class="truncate text-xs font-bold text-gray-800" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</h3>
+                                    <span class="shrink-0 text-xs font-extrabold ${level.color}">${percentage}%</span>
                                 </div>
-                            `).join('')}
-                        </div>
-                    </div>
+                                <div class="mt-1 flex items-center justify-between gap-2">
+                                    <p class="truncate text-[10px] font-semibold ${level.color}">Pemahaman ${escapeHtml(item.title)}: ${percentage}%</p>
+                                    <span class="shrink-0 rounded-full ${level.background} px-2 py-0.5 text-[9px] font-bold ${level.color}">${level.label}</span>
+                                </div>
+                                <div class="mt-2 h-1 overflow-hidden rounded-full bg-gray-100">
+                                    <div class="${level.bar} h-full rounded-full" style="width:${percentage}%"></div>
+                                </div>
+                                <p class="mt-1 text-[9px] text-gray-400">Terakhir: Sesi ${Number(item.latest?.session) || 1} · ${Number(item.latest?.correct) || 0}/${Number(item.latest?.total) || 0}</p>
+                            </article>
+                        `;
+                    }).join('')}
                 </div>
             `;
         }
