@@ -809,6 +809,27 @@
                 </div>
             </div>
 
+            <div id="pq-session-modal"
+                class="fixed inset-0 z-[1000000] hidden items-center justify-center bg-black/60 p-4">
+                <div class="w-full max-w-md rounded-3xl bg-white p-6 text-center shadow-2xl">
+                    <div
+                        class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 text-2xl">
+                        <i class="fas fa-check"></i>
+                    </div>
+                    <h2 id="pq-session-title" class="mb-2 text-2xl font-bold text-primary">Sesi Selesai!</h2>
+                    <p id="pq-session-summary" class="mb-6 text-sm text-gray-600">0 Benar, 0 Salah</p>
+                    <div class="flex flex-col gap-3 sm:flex-row">
+                        <button onclick="continuePracticeSession()"
+                            class="w-full rounded-xl bg-primary px-4 py-3 text-sm font-bold text-white transition hover:bg-opacity-90">
+                            Lanjut ke Sesi Berikutnya
+                        </button>
+                        <button onclick="closePracticeSessionAndShowResult()"
+                            class="w-full rounded-xl bg-gray-100 px-4 py-3 text-sm font-bold text-gray-700 transition hover:bg-gray-200">
+                            Tutup &amp; Lihat Hasil Sementara
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -823,6 +844,7 @@
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         const BACKEND_BASE_URL = 'https://markaznuqtoh.vercel.app';
+        const SOAL_PER_SESI = 20;
 
         /* ================================================================
            STATE
@@ -863,8 +885,12 @@
         let allLoadedQuizzes = []; // Semua kuis untuk course ini (atau gabungan paket)
         let activePracticeQuizzes = []; // Kuis yang sedang dikerjakan di modal
         let activePracticeTitle = 'Latihan Soal Interaktif';
+        let activePracticeCourseTitle = 'Latihan Soal Interaktif';
+        let activePracticeCourseId = null;
         let pqIndex = 0;
         let pqScore = 0;
+        let pqTotalSessions = 0;
+        let pqSessionStartScore = 0;
         let pqSelected = null;
 
         let playerSyncInterval = null;
@@ -1344,6 +1370,7 @@
                 const targetIdsForContent = isBundleCourse
                     ? [courseId, ...bundledCourseIds]
                     : [courseId];
+                const practiceCourseIds = [...new Set(targetIdsForContent.flatMap(getPracticeCourseGroupIds))];
 
                 // Muat Modul Video
                 const { data: modules, error: mErr } = await supabaseClient
@@ -1379,7 +1406,7 @@
                 }
 
                 // Muat Latihan Soal (untuk satuan maupun paket)
-                await loadPracticeQuizzes(targetIdsForContent);
+                await loadPracticeQuizzes(practiceCourseIds);
                 updateAccessActionButtons();
 
             } catch (err) {
@@ -2214,13 +2241,114 @@
                 if (error || !data) {
                     allLoadedQuizzes = [];
                 } else {
-                    allLoadedQuizzes = data;
+                    allLoadedQuizzes = sortPracticeQuestions(data, targetIds);
                 }
             } catch (e) {
                 console.warn('Gagal memuat soal latihan:', e);
                 allLoadedQuizzes = [];
             }
             renderPracticeSection();
+        }
+
+        function normalizePracticeCourseTitle(title) {
+            return String(title || '').replace(/\s*\(?(Online|Offline)\)?/gi, '').trim();
+        }
+
+        function getPracticeCourseGroupIds(baseCourseId) {
+            const baseCourse = bundledCoursesMap[baseCourseId];
+            if (!baseCourse) return [baseCourseId];
+            if (parseBundleInfo(baseCourse).isBundle || String(baseCourse.title || '').toLowerCase().includes('paket')) {
+                return [baseCourseId];
+            }
+
+            const normalizedTitle = normalizePracticeCourseTitle(baseCourse.title);
+            return Object.values(bundledCoursesMap)
+                .filter(course =>
+                    course.category === baseCourse.category &&
+                    course.subfilter === baseCourse.subfilter &&
+                    !parseBundleInfo(course).isBundle &&
+                    !String(course.title || '').toLowerCase().includes('paket') &&
+                    normalizePracticeCourseTitle(course.title) === normalizedTitle
+                )
+                .sort((a, b) =>
+                    (Number(a.position) || 0) - (Number(b.position) || 0) ||
+                    String(a.course_id).localeCompare(String(b.course_id))
+                )
+                .map(course => course.course_id);
+        }
+
+        function sortPracticeQuestions(questions, courseIds) {
+            const courseOrder = new Map(courseIds.map((id, index) => [String(id), index]));
+            return [...questions].sort((a, b) => {
+                const courseDifference =
+                    (courseOrder.get(String(a.course_id)) ?? Number.MAX_SAFE_INTEGER) -
+                    (courseOrder.get(String(b.course_id)) ?? Number.MAX_SAFE_INTEGER);
+                if (courseDifference !== 0) return courseDifference;
+
+                const questionA = [a.question, a.option_a || a['option_-a'], a.option_b || a['option_-b'],
+                a.option_c || a['option_-c'], a.option_d || a['option_-d'], a.correct_answer]
+                    .map(value => String(value || '')).join('|');
+                const questionB = [b.question, b.option_a || b['option_-a'], b.option_b || b['option_-b'],
+                b.option_c || b['option_-c'], b.option_d || b['option_-d'], b.correct_answer]
+                    .map(value => String(value || '')).join('|');
+                return questionA.localeCompare(questionB);
+            });
+        }
+
+        function getPracticeProgress(courseId) {
+            try {
+                return JSON.parse(localStorage.getItem(`nuqthah_quiz_progress_${courseId}`) || 'null');
+            } catch (error) {
+                console.warn('Progres latihan tersimpan tidak valid:', error);
+                return null;
+            }
+        }
+
+        function getPracticeStartScore(courseId) {
+            const storedScore = Number(localStorage.getItem(`nuqthah_quiz_session_start_${courseId}`));
+            return Number.isFinite(storedScore) ? storedScore : 0;
+        }
+
+        function getPracticeActionLabel(courseId) {
+            const progress = getPracticeProgress(courseId);
+            if (progress && !progress.isCompleted && progress.lastIndex > 0) {
+                return `Lanjutkan (Sesi ${progress.currentSession} - Soal ${progress.lastIndex + 1})`;
+            }
+            return 'Mulai';
+        }
+
+        function savePracticeProgress(isCompleted = false) {
+            if (!activePracticeCourseId) return;
+            localStorage.setItem(`nuqthah_quiz_progress_${activePracticeCourseId}`, JSON.stringify({
+                lastIndex: pqIndex,
+                currentSession: Math.min(pqTotalSessions, Math.floor(pqIndex / SOAL_PER_SESI) + 1),
+                totalCorrect: pqScore,
+                totalAnswered: pqIndex,
+                isCompleted
+            }));
+        }
+
+        function savePracticeSessionHistory(session, correct, total) {
+            if (!currentUser?.email) return;
+
+            const email = currentUser.email.trim().toLowerCase();
+            const key = `nuqthah_quiz_history_${email}`;
+            let history = [];
+            try {
+                const stored = JSON.parse(localStorage.getItem(key) || '[]');
+                if (Array.isArray(stored)) history = stored;
+            } catch (error) {
+                console.warn('Riwayat latihan tersimpan tidak valid:', error);
+            }
+
+            history.push({
+                courseTitle: activePracticeCourseTitle,
+                session,
+                correct,
+                total,
+                date: new Date().toISOString()
+            });
+            localStorage.setItem(key, JSON.stringify(history));
         }
 
         function renderPracticeSection() {
@@ -2267,10 +2395,12 @@
                 let cardsHtml = '';
 
                 groupOrder.forEach(cId => {
-                    const qList = allLoadedQuizzes.filter(q => q.course_id === cId);
+                    const groupIds = getPracticeCourseGroupIds(cId).map(String);
+                    const qList = allLoadedQuizzes.filter(q => groupIds.includes(String(q.course_id)));
                     if (qList.length === 0) return;
                     const cObj = bundledCoursesMap[cId];
                     const title = cObj ? cObj.title : 'Latihan Paket';
+                    const progressId = getPracticeCourseGroupIds(cId)[0] || cId;
 
                     cardsHtml += `
                         <div class="p-3.5 rounded-xl border border-gray-200 bg-gray-50/60 hover:bg-white flex items-center justify-between gap-3 transition shadow-sm">
@@ -2280,7 +2410,7 @@
                             </div>
                             <button onclick="startPracticeQuizByCourse('${cId}')"
                                 class="shrink-0 bg-primary text-white font-bold px-3.5 py-2 rounded-xl text-xs hover:bg-opacity-90 transition inline-flex items-center gap-1.5 shadow-sm">
-                                <i class="fas fa-play text-[10px]"></i> Mulai
+                                <i class="fas fa-play text-[10px]"></i> ${escapeHtml(getPracticeActionLabel(progressId))}
                             </button>
                         </div>
                     `;
@@ -2297,7 +2427,7 @@
                             </div>
                             <button onclick="startPracticeQuizAll()"
                                 class="shrink-0 bg-accent text-white font-bold px-4 py-2.5 rounded-xl text-xs shadow-md hover:bg-opacity-90 transition inline-flex items-center justify-center gap-1.5">
-                                <i class="fas fa-bolt"></i> Mulai Semua (${allLoadedQuizzes.length} Soal)
+                                <i class="fas fa-bolt"></i> ${escapeHtml(getPracticeActionLabel(courseId))} Semua (${allLoadedQuizzes.length} Soal)
                             </button>
                         </div>
                         <div class="text-xs font-bold text-gray-500 uppercase tracking-wider pt-1">Atau Pilih Latihan per Materi:</div>
@@ -2321,7 +2451,7 @@
                         </div>
                         <button onclick="startPracticeQuizAll()"
                             class="shrink-0 bg-primary text-white font-bold px-4 py-2.5 rounded-xl text-xs shadow-md hover:bg-opacity-90 transition inline-flex items-center gap-1.5">
-                            <i class="fas fa-play"></i> Mulai
+                            <i class="fas fa-play"></i> ${escapeHtml(getPracticeActionLabel(getPracticeCourseGroupIds(courseId)[0] || courseId))}
                         </button>
                     </div>
                 </div>
@@ -2333,10 +2463,13 @@
                 openCheckoutModal();
                 return;
             }
-            const filtered = allLoadedQuizzes.filter(q => q.course_id === targetCId);
+            const groupIds = getPracticeCourseGroupIds(targetCId);
+            const groupIdsSet = new Set(groupIds.map(String));
+            const filtered = allLoadedQuizzes.filter(q => groupIdsSet.has(String(q.course_id)));
             const cObj = bundledCoursesMap[targetCId];
             activePracticeTitle = cObj ? `Latihan: ${cObj.title}` : 'Latihan Soal Interaktif';
-            launchPracticeQuizModal(filtered);
+            activePracticeCourseTitle = cObj ? normalizePracticeCourseTitle(cObj.title) : 'Latihan Soal Interaktif';
+            launchPracticeQuizModal(filtered, groupIds[0] || targetCId);
         }
 
         function startPracticeQuizAll() {
@@ -2345,18 +2478,37 @@
                 return;
             }
             activePracticeTitle = courseData ? `Latihan: ${courseData.title}` : 'Latihan Soal Interaktif';
-            launchPracticeQuizModal(allLoadedQuizzes);
+            activePracticeCourseTitle = courseData ? normalizePracticeCourseTitle(courseData.title) : 'Latihan Soal Interaktif';
+            const progressCourseId = isBundleCourse ? courseId : (getPracticeCourseGroupIds(courseId)[0] || courseId);
+            launchPracticeQuizModal(allLoadedQuizzes, progressCourseId);
         }
 
-        function launchPracticeQuizModal(quizArray) {
+        function launchPracticeQuizModal(quizArray, progressCourseId = activePracticeCourseId, resume = true) {
             if (!quizArray || quizArray.length === 0) {
                 showToast('Belum ada soal latihan untuk bagian ini.', 'warning', 'Soal Belum Tersedia');
                 return;
             }
 
-            activePracticeQuizzes = quizArray;
-            pqIndex = 0;
-            pqScore = 0;
+            activePracticeQuizzes = sortPracticeQuestions(quizArray, [...new Set(quizArray.map(q => q.course_id))]);
+            activePracticeCourseId = progressCourseId;
+            pqTotalSessions = Math.ceil(activePracticeQuizzes.length / SOAL_PER_SESI);
+            const progress = activePracticeCourseId ? getPracticeProgress(activePracticeCourseId) : null;
+            const canResume = resume && progress && !progress.isCompleted && progress.lastIndex > 0;
+            pqIndex = canResume ? Math.min(progress.lastIndex, activePracticeQuizzes.length - 1) : 0;
+            pqScore = canResume ? Math.min(Number(progress.totalCorrect) || 0, pqIndex) : 0;
+            pqSessionStartScore = canResume
+                ? Math.min(getPracticeStartScore(activePracticeCourseId), pqScore)
+                : 0;
+            if (activePracticeCourseId && !canResume) {
+                localStorage.setItem(`nuqthah_quiz_session_start_${activePracticeCourseId}`, '0');
+                localStorage.setItem(`nuqthah_quiz_progress_${activePracticeCourseId}`, JSON.stringify({
+                    lastIndex: 0,
+                    currentSession: 1,
+                    totalCorrect: 0,
+                    totalAnswered: 0,
+                    isCompleted: false
+                }));
+            }
             pqSelected = null;
 
             document.getElementById('pq-modal-title').textContent = activePracticeTitle;
@@ -2374,7 +2526,7 @@
         }
 
         function restartPracticeQuiz() {
-            launchPracticeQuizModal(activePracticeQuizzes);
+            launchPracticeQuizModal(activePracticeQuizzes, activePracticeCourseId, false);
         }
 
         function renderPracticeQuestion() {
@@ -2387,7 +2539,9 @@
             const q = activePracticeQuizzes[pqIndex];
             const total = activePracticeQuizzes.length;
 
-            document.getElementById('pq-counter').textContent = `Soal ${pqIndex + 1} dari ${total}`;
+            const currentSession = Math.floor(pqIndex / SOAL_PER_SESI) + 1;
+            document.getElementById('pq-counter').textContent =
+                `Soal ${pqIndex + 1} dari ${total} · Sesi ${currentSession} dari ${pqTotalSessions}`;
             document.getElementById('pq-score').textContent = `Skor: ${pqScore}`;
             document.getElementById('pq-progress').style.width = `${((pqIndex + 1) / total) * 100}%`;
             document.getElementById('pq-question').textContent = q.question || '';
@@ -2462,21 +2616,68 @@
             document.getElementById('pq-score').textContent = `Skor: ${pqScore}`;
 
             pqIndex++;
+            savePracticeProgress();
+            if (activePracticeCourseId) {
+                localStorage.setItem(`nuqthah_quiz_session_start_${activePracticeCourseId}`, String(pqSessionStartScore));
+            }
             if (pqIndex < activePracticeQuizzes.length) {
+                if (pqIndex % SOAL_PER_SESI === 0) {
+                    const session = pqIndex / SOAL_PER_SESI;
+                    const correct = pqScore - pqSessionStartScore;
+                    savePracticeSessionHistory(session, correct, SOAL_PER_SESI);
+                    pqSessionStartScore = pqScore;
+                    if (activePracticeCourseId) {
+                        localStorage.setItem(`nuqthah_quiz_session_start_${activePracticeCourseId}`, String(pqScore));
+                    }
+                    showPracticeSessionComplete(session, correct, SOAL_PER_SESI);
+                    return;
+                }
                 renderPracticeQuestion();
             } else {
+                const session = Math.ceil(pqIndex / SOAL_PER_SESI);
+                const totalInSession = pqIndex - ((session - 1) * SOAL_PER_SESI);
+                savePracticeSessionHistory(session, pqScore - pqSessionStartScore, totalInSession);
+                savePracticeProgress(true);
                 showPracticeResult();
             }
         }
 
-        function showPracticeResult() {
-            const total = activePracticeQuizzes.length;
-            const pct = total > 0 ? (pqScore / total) * 100 : 0;
+        function showPracticeSessionComplete(session, correct, total) {
+            document.getElementById('pq-session-title').textContent = `Sesi ${session} Selesai!`;
+            document.getElementById('pq-session-summary').textContent =
+                `${correct} Benar, ${total - correct} Salah`;
+            const modal = document.getElementById('pq-session-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
 
-            document.getElementById('pq-final-score').textContent = `${pqScore} / ${total}`;
+        function closePracticeSessionModal() {
+            const modal = document.getElementById('pq-session-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function continuePracticeSession() {
+            closePracticeSessionModal();
+            renderPracticeQuestion();
+        }
+
+        function closePracticeSessionAndShowResult() {
+            closePracticeSessionModal();
+            showPracticeResult(true);
+        }
+
+        function showPracticeResult(isPartial = false) {
+            const total = activePracticeQuizzes.length;
+            const answered = isPartial ? pqIndex : total;
+            const pct = answered > 0 ? (pqScore / answered) * 100 : 0;
+
+            document.getElementById('pq-final-score').textContent = `${pqScore} / ${answered}`;
 
             const msg = document.getElementById('pq-result-message');
-            if (pct === 100) {
+            if (isPartial) {
+                msg.textContent = `Anda telah menjawab ${answered} dari ${total} soal. Progres tersimpan dan dapat dilanjutkan nanti.`;
+            } else if (pct === 100) {
                 msg.textContent = 'Luar biasa! Kamu menguasai materi ini dengan sempurna! 🎉';
             } else if (pct >= 70) {
                 msg.textContent = 'Kerja bagus! Pemahaman materimu sudah sangat baik. 👍';
