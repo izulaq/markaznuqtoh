@@ -422,6 +422,79 @@
                 </div>
             </div>
 
+            <button id="video-quality-help-button" type="button"
+                class="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-left text-sm font-bold text-emerald-900 shadow-sm transition hover:bg-emerald-100 focus:outline-none focus:ring-2 focus:ring-primary/40">
+                🛠️ Video Buram? Klik untuk Perjelas ke HD
+            </button>
+
+            <div id="video-quality-help-modal"
+                class="fixed inset-0 z-[1000001] hidden items-center justify-center bg-black/70 p-4"
+                aria-hidden="true">
+                <div class="absolute inset-0" data-close-quality-help></div>
+                <section role="dialog" aria-modal="true" aria-labelledby="video-quality-help-title" tabindex="-1"
+                    class="relative z-10 max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl sm:p-6">
+                    <div class="mb-4 flex items-start justify-between gap-4">
+                        <div>
+                            <h3 id="video-quality-help-title" class="text-lg font-bold text-gray-900">Bantuan Kualitas Video</h3>
+                            <p class="mt-1 text-sm text-gray-600">Coba langkah berikut jika video terlihat buram.</p>
+                        </div>
+                        <button id="close-video-quality-help" type="button" aria-label="Tutup bantuan kualitas video"
+                            class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200">
+                            <i class="fas fa-times" aria-hidden="true"></i>
+                        </button>
+                    </div>
+
+                    <div id="quality-help-desktop" class="hidden space-y-4">
+                        <div class="rounded-xl bg-blue-50 p-4 text-sm leading-relaxed text-blue-900">
+                            <p class="font-bold">Untuk laptop / PC</p>
+                            <p class="mt-1">Ekstensi browser pihak ketiga dapat mencoba meminta kualitas lebih tinggi, tetapi tidak menjamin 1080p pada video embed.</p>
+                        </div>
+                        <a href="https://chromewebstore.google.com/detail/youtube-auto-hd-+-fps/fcphghnknhkimeagdglkljinmpbagone"
+                            target="_blank" rel="noopener noreferrer"
+                            class="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-center text-sm font-bold text-white transition hover:bg-primary/90">
+                            <i class="fas fa-arrow-up-right-from-square" aria-hidden="true"></i>
+                            Lihat ekstensi Auto HD + FPS di Chrome Web Store
+                        </a>
+                        <ol class="list-inside list-decimal space-y-2 text-sm leading-relaxed text-gray-700">
+                            <li>Di halaman ekstensi, tinjau penerbit dan izin yang diminta sebelum memilih “Tambahkan ke Chrome”.</li>
+                            <li>Kembali ke materi dan muat ulang halaman. Jika video masih buram, ekstensi mungkin tidak mengatur kualitas pada embed ini.</li>
+                        </ol>
+                        <p class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
+                            Ekstensi dapat meminta akses ke data situs. Tautan ini berasal dari pengguna; kami tidak memverifikasi penerbit, izin, atau kompatibilitasnya.
+                        </p>
+                    </div>
+
+                    <div id="quality-help-mobile" class="hidden space-y-4">
+                        <div class="rounded-xl bg-blue-50 p-4 text-sm leading-relaxed text-blue-900">
+                            <p class="font-bold">Untuk HP / tablet</p>
+                            <p class="mt-1">Mengubah ukuran iframe menjadi 1920×1080 tidak memaksa YouTube mengirim video 1080p. Tombol di bawah hanya mengirim permintaan kualitas; YouTube tetap menentukan kualitas stream.</p>
+                        </div>
+                        <button id="request-mobile-hd-button" type="button"
+                            class="w-full rounded-xl bg-primary px-4 py-3 text-sm font-bold text-white transition hover:bg-primary/90">
+                            ✨ Coba Minta Kualitas HD Sekarang
+                        </button>
+                        <p class="text-xs leading-relaxed text-gray-500">Posisi video tidak diubah. Jika YouTube tidak menyediakan atau mengabaikan permintaan HD, kualitas tidak akan berubah.</p>
+
+                        <div class="border-t border-gray-200 pt-4">
+                            <p class="mb-3 text-sm font-bold text-gray-800">Alternatif: Kiwi Browser + ekstensi Auto HD</p>
+                            <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                <a href="https://play.google.com/store/apps/details?id=com.kiwibrowser.browser"
+                                    target="_blank" rel="noopener noreferrer"
+                                    class="rounded-lg border border-gray-300 px-3 py-2 text-center text-xs font-bold text-gray-700 hover:bg-gray-50">
+                                    Kiwi Browser di Google Play
+                                </a>
+                                <a href="https://chromewebstore.google.com/detail/youtube-auto-hd-+-fps/fcphghnknhkimeagdglkljinmpbagone"
+                                    target="_blank" rel="noopener noreferrer"
+                                    class="rounded-lg border border-gray-300 px-3 py-2 text-center text-xs font-bold text-gray-700 hover:bg-gray-50">
+                                    Ekstensi Auto HD di Chrome Web Store
+                                </a>
+                            </div>
+                            <p class="mt-2 text-xs leading-relaxed text-gray-500">Ketersediaan Kiwi dan dukungan ekstensi pada embed dapat berbeda menurut perangkat dan wilayah. Tinjau penerbit serta izin ekstensi sebelum memasangnya.</p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
             <!-- Detail Materi & Pengajar -->
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
                 <div>
@@ -927,6 +1000,11 @@
         const btnFullscreen = document.getElementById('btn-fullscreen');
         const iconFullscreen = document.getElementById('icon-fullscreen');
         const btnRotate = document.getElementById('btn-rotate');
+        const videoQualityHelpButton = document.getElementById('video-quality-help-button');
+        const videoQualityHelpModal = document.getElementById('video-quality-help-modal');
+        const videoQualityHelpDialog = videoQualityHelpModal.querySelector('[role="dialog"]');
+        const closeVideoQualityHelpButton = document.getElementById('close-video-quality-help');
+        const requestMobileHdButton = document.getElementById('request-mobile-hd-button');
 
         /* ================================================================
            HELPER PARSE BUNDLING PAKET
@@ -1937,6 +2015,40 @@
             }
         }
 
+        function openVideoQualityHelp() {
+            const userAgent = navigator.userAgent || '';
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(userAgent)
+                || (/Macintosh/i.test(userAgent) && navigator.maxTouchPoints > 1);
+            document.getElementById('quality-help-desktop').classList.toggle('hidden', isMobile);
+            document.getElementById('quality-help-mobile').classList.toggle('hidden', !isMobile);
+            videoQualityHelpModal.classList.remove('hidden');
+            videoQualityHelpModal.classList.add('flex');
+            videoQualityHelpModal.setAttribute('aria-hidden', 'false');
+            closeVideoQualityHelpButton.focus();
+        }
+
+        function closeVideoQualityHelp() {
+            videoQualityHelpModal.classList.add('hidden');
+            videoQualityHelpModal.classList.remove('flex');
+            videoQualityHelpModal.setAttribute('aria-hidden', 'true');
+            videoQualityHelpButton.focus();
+        }
+
+        function requestMobileHdQuality() {
+            if (!player || typeof player.setPlaybackQuality !== 'function') {
+                showToast('Kontrol kualitas HD tidak tersedia untuk pemutar ini. YouTube memilih kualitas secara otomatis.', 'warning', 'Kualitas HD Tidak Tersedia');
+                return;
+            }
+
+            try {
+                player.setPlaybackQuality('hd1080');
+                showToast('Permintaan kualitas 1080p dikirim. YouTube dapat mengabaikannya dan tetap memilih kualitas otomatis.', 'info', 'Permintaan Kualitas HD');
+            } catch (error) {
+                console.error('Permintaan kualitas HD gagal:', error);
+                showToast('YouTube tidak dapat menerima permintaan kualitas HD saat ini.', 'error', 'Gagal Mengubah Kualitas');
+            }
+        }
+
         /* ================================================================
            FULLSCREEN & PUTAR LAYAR LANSKAP (SUPPORT ANDROID & IPHONE/IOS)
         ================================================================ */
@@ -2036,6 +2148,20 @@
         }
 
         function setupCustomPlayerEvents() {
+            videoQualityHelpButton.addEventListener('click', openVideoQualityHelp);
+            closeVideoQualityHelpButton.addEventListener('click', closeVideoQualityHelp);
+            videoQualityHelpModal.addEventListener('click', (event) => {
+                if (event.target === videoQualityHelpModal || event.target.closest('[data-close-quality-help]')) {
+                    closeVideoQualityHelp();
+                }
+            });
+            videoQualityHelpDialog.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape') {
+                    closeVideoQualityHelp();
+                }
+            });
+            requestMobileHdButton.addEventListener('click', requestMobileHdQuality);
+
             videoClickArea.addEventListener('click', (e) => {
                 if (e.target.closest('#player-error')) return;
                 if (e.target.closest('#center-play-btn')) togglePlayPause();
