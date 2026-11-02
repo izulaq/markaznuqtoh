@@ -444,53 +444,59 @@
                         </button>
                     </div>
 
-                    <div id="quality-help-desktop" class="hidden space-y-4">
-                        <div class="rounded-xl bg-blue-50 p-4 text-sm leading-relaxed text-blue-900">
-                            <p class="font-bold">Untuk laptop / PC</p>
-                            <p class="mt-1">Ekstensi browser pihak ketiga dapat mencoba meminta kualitas lebih tinggi, tetapi tidak menjamin 1080p pada video embed.</p>
-                        </div>
-                        <a href="https://chromewebstore.google.com/detail/youtube-auto-hd-+-fps/fcphghnknhkimeagdglkljinmpbagone"
-                            target="_blank" rel="noopener noreferrer"
-                            class="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-center text-sm font-bold text-white transition hover:bg-primary/90">
-                            <i class="fas fa-arrow-up-right-from-square" aria-hidden="true"></i>
-                            Lihat ekstensi Auto HD + FPS di Chrome Web Store
-                        </a>
-                        <ol class="list-inside list-decimal space-y-2 text-sm leading-relaxed text-gray-700">
-                            <li>Di halaman ekstensi, tinjau penerbit dan izin yang diminta sebelum memilih “Tambahkan ke Chrome”.</li>
-                            <li>Kembali ke materi dan muat ulang halaman. Jika video masih buram, ekstensi mungkin tidak mengatur kualitas pada embed ini.</li>
-                        </ol>
-                        <p class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
-                            Ekstensi dapat meminta akses ke data situs. Tautan ini berasal dari pengguna; kami tidak memverifikasi penerbit, izin, atau kompatibilitasnya.
-                        </p>
-                    </div>
-
-                    <div id="quality-help-mobile" class="hidden space-y-4">
-                        <div class="rounded-xl bg-blue-50 p-4 text-sm leading-relaxed text-blue-900">
-                            <p class="font-bold">Untuk HP / tablet</p>
-                            <p class="mt-1">Mengubah ukuran iframe menjadi 1920×1080 tidak memaksa YouTube mengirim video 1080p. Tombol di bawah hanya mengirim permintaan kualitas; YouTube tetap menentukan kualitas stream.</p>
-                        </div>
-                        <button id="request-mobile-hd-button" type="button"
-                            class="w-full rounded-xl bg-primary px-4 py-3 text-sm font-bold text-white transition hover:bg-primary/90">
-                            ✨ Coba Minta Kualitas HD Sekarang
-                        </button>
-                        <p class="text-xs leading-relaxed text-gray-500">Posisi video tidak diubah. Jika YouTube tidak menyediakan atau mengabaikan permintaan HD, kualitas tidak akan berubah.</p>
-
-                        <div class="border-t border-gray-200 pt-4">
-                            <p class="mb-3 text-sm font-bold text-gray-800">Alternatif: Kiwi Browser + ekstensi Auto HD</p>
-                            <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                                <a href="https://play.google.com/store/apps/details?id=com.kiwibrowser.browser"
-                                    target="_blank" rel="noopener noreferrer"
-                                    class="rounded-lg border border-gray-300 px-3 py-2 text-center text-xs font-bold text-gray-700 hover:bg-gray-50">
-                                    Kiwi Browser di Google Play
-                                </a>
-                                <a href="https://chromewebstore.google.com/detail/youtube-auto-hd-+-fps/fcphghnknhkimeagdglkljinmpbagone"
-                                    target="_blank" rel="noopener noreferrer"
-                                    class="rounded-lg border border-gray-300 px-3 py-2 text-center text-xs font-bold text-gray-700 hover:bg-gray-50">
-                                    Ekstensi Auto HD di Chrome Web Store
-                                </a>
+                    <div class="space-y-5">
+                        <section class="space-y-3 rounded-xl border border-blue-100 bg-blue-50/70 p-4">
+                            <div>
+                                <h4 class="font-bold text-blue-950">Laptop / PC</h4>
+                                <p class="mt-1 text-sm leading-relaxed text-blue-900">Ekstensi browser dapat mencoba meminta kualitas lebih tinggi, tetapi tidak menjamin 1080p pada video embed.</p>
                             </div>
-                            <p class="mt-2 text-xs leading-relaxed text-gray-500">Ketersediaan Kiwi dan dukungan ekstensi pada embed dapat berbeda menurut perangkat dan wilayah. Tinjau penerbit serta izin ekstensi sebelum memasangnya.</p>
-                        </div>
+                            <a href="https://chromewebstore.google.com/detail/youtube-auto-hd-+-fps/fcphghnknhkimeagdglkljinmpbagone"
+                                target="_blank" rel="noopener noreferrer"
+                                class="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-center text-sm font-bold text-white transition hover:bg-primary/90">
+                                <i class="fas fa-arrow-up-right-from-square" aria-hidden="true"></i>
+                                Buka ekstensi Auto HD + FPS
+                            </a>
+                            <ol class="list-inside list-decimal space-y-2 text-sm leading-relaxed text-gray-700">
+                                <li>Periksa nama penerbit dan izin ekstensi, lalu pilih <strong>Tambahkan ke Chrome</strong>.</li>
+                                <li>Kembali ke halaman materi dan muat ulang. Ekstensi mungkin tidak bekerja pada setiap video embed.</li>
+                            </ol>
+                        </section>
+
+                        <section class="space-y-3 rounded-xl border border-emerald-100 bg-emerald-50/70 p-4">
+                            <div>
+                                <h4 class="font-bold text-emerald-950">HP / tablet — Kiwi Browser</h4>
+                                <p class="mt-1 text-sm leading-relaxed text-emerald-900">Pasang Kiwi Browser terlebih dahulu agar dapat mencoba ekstensi dari Chrome Web Store.</p>
+                            </div>
+                            <a href="https://drive.google.com/file/d/1LhhC4PO4Y6KAZbmhV_BYV8RipmOGjpFH/view?usp=drivesdk"
+                                target="_blank" rel="noopener noreferrer"
+                                class="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-3 text-center text-sm font-bold text-white transition hover:bg-emerald-800">
+                                <i class="fab fa-google-play" aria-hidden="true"></i>
+                                1. Instal Kiwi Browser
+                            </a>
+                            <ol start="2" class="list-inside list-decimal space-y-2 text-sm leading-relaxed text-gray-700">
+                                <li>Buka Kiwi Browser, lalu ketuk menu <strong>⋮</strong> di pojok kanan atas.</li>
+                                <li>Pilih <strong>Extensions / Ekstensi</strong>.</li>
+                                <li>Ketuk <strong>+ (From Store)</strong> untuk membuka toko ekstensi.</li>
+                                <li>Di kotak pencarian bagian atas, cari <strong>YouTube Auto HD + FPS</strong>.</li>
+                                <li>Pilih ekstensi tersebut, periksa penerbit dan izinnya, lalu ketuk <strong>Tambahkan ke Chrome</strong>.</li>
+                                <li>Buka situs Nuqthah melalui Kiwi Browser.</li>
+                                <li>Di menu <strong>⋮</strong>, pilih <strong>Add to Home screen / Tambahkan ke layar utama</strong> agar materi mudah dibuka lagi.</li>
+                            </ol>
+                            <div class="rounded-lg border border-white bg-white p-3">
+                                <p class="text-xs font-bold uppercase tracking-wide text-gray-500">Alamat website Nuqthah</p>
+                                <div class="mt-2 flex flex-col gap-2 sm:flex-row">
+                                    <code id="quality-help-site-url" class="min-w-0 flex-1 break-all rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-800">https://markaz.nuqthahlearning.my.id</code>
+                                    <button id="copy-quality-help-site-url" type="button"
+                                        class="shrink-0 rounded-lg border border-gray-300 px-4 py-2 text-sm font-bold text-gray-700 transition hover:bg-gray-50">
+                                        <i class="fas fa-copy mr-1" aria-hidden="true"></i>Salin alamat
+                                    </button>
+                                </div>
+                            </div>
+                        </section>
+
+                        <p class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
+                            Ekstensi pihak ketiga dapat meminta akses ke data situs dan tidak menjamin kualitas 1080p. Tinjau penerbit serta izinnya sebelum memasang.
+                        </p>
                     </div>
                 </section>
             </div>
@@ -1004,7 +1010,7 @@
         const videoQualityHelpModal = document.getElementById('video-quality-help-modal');
         const videoQualityHelpDialog = videoQualityHelpModal.querySelector('[role="dialog"]');
         const closeVideoQualityHelpButton = document.getElementById('close-video-quality-help');
-        const requestMobileHdButton = document.getElementById('request-mobile-hd-button');
+        const copyQualityHelpSiteUrlButton = document.getElementById('copy-quality-help-site-url');
 
         /* ================================================================
            HELPER PARSE BUNDLING PAKET
@@ -2016,11 +2022,6 @@
         }
 
         function openVideoQualityHelp() {
-            const userAgent = navigator.userAgent || '';
-            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(userAgent)
-                || (/Macintosh/i.test(userAgent) && navigator.maxTouchPoints > 1);
-            document.getElementById('quality-help-desktop').classList.toggle('hidden', isMobile);
-            document.getElementById('quality-help-mobile').classList.toggle('hidden', !isMobile);
             videoQualityHelpModal.classList.remove('hidden');
             videoQualityHelpModal.classList.add('flex');
             videoQualityHelpModal.setAttribute('aria-hidden', 'false');
@@ -2034,18 +2035,31 @@
             videoQualityHelpButton.focus();
         }
 
-        function requestMobileHdQuality() {
-            if (!player || typeof player.setPlaybackQuality !== 'function') {
-                showToast('Kontrol kualitas HD tidak tersedia untuk pemutar ini. YouTube memilih kualitas secara otomatis.', 'warning', 'Kualitas HD Tidak Tersedia');
-                return;
-            }
-
+        async function copyQualityHelpSiteUrl() {
+            const websiteUrl = document.getElementById('quality-help-site-url').textContent.trim();
             try {
-                player.setPlaybackQuality('hd1080');
-                showToast('Permintaan kualitas 1080p dikirim. YouTube dapat mengabaikannya dan tetap memilih kualitas otomatis.', 'info', 'Permintaan Kualitas HD');
+                if (navigator.clipboard && window.isSecureContext) {
+                    await navigator.clipboard.writeText(websiteUrl);
+                } else {
+                    const temporaryInput = document.createElement('textarea');
+                    temporaryInput.value = websiteUrl;
+                    temporaryInput.setAttribute('readonly', '');
+                    temporaryInput.style.position = 'fixed';
+                    temporaryInput.style.opacity = '0';
+                    document.body.appendChild(temporaryInput);
+                    let copied;
+                    try {
+                        temporaryInput.select();
+                        copied = document.execCommand('copy');
+                    } finally {
+                        temporaryInput.remove();
+                    }
+                    if (!copied) throw new Error('Browser menolak menyalin alamat website.');
+                }
+                showToast('Alamat website Nuqthah berhasil disalin.', 'success', 'Berhasil Disalin');
             } catch (error) {
-                console.error('Permintaan kualitas HD gagal:', error);
-                showToast('YouTube tidak dapat menerima permintaan kualitas HD saat ini.', 'error', 'Gagal Mengubah Kualitas');
+                console.error('Gagal menyalin alamat website Nuqthah:', error);
+                showToast('Alamat tidak dapat disalin otomatis. Silakan salin alamat yang ditampilkan.', 'error', 'Gagal Menyalin');
             }
         }
 
@@ -2160,7 +2174,7 @@
                     closeVideoQualityHelp();
                 }
             });
-            requestMobileHdButton.addEventListener('click', requestMobileHdQuality);
+            copyQualityHelpSiteUrlButton.addEventListener('click', copyQualityHelpSiteUrl);
 
             videoClickArea.addEventListener('click', (e) => {
                 if (e.target.closest('#player-error')) return;
