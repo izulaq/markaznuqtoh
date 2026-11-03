@@ -493,6 +493,43 @@
                             <input type="text" id="module-title" placeholder="cth: Sesi 1 - Pengantar" required
                                 class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none">
                         </div>
+                        <div class="md:col-span-2">
+                            <label for="module-section" class="block text-xs font-bold text-gray-700 uppercase mb-1">Bagian Materi</label>
+                            <div class="flex flex-col sm:flex-row gap-2">
+                                <select id="module-section"
+                                    class="w-full border border-gray-200 p-2.5 rounded-xl text-sm bg-white focus:outline-none">
+                                    <option value="">Langsung di materi ini (tanpa bagian)</option>
+                                </select>
+                                <button type="button" onclick="toggleAddModuleSectionForm()"
+                                    class="shrink-0 rounded-xl border border-primary/30 bg-primary/5 px-4 py-2 text-xs font-bold text-primary hover:bg-primary/10 transition">
+                                    <i class="fas fa-plus mr-1"></i>Tambah Bagian Baru
+                                </button>
+                            </div>
+                            <p class="text-[10px] text-gray-400 mt-1">Jika bagian tidak dipilih, video akan langsung masuk ke materi yang dipilih.</p>
+                            <div id="add-module-section-form" class="hidden mt-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
+                                <p class="text-xs font-bold text-gray-700 mb-3">Bagian baru untuk materi yang dipilih</p>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <label for="module-section-name" class="block text-[11px] font-bold text-gray-600 mb-1">Nama Bagian / Bab *</label>
+                                        <input type="text" id="module-section-name" placeholder="cth: Bagian 1 - Pengantar"
+                                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none">
+                                    </div>
+                                    <div>
+                                        <label for="module-section-instructor" class="block text-[11px] font-bold text-gray-600 mb-1">Pengajar Bagian</label>
+                                        <input type="text" id="module-section-instructor" placeholder="Nama pengajar (opsional)"
+                                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none">
+                                    </div>
+                                </div>
+                                <div class="flex justify-end gap-2 mt-3">
+                                    <button type="button" onclick="toggleAddModuleSectionForm(false)"
+                                        class="rounded-lg bg-white px-3 py-2 text-xs font-semibold text-gray-600 border border-gray-200">Batal</button>
+                                    <button type="button" id="btn-simpan-bagian" onclick="saveModuleSection()"
+                                        class="rounded-lg bg-primary px-3 py-2 text-xs font-bold text-white">
+                                        <i class="fas fa-save mr-1"></i>Simpan Bagian
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                         <div>
                             <label class="block text-xs font-bold text-gray-700 uppercase mb-1">URL YouTube *</label>
                             <input type="text" id="module-youtube" placeholder="https://..." required
@@ -1436,11 +1473,14 @@
                     <input type="hidden" id="edit-module_id">
                     <div class="md:col-span-2"><label
                             class="block text-xs font-bold text-gray-700 uppercase mb-1">Materi</label><select
-                            id="edit-module-course_id" required
+                            id="edit-module-course_id" required onchange="loadModuleSections(this.value, 'edit-module-section')"
                             class="w-full border border-gray-200 p-2.5 rounded-xl text-sm bg-white"></select></div>
                     <div><label class="block text-xs font-bold text-gray-700 uppercase mb-1">Judul Sesi</label><input
                             type="text" id="edit-module-title" required
                             class="w-full border border-gray-200 p-2.5 rounded-xl text-sm"></div>
+                    <div class="md:col-span-2"><label class="block text-xs font-bold text-gray-700 uppercase mb-1">Bagian Materi</label><select
+                            id="edit-module-section"
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm bg-white"></select></div>
                     <div><label class="block text-xs font-bold text-gray-700 uppercase mb-1">Link YouTube</label><input
                             type="text" id="edit-module-youtube" required
                             class="w-full border border-gray-200 p-2.5 rounded-xl text-sm"></div>
@@ -1664,6 +1704,7 @@
 
         let cachedCourses = [];
         let cachedModules = [];
+        let cachedModuleSections = [];
         let cachedQuizzes = [];
         let cachedUsers = [];
         let cachedUserAccess = [];
@@ -2400,12 +2441,157 @@
                 div.onclick = () => {
                     document.getElementById(`${prefix}-course_id`).value = c.course_id;
                     document.getElementById(`${prefix}-course-search`).value = `${c.title} (${c.mode || 'Online'})`;
+                    if (prefix === 'module') {
+                        document.getElementById('add-module-section-form').classList.add('hidden');
+                        document.getElementById('module-section-name').value = '';
+                        document.getElementById('module-section-instructor').value = '';
+                        loadModuleSections(c.course_id).catch(error => showToast('Gagal memuat bagian materi: ' + error.message, 'error'));
+                    }
                     if (prefix === 'access') { const customAmt = document.getElementById('grant-custom-amount'); if (customAmt) customAmt.value = parseNumericRupiah(c.price); }
                     dropdown.classList.add('hidden');
                 };
                 div.innerHTML = `<div class="truncate pr-2"><span class="font-bold">${escapeHtml(c.title)}</span><span class="text-[10px] text-gray-400 ml-1">(${CATEGORY_LABELS[c.category] || c.category} • ${c.subfilter || ''} • ${escapeHtml(c.price || 'Rp 0')})</span></div>${badge}`;
                 dropdown.appendChild(div);
             });
+        }
+
+        function toggleAddModuleSectionForm(forceOpen) {
+            const form = document.getElementById('add-module-section-form');
+            const selectedCourseId = document.getElementById('module-course_id').value;
+            if (forceOpen !== false && !selectedCourseId) {
+                showToast('Pilih materi terlebih dahulu sebelum menambahkan bagian.', 'warning');
+                return;
+            }
+            const shouldOpen = forceOpen === undefined ? form.classList.contains('hidden') : forceOpen;
+            form.classList.toggle('hidden', !shouldOpen);
+            if (shouldOpen) document.getElementById('module-section-name').focus();
+        }
+
+        async function loadModuleSections(courseId, selectId = 'module-section', selectedSectionId = '') {
+            const select = document.getElementById(selectId);
+            if (!select) return;
+            select.innerHTML = '<option value="">Memuat bagian...</option>';
+            select.disabled = true;
+            if (!courseId) {
+                select.innerHTML = '<option value="">Pilih materi terlebih dahulu</option>';
+                select.disabled = false;
+                return;
+            }
+
+            try {
+                const { data, error } = await supabaseClient
+                    .from('module_sections')
+                    .select('*')
+                    .eq('course_id', courseId)
+                    .order('position', { ascending: true })
+                    .order('id', { ascending: true });
+                if (error) throw error;
+
+                cachedModuleSections = cachedModuleSections.filter(section => section.course_id !== courseId)
+                    .concat(data || []);
+                select.innerHTML = '';
+                const defaultOption = document.createElement('option');
+                defaultOption.value = '';
+                defaultOption.textContent = 'Langsung di materi ini (tanpa bagian)';
+                select.appendChild(defaultOption);
+                (data || []).forEach(section => {
+                    const option = document.createElement('option');
+                    option.value = section.id;
+                    option.textContent = `${section.name}${section.instructor ? ` — ${section.instructor}` : ''}`;
+                    select.appendChild(option);
+                });
+                select.value = selectedSectionId && (data || []).some(section => String(section.id) === String(selectedSectionId))
+                    ? String(selectedSectionId)
+                    : '';
+            } catch (error) {
+                select.innerHTML = '<option value="">Gagal memuat bagian</option>';
+                throw error;
+            } finally {
+                select.disabled = false;
+            }
+        }
+
+        async function saveModuleSection() {
+            const courseId = document.getElementById('module-course_id').value;
+            const name = document.getElementById('module-section-name').value.trim();
+            const instructor = document.getElementById('module-section-instructor').value.trim();
+            if (!courseId) {
+                showToast('Pilih materi terlebih dahulu sebelum menambahkan bagian.', 'warning');
+                return;
+            }
+            if (!name) {
+                showToast('Nama bagian wajib diisi.', 'warning');
+                document.getElementById('module-section-name').focus();
+                return;
+            }
+
+            const duplicate = cachedModuleSections.some(section =>
+                section.course_id === courseId && section.name.trim().toLowerCase() === name.toLowerCase()
+            );
+            if (duplicate) {
+                showToast('Nama bagian tersebut sudah ada pada materi ini.', 'warning');
+                return;
+            }
+
+            const button = document.getElementById('btn-simpan-bagian');
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Menyimpan...';
+            try {
+                const nextPosition = cachedModuleSections.filter(section => section.course_id === courseId)
+                    .reduce((max, section) => Math.max(max, Number(section.position) || 0), -1) + 1;
+                const { data, error } = await supabaseClient
+                    .from('module_sections')
+                    .insert([{ course_id: courseId, name, instructor, position: nextPosition }])
+                    .select()
+                    .single();
+                if (error) throw error;
+
+                cachedModuleSections.push(data);
+                await loadModuleSections(courseId, 'module-section', data.id);
+                document.getElementById('module-section-name').value = '';
+                document.getElementById('module-section-instructor').value = '';
+                toggleAddModuleSectionForm(false);
+                showToast(`Bagian "${name}" berhasil ditambahkan.`, 'success');
+            } catch (error) {
+                showToast('Gagal menambahkan bagian: ' + error.message, 'error');
+            } finally {
+                button.disabled = false;
+                button.innerHTML = '<i class="fas fa-save mr-1"></i>Simpan Bagian';
+            }
+        }
+
+        async function ensureModuleSection(courseId, sectionName, instructor = '') {
+            const name = (sectionName || '').trim();
+            if (!name) return null;
+
+            const cachedSection = cachedModuleSections.find(section =>
+                section.course_id === courseId && section.name === name
+            );
+            if (cachedSection) return cachedSection;
+
+            const { data: existingSection, error: lookupError } = await supabaseClient
+                .from('module_sections')
+                .select('*')
+                .eq('course_id', courseId)
+                .eq('name', name)
+                .maybeSingle();
+            if (lookupError) throw lookupError;
+            if (existingSection) {
+                cachedModuleSections.push(existingSection);
+                return existingSection;
+            }
+
+            const nextPosition = cachedModuleSections
+                .filter(section => section.course_id === courseId)
+                .reduce((max, section) => Math.max(max, Number(section.position) || 0), -1) + 1;
+            const { data, error } = await supabaseClient
+                .from('module_sections')
+                .insert([{ course_id: courseId, name, instructor: (instructor || '').trim(), position: nextPosition }])
+                .select()
+                .single();
+            if (error) throw error;
+            cachedModuleSections.push(data);
+            return data;
         }
 
         function openStudentPickerDropdown() { filterStudentPickerDropdown(); document.getElementById('student-user-dropdown').classList.remove('hidden'); }
@@ -2575,7 +2761,15 @@
             container.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">Memuat modul video...</p>';
             const { data, error } = await supabaseClient.from('modules').select('*').order('position', { ascending: true });
             if (error) { container.innerHTML = `<p class="text-sm text-red-500 text-center py-4">Gagal memuat modul: ${error.message}</p>`; return; }
-            cachedModules = data || []; renderGroupedModules();
+            const { data: sections, error: sectionError } = await supabaseClient
+                .from('module_sections')
+                .select('*')
+                .order('position', { ascending: true })
+                .order('id', { ascending: true });
+            if (sectionError) { container.innerHTML = `<p class="text-sm text-red-500 text-center py-4">Gagal memuat bagian materi: ${sectionError.message}</p>`; return; }
+            cachedModules = data || [];
+            cachedModuleSections = sections || [];
+            renderGroupedModules();
         }
 
         function renderGroupedModules() {
@@ -2613,7 +2807,7 @@
                 mods.forEach((mod, idx) => {
                     const encodedMod = btoa(encodeURIComponent(JSON.stringify(mod)));
                     const badgeClass = mod.is_free_trial ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-amber-100 text-amber-800 border-amber-200'; const badgeText = mod.is_free_trial ? 'Free Trial' : 'Berbayar';
-                    html += `<div class="p-3.5 border-b border-gray-100 hover:bg-gray-50 flex items-start gap-3" data-mod-id="${mod.id}"><div class="pt-1 drag-handle text-gray-400 hover:text-primary"><i class="fas fa-grip-vertical"></i></div><div class="flex-1 min-w-0"><div class="flex flex-wrap items-center justify-between gap-2"><div class="font-bold text-gray-800 text-sm">${idx + 1}. ${escapeHtml(mod.title)}</div><span class="px-2 py-0.5 rounded text-[10px] font-bold border ${badgeClass}">${badgeText}</span></div>${mod.description ? `<p class="text-xs text-gray-600 mt-1">${escapeHtml(mod.description)}</p>` : ''}<div class="flex flex-wrap items-center gap-3 mt-2 text-[11px] text-gray-500"><span><i class="fab fa-youtube text-red-500 mr-1"></i>${escapeHtml(mod.youtube_url)}</span><span><i class="fas fa-stopwatch text-primary mr-1"></i>Stop Time Kuis: <strong>${mod.stop_time || 0} detik</strong></span></div><div class="flex flex-wrap gap-2 mt-3"><button onclick="openEditModuleModal('${encodedMod}')" class="bg-blue-50 text-blue-600 px-3 py-1 rounded-lg border border-blue-200 text-xs font-bold hover:bg-blue-100 transition"><i class="fas fa-edit mr-1"></i>Edit</button><button onclick="openDuplicateSingleModuleModal('${encodedMod}')" class="bg-purple-50 text-purple-700 px-3 py-1 rounded-lg border border-purple-200 text-xs font-bold hover:bg-purple-100 transition"><i class="fas fa-copy mr-1"></i>Duplikat</button><button onclick="deleteModule('${mod.id}')" class="bg-red-50 text-red-600 px-3 py-1 rounded-lg border border-red-200 text-xs font-bold hover:bg-red-100 transition"><i class="fas fa-trash mr-1"></i>Hapus</button></div></div></div>`;
+                    html += `<div class="p-3.5 border-b border-gray-100 hover:bg-gray-50 flex items-start gap-3" data-mod-id="${mod.id}"><div class="pt-1 drag-handle text-gray-400 hover:text-primary"><i class="fas fa-grip-vertical"></i></div><div class="flex-1 min-w-0"><div class="flex flex-wrap items-center justify-between gap-2"><div class="font-bold text-gray-800 text-sm">${idx + 1}. ${escapeHtml(mod.title)}</div><span class="px-2 py-0.5 rounded text-[10px] font-bold border ${badgeClass}">${badgeText}</span></div>${mod.section_name || mod.section_instructor ? `<p class="text-[11px] text-primary font-semibold mt-1"><i class="fas fa-layer-group mr-1"></i>${escapeHtml(mod.section_name || 'Sesi Pembelajaran')}${mod.section_instructor ? ` · ${escapeHtml(mod.section_instructor)}` : ''}</p>` : ''}${mod.description ? `<p class="text-xs text-gray-600 mt-1">${escapeHtml(mod.description)}</p>` : ''}<div class="flex flex-wrap items-center gap-3 mt-2 text-[11px] text-gray-500"><span><i class="fab fa-youtube text-red-500 mr-1"></i>${escapeHtml(mod.youtube_url)}</span><span><i class="fas fa-stopwatch text-primary mr-1"></i>Stop Time Kuis: <strong>${mod.stop_time || 0} detik</strong></span></div><div class="flex flex-wrap gap-2 mt-3"><button onclick="openEditModuleModal('${encodedMod}')" class="bg-blue-50 text-blue-600 px-3 py-1 rounded-lg border border-blue-200 text-xs font-bold hover:bg-blue-100 transition"><i class="fas fa-edit mr-1"></i>Edit</button><button onclick="openDuplicateSingleModuleModal('${encodedMod}')" class="bg-purple-50 text-purple-700 px-3 py-1 rounded-lg border border-purple-200 text-xs font-bold hover:bg-purple-100 transition"><i class="fas fa-copy mr-1"></i>Duplikat</button><button onclick="deleteModule('${mod.id}')" class="bg-red-50 text-red-600 px-3 py-1 rounded-lg border border-red-200 text-xs font-bold hover:bg-red-100 transition"><i class="fas fa-trash mr-1"></i>Hapus</button></div></div></div>`;
                 });
                 html += `</div></div></div>`;
             }
@@ -3602,7 +3796,9 @@
             const btn = document.getElementById('btn-simpan-modul'); btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Menyimpan...';
             const courseMods = cachedModules.filter(m => m.course_id === selectedCourseId);
             const nextPos = courseMods.length > 0 ? (Math.max(...courseMods.map(m => m.position || 0)) + 1) : 0;
-            const newMod = { course_id: selectedCourseId, title: document.getElementById('module-title').value.trim(), youtube_url: document.getElementById('module-youtube').value.trim(), description: document.getElementById('module-desc').value.trim(), stop_time: parseInt(document.getElementById('module-stoptime').value) || 0, is_free_trial: document.getElementById('module-freetrial').value === 'true', position: nextPos };
+            const selectedSectionId = document.getElementById('module-section').value;
+            const selectedSection = cachedModuleSections.find(section => String(section.id) === String(selectedSectionId));
+            const newMod = { course_id: selectedCourseId, section_id: selectedSection?.id || null, section_name: selectedSection?.name || '', section_instructor: selectedSection?.instructor || '', title: document.getElementById('module-title').value.trim(), youtube_url: document.getElementById('module-youtube').value.trim(), description: document.getElementById('module-desc').value.trim(), stop_time: parseInt(document.getElementById('module-stoptime').value) || 0, is_free_trial: document.getElementById('module-freetrial').value === 'true', position: nextPos };
             try {
                 const { error } = await supabaseClient.from('modules').insert([newMod]); if (error) throw error;
                 showToast('Modul video berhasil ditambahkan!', 'success');
@@ -3685,11 +3881,17 @@
             finally { btnSubmit.disabled = false; btnSubmit.innerHTML = 'Simpan Perubahan'; }
         }
 
-        function openEditModuleModal(encodedBase64) {
+        async function openEditModuleModal(encodedBase64) {
             const mod = JSON.parse(decodeURIComponent(atob(encodedBase64)));
             document.getElementById('edit-module_id').value = mod.id;
             document.getElementById('edit-module-course_id').value = mod.course_id;
             document.getElementById('edit-module-title').value = mod.title || '';
+            try {
+                await loadModuleSections(mod.course_id, 'edit-module-section', mod.section_id || '');
+            } catch (error) {
+                showToast('Gagal memuat bagian materi: ' + error.message, 'error');
+                return;
+            }
             document.getElementById('edit-module-youtube').value = mod.youtube_url || '';
             document.getElementById('edit-module-desc').value = mod.description || '';
             document.getElementById('edit-module-stoptime').value = mod.stop_time || 0;
@@ -3700,7 +3902,10 @@
 
         async function submitEditModuleForm() {
             const modId = document.getElementById('edit-module_id').value; const btn = document.getElementById('btn-simpan-edit-modul'); btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Menyimpan...';
-            const updatedMod = { course_id: document.getElementById('edit-module-course_id').value, title: document.getElementById('edit-module-title').value.trim(), youtube_url: document.getElementById('edit-module-youtube').value.trim(), description: document.getElementById('edit-module-desc').value.trim(), stop_time: parseInt(document.getElementById('edit-module-stoptime').value) || 0, is_free_trial: document.getElementById('edit-module-freetrial').value === 'true' };
+            const courseId = document.getElementById('edit-module-course_id').value;
+            const selectedSectionId = document.getElementById('edit-module-section').value;
+            const selectedSection = cachedModuleSections.find(section => String(section.id) === String(selectedSectionId));
+            const updatedMod = { course_id: courseId, section_id: selectedSection?.id || null, section_name: selectedSection?.name || '', section_instructor: selectedSection?.instructor || '', title: document.getElementById('edit-module-title').value.trim(), youtube_url: document.getElementById('edit-module-youtube').value.trim(), description: document.getElementById('edit-module-desc').value.trim(), stop_time: parseInt(document.getElementById('edit-module-stoptime').value) || 0, is_free_trial: document.getElementById('edit-module-freetrial').value === 'true' };
             try { const { error } = await supabaseClient.from('modules').update(updatedMod).eq('id', modId); if (error) throw error; showToast('Modul video berhasil diperbarui!', 'success'); closeEditModuleModal(); await fetchModules(); }
             catch (error) { showToast('Gagal mengupdate modul: ' + error.message, 'error'); }
             finally { btn.disabled = false; btn.innerHTML = 'Simpan Perubahan'; }
@@ -3868,7 +4073,25 @@
                     const { error: cErr } = await supabaseClient.from('courses').insert([newCourseRow]); if (cErr) throw cErr;
                     if (copyChildren) {
                         const sourceMods = cachedModules.filter(m => m.course_id === payload.course_id);
-                        if (sourceMods.length > 0) { const modsToInsert = sourceMods.map((m, idx) => ({ course_id: newCourseId, title: m.title, youtube_url: m.youtube_url, description: m.description, stop_time: m.stop_time || 0, is_free_trial: m.is_free_trial, position: idx })); await supabaseClient.from('modules').insert(modsToInsert); }
+                        const sourceSections = cachedModuleSections.filter(section => section.course_id === payload.course_id);
+                        const copiedSectionsBySourceId = new Map();
+                        for (const section of sourceSections) {
+                            const copiedSection = await ensureModuleSection(newCourseId, section.name, section.instructor);
+                            copiedSectionsBySourceId.set(String(section.id), copiedSection);
+                        }
+                        if (sourceMods.length > 0) {
+                            const modsToInsert = [];
+                            for (const [idx, mod] of sourceMods.entries()) {
+                                const sourceSection = sourceSections.find(section => String(section.id) === String(mod.section_id))
+                                    || sourceSections.find(section => section.name === mod.section_name);
+                                const copiedSection = sourceSection
+                                    ? copiedSectionsBySourceId.get(String(sourceSection.id))
+                                    : await ensureModuleSection(newCourseId, mod.section_name, mod.section_instructor);
+                                modsToInsert.push({ course_id: newCourseId, section_id: copiedSection?.id || null, title: mod.title, section_name: copiedSection?.name || mod.section_name || '', section_instructor: copiedSection?.instructor || mod.section_instructor || '', youtube_url: mod.youtube_url, description: mod.description, stop_time: mod.stop_time || 0, is_free_trial: mod.is_free_trial, position: idx });
+                            }
+                            const { error: moduleError } = await supabaseClient.from('modules').insert(modsToInsert);
+                            if (moduleError) throw moduleError;
+                        }
                         const sourceQuizzes = cachedQuizzes.filter(q => q.course_id === payload.course_id);
                         if (sourceQuizzes.length > 0) { const quizzesToInsert = sourceQuizzes.map(q => ({ course_id: newCourseId, question: q.question, option_a: q.option_a, option_b: q.option_b, option_c: q.option_c, option_d: q.option_d, correct_answer: q.correct_answer })); await supabaseClient.from('quizzes').insert(quizzesToInsert); }
                     }
@@ -3878,7 +4101,16 @@
                     const prefixLabel = document.getElementById('dup-new-title').value.trim();
                     const existingTargetMods = cachedModules.filter(m => m.course_id === targetCourseId);
                     let startPos = existingTargetMods.length > 0 ? (Math.max(...existingTargetMods.map(m => m.position || 0)) + 1) : 0;
-                    const modsToInsert = payload.map((m, i) => ({ course_id: targetCourseId, title: prefixLabel ? `${prefixLabel} - ${m.title}` : m.title, youtube_url: m.youtube_url, description: m.description || '', stop_time: m.stop_time || 0, is_free_trial: m.is_free_trial, position: startPos + i }));
+                    const modsToInsert = [];
+                    for (const [i, mod] of payload.entries()) {
+                        const sourceSection = cachedModuleSections.find(section => String(section.id) === String(mod.section_id));
+                        const targetSection = await ensureModuleSection(
+                            targetCourseId,
+                            sourceSection?.name || mod.section_name,
+                            sourceSection?.instructor || mod.section_instructor
+                        );
+                        modsToInsert.push({ course_id: targetCourseId, section_id: targetSection?.id || null, title: prefixLabel ? `${prefixLabel} - ${mod.title}` : mod.title, section_name: targetSection?.name || mod.section_name || '', section_instructor: targetSection?.instructor || mod.section_instructor || '', youtube_url: mod.youtube_url, description: mod.description || '', stop_time: mod.stop_time || 0, is_free_trial: mod.is_free_trial, position: startPos + i });
+                    }
                     const { error } = await supabaseClient.from('modules').insert(modsToInsert); if (error) throw error;
                     showToast(`${modsToInsert.length} sesi video berhasil diduplikat ke materi tujuan!`, 'success'); await fetchModules();
                 } else if (type === 'module-single') {
@@ -3886,7 +4118,13 @@
                     if (!targetCourseId) throw new Error('Pilih materi tujuan terlebih dahulu.'); if (!newTitle) throw new Error('Judul sesi baru wajib diisi.');
                     const existingTargetMods = cachedModules.filter(m => m.course_id === targetCourseId);
                     const nextPos = existingTargetMods.length > 0 ? (Math.max(...existingTargetMods.map(m => m.position || 0)) + 1) : 0;
-                    const { error } = await supabaseClient.from('modules').insert([{ course_id: targetCourseId, title: newTitle, youtube_url: payload.youtube_url, description: payload.description || '', stop_time: payload.stop_time || 0, is_free_trial: payload.is_free_trial, position: nextPos }]); if (error) throw error;
+                    const sourceSection = cachedModuleSections.find(section => String(section.id) === String(payload.section_id));
+                    const targetSection = await ensureModuleSection(
+                        targetCourseId,
+                        sourceSection?.name || payload.section_name,
+                        sourceSection?.instructor || payload.section_instructor
+                    );
+                    const { error } = await supabaseClient.from('modules').insert([{ course_id: targetCourseId, section_id: targetSection?.id || null, title: newTitle, section_name: targetSection?.name || payload.section_name || '', section_instructor: targetSection?.instructor || payload.section_instructor || '', youtube_url: payload.youtube_url, description: payload.description || '', stop_time: payload.stop_time || 0, is_free_trial: payload.is_free_trial, position: nextPos }]); if (error) throw error;
                     showToast(`Sesi "${newTitle}" berhasil diduplikat!`, 'success'); await fetchModules();
                 } else if (type === 'quiz-group') {
                     const targetCourseId = document.getElementById('dup-target-course-id').value; if (!targetCourseId) throw new Error('Pilih materi tujuan terlebih dahulu.');
