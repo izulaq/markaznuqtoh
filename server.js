@@ -358,10 +358,12 @@ function parseBundleIdsFromLink(rawLink) {
 }
 
 async function getPurchasedWhatsAppGroupLinks(courseId, courseData) {
-    const courseIds = Array.from(new Set([
-        courseId,
-        ...parseBundleIdsFromLink(courseData?.link)
-    ].filter(Boolean)));
+    const rawLink = String(courseData?.link || '');
+    const isBundle = rawLink.startsWith('BUNDLE::');
+    const courseIds = Array.from(new Set((isBundle
+        ? parseBundleIdsFromLink(rawLink)
+        : [courseId]
+    ).filter(id => typeof id === 'string' && id.trim()).map(id => id.trim())));
     if (courseIds.length === 0) return [];
 
     const { data: courses, error: courseError } = await supabaseAdmin
@@ -377,12 +379,10 @@ async function getPurchasedWhatsAppGroupLinks(courseId, courseData) {
 
     const coursesById = new Map((courses || []).map(course => [course.course_id, course]));
     const groupLinksByCourseId = new Map((groups || []).map(group => [group.course_id, group.whatsapp_group_link]));
-    const seenLinks = new Set();
     return courseIds.flatMap(id => {
         const course = coursesById.get(id);
         const url = String(groupLinksByCourseId.get(id) || '').trim();
-        if (!url || seenLinks.has(url)) return [];
-        seenLinks.add(url);
+        if (!url || !course) return [];
         return [{ title: course.title || id, url }];
     });
 }
