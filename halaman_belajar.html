@@ -948,6 +948,7 @@
         let pendingPaymentInfo = null;
         let pendingPaymentStatusInterval = null;
         let currentModules = [];
+        let currentModuleSections = [];
         let activeModuleIndex = 0;
         let isUserHasAccess = false;
         let userAccessibleCourseIds = [];
@@ -1478,6 +1479,15 @@
                     currentModules = [];
                 }
 
+                const { data: moduleSections, error: sectionErr } = await supabaseClient
+                    .from('module_sections')
+                    .select('*')
+                    .in('course_id', targetIdsForContent)
+                    .order('position', { ascending: true })
+                    .order('id', { ascending: true });
+                if (sectionErr) throw sectionErr;
+                currentModuleSections = moduleSections || [];
+
                 document.getElementById('total-modules-badge').textContent = `${currentModules.length} Sesi`;
                 if (currentModules.length > 4 || isBundleCourse) {
                     document.getElementById('module-search-wrapper').classList.remove('hidden');
@@ -1488,7 +1498,7 @@
                 if (currentModules.length > 0) {
                     loadModule(0);
                 } else {
-                    document.getElementById('modules-list').innerHTML = '<p class="text-xs text-gray-400 text-center py-4">Belum ada modul video.</p>';
+                    renderModulesList();
                     document.getElementById('current-module-title').textContent = 'Belum ada sesi';
                 }
 
@@ -1542,80 +1552,115 @@
             const searchQuery = (document.getElementById('module-search-input')?.value || '').toLowerCase().trim();
             container.innerHTML = '';
 
-            if (currentModules.length === 0) {
+            if (currentModules.length === 0 && currentModuleSections.length === 0) {
                 container.innerHTML = '<p class="text-xs text-gray-400 text-center py-4">Belum ada modul video.</p>';
                 return;
             }
 
-            // Jika Materi Paket (Bundling), kelompokkan video berdasarkan mata pelajaran (course_id)
-            if (isBundleCourse && bundledCourseIds.length > 0) {
-                const groups = {};
-                const groupOrder = [courseId, ...bundledCourseIds];
+            const renderSectionGroups = (items, namespace, fallbackInstructor, sections, courseMatchesSearch) => {
+                const groups = new Map();
+                const sectionsById = new Map(sections.map(section => [String(section.id), section]));
+                const addSectionGroup = (key, name, instructor) => {
+                    if (!groups.has(key)) groups.set(key, { sectionName: name || 'Sesi Pembelajaran', instructor: instructor || '', entries: [] });
+                    return groups.get(key);
+                };
 
-                currentModules.forEach((mod, globalIdx) => {
-                    const cId = mod.course_id;
-                    const cObj = bundledCoursesMap[cId];
-                    const cTitle = cObj ? cObj.title : 'Materi Paket';
-
-                    if (searchQuery) {
-                        const matchTitle = (mod.title || '').toLowerCase().includes(searchQuery);
-                        const matchCourse = cTitle.toLowerCase().includes(searchQuery);
-                        if (!matchTitle && !matchCourse) return;
-                    }
-
-                    if (!groups[cId]) groups[cId] = [];
-                    groups[cId].push({ mod, globalIdx });
+                sections.forEach(section => {
+                    const sectionName = (section.name || '').trim() || 'Sesi Pembelajaran';
+                    const instructor = (section.instructor || '').trim() || fallbackInstructor || '';
+                    const matchesSearch = !searchQuery || courseMatchesSearch
+                        || sectionName.toLowerCase().includes(searchQuery)
+                        || instructor.toLowerCase().includes(searchQuery);
+                    if (matchesSearch) addSectionGroup(`id:${section.id}`, sectionName, instructor);
                 });
 
-                const activeCourseId = currentModules[activeModuleIndex]?.course_id;
-                let renderedGroupCount = 0;
+                items.forEach(entry => {
+                    const mod = entry.mod;
+                    const section = sectionsById.get(String(mod.section_id))
+                        || sections.find(item => item.name === mod.section_name);
+                    const sectionName = (section?.name || mod.section_name || '').trim() || 'Sesi Pembelajaran';
+                    const instructor = (section?.instructor || mod.section_instructor || '').trim() || fallbackInstructor || '';
+                    const key = section ? `id:${section.id}` : `legacy:${sectionName}\u0000${instructor}`;
+                    addSectionGroup(key, sectionName, instructor).entries.push(entry);
+                });
 
-                groupOrder.forEach(cId => {
-                    const items = groups[cId];
-                    if (!items || items.length === 0) return;
-                    renderedGroupCount++;
-
-                    const cObj = bundledCoursesMap[cId];
-                    const groupTitle = cObj ? cObj.title : 'Sesi Paket Utama';
-                    const groupInstructor = cObj?.instructor || '';
-                    const accId = `bundle-mod-acc-${cId.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
-                    const isGroupActive = (cId === activeCourseId) || Boolean(searchQuery);
-
-                    const groupWrapper = document.createElement('div');
-                    groupWrapper.className = 'border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm';
-
-                    let itemsHtml = '';
-                    items.forEach((entry, localIdx) => {
+                return Array.from(groups.values()).map((group, sectionIndex) => {
+                    const sectionId = `${namespace}-section-${sectionIndex}`;
+                    const sectionIsActive = group.entries.some(entry => entry.globalIdx === activeModuleIndex);
+                    const rows = group.entries.map((entry, rowIndex) => {
                         const { mod, globalIdx } = entry;
                         const isLocked = !isUserHasAccess && !mod.is_free_trial;
                         const isActive = globalIdx === activeModuleIndex;
-
-                        itemsHtml += `
+                        return `
                             <div onclick="handleModuleItemClick(${globalIdx}, ${isLocked})"
                                 class="p-3 border-t border-gray-100 flex items-center justify-between transition cursor-pointer ${isActive ? 'bg-primary/10 border-l-4 border-l-primary' : 'hover:bg-gray-50'}">
                                 <div class="flex items-center gap-2.5 min-w-0 pr-2">
-                                    <div class="w-7 h-7 rounded-lg ${isActive ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600'} flex items-center justify-center font-bold text-[11px] shrink-0">
-                                        ${localIdx + 1}
-                                    </div>
+                                    <div class="w-7 h-7 rounded-lg ${isActive ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600'} flex items-center justify-center font-bold text-[11px] shrink-0">${rowIndex + 1}</div>
                                     <div class="min-w-0">
                                         <h4 class="text-xs font-bold ${isActive ? 'text-primary' : 'text-gray-800'} line-clamp-1">${escapeHtml(mod.title)}</h4>
                                         <span class="text-[10px] ${mod.is_free_trial ? 'text-emerald-600 font-semibold' : 'text-gray-400'}">${mod.is_free_trial ? 'Free Trial' : 'Berbayar'}</span>
                                     </div>
                                 </div>
-                                <div class="shrink-0">
-                                    ${isLocked ? '<i class="fas fa-lock text-gray-400 text-xs"></i>' : `<i class="fas ${isActive ? 'fa-volume-up' : 'fa-play'} text-primary text-xs"></i>`}
-                                </div>
-                            </div>
-                        `;
-                    });
+                                <div class="shrink-0">${isLocked ? '<i class="fas fa-lock text-gray-400 text-xs"></i>' : `<i class="fas ${isActive ? 'fa-volume-up' : 'fa-play'} text-primary text-xs"></i>`}</div>
+                            </div>`;
+                    }).join('');
 
+                    return `
+                        <section class="border-t border-gray-100 first:border-t-0">
+                            <button type="button" onclick="toggleSubjectAccordion('${sectionId}')"
+                                class="w-full bg-white hover:bg-gray-50 px-3.5 py-2.5 flex items-center justify-between text-left transition">
+                                <div class="min-w-0 pr-2">
+                                    <div class="text-xs font-bold text-gray-800 flex items-center gap-1.5">
+                                        <i class="fas fa-layer-group text-accent"></i>
+                                        <span class="truncate">${escapeHtml(group.sectionName)}</span>
+                                    </div>
+                                    ${group.instructor ? `<div class="text-[10px] text-gray-400 truncate mt-0.5">${escapeHtml(group.instructor)}</div>` : ''}
+                                </div>
+                                <div class="flex items-center gap-2 shrink-0">
+                                    <span class="bg-primary/10 text-primary text-[10px] font-bold px-2 py-0.5 rounded-full">${group.entries.length} Video</span>
+                                    <i id="icon-${sectionId}" class="fas fa-chevron-down text-[10px] text-gray-400 transition-transform duration-200 ${sectionIsActive || searchQuery ? 'rotate-180' : ''}"></i>
+                                </div>
+                            </button>
+                            <div id="${sectionId}" class="${sectionIsActive || searchQuery ? '' : 'hidden'}">${rows || '<p class="px-3 py-2 text-[10px] text-gray-400">Belum ada video pada bagian ini.</p>'}</div>
+                        </section>`;
+                }).join('');
+            };
+
+            if (isBundleCourse && bundledCourseIds.length > 0) {
+                const groups = {};
+                const groupOrder = [courseId, ...bundledCourseIds];
+                currentModules.forEach((mod, globalIdx) => {
+                    const cId = mod.course_id;
+                    const cObj = bundledCoursesMap[cId];
+                    const cTitle = cObj ? cObj.title : 'Materi Paket';
+                    const matchCourse = cTitle.toLowerCase().includes(searchQuery);
+                    const matchVideo = (mod.title || '').toLowerCase().includes(searchQuery);
+                    const section = currentModuleSections.find(item => String(item.id) === String(mod.section_id));
+                    const matchSection = (section?.name || mod.section_name || '').toLowerCase().includes(searchQuery);
+                    const matchInstructor = (section?.instructor || mod.section_instructor || cObj?.instructor || '').toLowerCase().includes(searchQuery);
+                    if (searchQuery && !matchCourse && !matchVideo && !matchSection && !matchInstructor) return;
+                    if (!groups[cId]) groups[cId] = [];
+                    groups[cId].push({ mod, globalIdx });
+                });
+
+                groupOrder.forEach(cId => {
+                    const items = groups[cId] || [];
+                    const sections = currentModuleSections.filter(section => section.course_id === cId);
+                    const cObj = bundledCoursesMap[cId];
+                    const groupTitle = cObj ? cObj.title : 'Sesi Paket Utama';
+                    const groupInstructor = cObj?.instructor || '';
+                    const courseMatchesSearch = Boolean(searchQuery) && groupTitle.toLowerCase().includes(searchQuery);
+                    if (items.length === 0 && sections.length === 0) return;
+                    const accId = `bundle-mod-acc-${cId.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
+                    const isGroupActive = items.some(entry => entry.globalIdx === activeModuleIndex) || Boolean(searchQuery);
+                    const groupWrapper = document.createElement('div');
+                    groupWrapper.className = 'border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm';
                     groupWrapper.innerHTML = `
                         <button type="button" onclick="toggleSubjectAccordion('${accId}')"
                             class="w-full bg-gray-50 hover:bg-gray-100 px-3.5 py-2.5 flex items-center justify-between text-left transition">
                             <div class="min-w-0 pr-2">
                                 <div class="text-xs font-bold text-primary flex items-center gap-1.5">
-                                    <i class="fas fa-book-open text-accent"></i>
-                                    <span class="truncate">${escapeHtml(groupTitle)}</span>
+                                    <i class="fas fa-book-open text-accent"></i><span class="truncate">${escapeHtml(groupTitle)}</span>
                                 </div>
                                 ${groupInstructor ? `<div class="text-[10px] text-gray-400 truncate mt-0.5">${escapeHtml(groupInstructor)}</div>` : ''}
                             </div>
@@ -1625,51 +1670,30 @@
                             </div>
                         </button>
                         <div id="${accId}" class="${isGroupActive ? '' : 'hidden'}">
-                            ${itemsHtml}
-                        </div>
-                    `;
+                            ${renderSectionGroups(items, accId, groupInstructor, sections, courseMatchesSearch)}
+                        </div>`;
                     container.appendChild(groupWrapper);
                 });
-
-                if (renderedGroupCount === 0) {
-                    container.innerHTML = '<p class="text-xs text-gray-400 text-center py-4">Tidak ada sesi video yang cocok dengan pencarian.</p>';
+            } else {
+                const cObj = bundledCoursesMap[courseId] || courseData;
+                const courseMatchesSearch = Boolean(searchQuery)
+                    && `${cObj?.title || ''} ${cObj?.instructor || ''}`.toLowerCase().includes(searchQuery);
+                const visibleItems = currentModules.map((mod, globalIdx) => ({ mod, globalIdx })).filter(({ mod }) => {
+                    if (!searchQuery || courseMatchesSearch) return true;
+                    const section = currentModuleSections.find(item => String(item.id) === String(mod.section_id));
+                    return (mod.title || '').toLowerCase().includes(searchQuery)
+                        || (section?.name || mod.section_name || '').toLowerCase().includes(searchQuery)
+                        || (section?.instructor || mod.section_instructor || '').toLowerCase().includes(searchQuery);
+                });
+                const sections = currentModuleSections.filter(section => section.course_id === courseId);
+                if (visibleItems.length > 0 || sections.length > 0) {
+                    const groupsHtml = renderSectionGroups(visibleItems, 'course-modules', cObj?.instructor || '', sections, courseMatchesSearch);
+                    if (groupsHtml) container.innerHTML = `<div class="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm">${groupsHtml}</div>`;
                 }
-                return;
             }
 
-            // Jika Materi Satuan (Standar)
-            let visibleCount = 0;
-            currentModules.forEach((mod, index) => {
-                if (searchQuery && !(mod.title || '').toLowerCase().includes(searchQuery)) return;
-                visibleCount++;
-
-                const isLocked = !isUserHasAccess && !mod.is_free_trial;
-                const isActive = index === activeModuleIndex;
-
-                const div = document.createElement('div');
-                div.className = `p-3 rounded-xl border flex items-center justify-between transition cursor-pointer ${isActive ? 'bg-primary/5 border-primary' : 'bg-white border-gray-100 hover:bg-gray-50'}`;
-
-                div.innerHTML = `
-                    <div class="flex items-center gap-3 min-w-0 pr-2">
-                        <div class="w-8 h-8 rounded-lg ${isActive ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600'} flex items-center justify-center font-bold text-xs shrink-0">
-                            ${index + 1}
-                        </div>
-                        <div class="min-w-0">
-                            <h4 class="text-xs font-bold text-gray-800 line-clamp-1">${escapeHtml(mod.title)}</h4>
-                            <span class="text-[10px] text-gray-400">${mod.is_free_trial ? 'Free Trial' : 'Berbayar'}</span>
-                        </div>
-                    </div>
-                    <div class="shrink-0">
-                        ${isLocked ? '<i class="fas fa-lock text-gray-400 text-xs"></i>' : '<i class="fas fa-play text-primary text-xs"></i>'}
-                    </div>
-                `;
-
-                div.onclick = () => handleModuleItemClick(index, isLocked);
-                container.appendChild(div);
-            });
-
-            if (visibleCount === 0) {
-                container.innerHTML = '<p class="text-xs text-gray-400 text-center py-4">Sesi tidak ditemukan.</p>';
+            if (container.children.length === 0) {
+                container.innerHTML = `<p class="text-xs text-gray-400 text-center py-4">${searchQuery ? 'Tidak ada sesi video yang cocok dengan pencarian.' : 'Belum ada sesi pembelajaran.'}</p>`;
             }
         }
 
