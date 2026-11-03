@@ -296,11 +296,7 @@
                             <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Link Grup WhatsApp</label>
                             <input type="url" id="course-whatsapp-group-link" placeholder="https://chat.whatsapp.com/..."
                                 class="w-full border border-gray-200 p-2.5 rounded-xl text-sm focus:outline-none">
-                            <p class="mt-1 text-[10px] text-gray-500">Dikirim lewat WhatsApp setelah pembayaran berhasil. Anda akan diminta login akun pengelola saat menyimpan.</p>
-                            <div class="mt-1 flex items-center justify-between gap-2">
-                                <span id="course-group-admin-status" class="text-[10px] text-gray-500">Belum login</span>
-                                <button type="button" onclick="signOutCourseGroupAdmin()" class="text-[10px] text-red-600 hover:underline">Keluar akun</button>
-                            </div>
+                            <p class="mt-1 text-[10px] text-gray-500">Dikirim lewat WhatsApp setelah pembayaran berhasil. Akses link terbuka untuk siapa saja.</p>
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Jumlah Pertemuan</label>
@@ -1272,33 +1268,6 @@
         </div>
     </div>
 
-    <div id="course-group-login-modal"
-        class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 hidden z-[100000]">
-        <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
-            <div class="bg-primary p-4 text-white">
-                <h3 class="font-bold text-lg">Login Pengelola</h3>
-                <p class="text-xs text-white/80 mt-1">Masuk dengan akun Supabase yang sudah diberi izin mengelola grup.</p>
-            </div>
-            <form id="course-group-login-form" class="p-5 space-y-3">
-                <div>
-                    <label for="course-group-login-email" class="block text-xs font-bold text-gray-700 mb-1">Email</label>
-                    <input id="course-group-login-email" type="email" autocomplete="username" required
-                        class="w-full border border-gray-300 p-2.5 rounded-xl text-sm">
-                </div>
-                <div>
-                    <label for="course-group-login-password" class="block text-xs font-bold text-gray-700 mb-1">Kata sandi</label>
-                    <input id="course-group-login-password" type="password" autocomplete="current-password" required
-                        class="w-full border border-gray-300 p-2.5 rounded-xl text-sm">
-                </div>
-                <p id="course-group-login-error" class="hidden text-xs text-red-600"></p>
-                <div class="flex justify-end gap-2 pt-1">
-                    <button type="button" onclick="closeCourseGroupLogin()" class="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 text-sm font-bold">Batal</button>
-                    <button id="course-group-login-submit" type="submit" class="px-4 py-2 rounded-lg bg-primary text-white text-sm font-bold">Masuk</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
     <!-- ================= MODAL EDIT MATERI ================= -->
     <div id="edit-modal"
         class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 hidden z-[99990]">
@@ -1401,11 +1370,7 @@
                         <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Link Grup WhatsApp</label>
                         <input type="url" id="edit-whatsapp-group-link" placeholder="https://chat.whatsapp.com/..."
                             class="w-full border border-gray-200 p-2.5 rounded-xl text-sm">
-                        <p class="mt-1 text-[10px] text-gray-500">Dikirim lewat WhatsApp setelah pembayaran berhasil. Kosongkan jika materi tidak memiliki grup.</p>
-                        <div class="mt-1 flex items-center justify-between gap-2">
-                            <span id="edit-course-group-admin-status" class="text-[10px] text-gray-500">Belum login</span>
-                            <button type="button" onclick="signOutCourseGroupAdmin()" class="text-[10px] text-red-600 hover:underline">Keluar akun</button>
-                        </div>
+                        <p class="mt-1 text-[10px] text-gray-500">Dikirim lewat WhatsApp setelah pembayaran berhasil. Kosongkan jika materi tidak memiliki grup. Akses link terbuka untuk siapa saja.</p>
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Pertemuan</label>
@@ -1744,102 +1709,8 @@
         const COVER_UPLOAD_API_URL = `${BACKEND_API_URL}/api/upload-google-drive-cover`;
         const SUPABASE_KEY = 'sb_publishable_N96gYsm_jeSntalN3qMVCA_TpXloD4u';
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        let courseGroupLoginPromise = null;
-        let resolveCourseGroupLogin = null;
-        let rejectCourseGroupLogin = null;
-
-        function setCourseGroupAdminStatus(user) {
-            const status = user ? `Login sebagai ${user.email}` : 'Belum login';
-            ['course-group-admin-status', 'edit-course-group-admin-status'].forEach(id => {
-                const element = document.getElementById(id);
-                if (element) element.textContent = status;
-            });
-        }
-
-        supabaseClient.auth.onAuthStateChange((_event, session) => {
-            setCourseGroupAdminStatus(session?.user || null);
-        });
-
-        function openCourseGroupLogin() {
-            if (courseGroupLoginPromise) return courseGroupLoginPromise;
-            document.getElementById('course-group-login-error').classList.add('hidden');
-            document.getElementById('course-group-login-modal').classList.remove('hidden');
-            courseGroupLoginPromise = new Promise((resolve, reject) => {
-                resolveCourseGroupLogin = resolve;
-                rejectCourseGroupLogin = reject;
-            });
-            return courseGroupLoginPromise;
-        }
-
-        function closeCourseGroupLogin() {
-            document.getElementById('course-group-login-modal').classList.add('hidden');
-            if (rejectCourseGroupLogin) rejectCourseGroupLogin(new Error('Login dibatalkan.'));
-            resolveCourseGroupLogin = null;
-            rejectCourseGroupLogin = null;
-            courseGroupLoginPromise = null;
-        }
-
-        document.getElementById('course-group-login-form').addEventListener('submit', async event => {
-            event.preventDefault();
-            const submitButton = document.getElementById('course-group-login-submit');
-            const errorElement = document.getElementById('course-group-login-error');
-            const email = document.getElementById('course-group-login-email').value.trim();
-            const password = document.getElementById('course-group-login-password').value;
-            submitButton.disabled = true;
-            submitButton.textContent = 'Memeriksa...';
-            errorElement.classList.add('hidden');
-            try {
-                const { error: loginError } = await supabaseClient.auth.signInWithPassword({ email, password });
-                if (loginError) throw loginError;
-
-                const { data: isAdmin, error: permissionError } = await supabaseClient.rpc('is_course_group_admin');
-                if (permissionError) throw new Error(`Gagal memeriksa izin akun: ${permissionError.message}`);
-                if (isAdmin !== true) {
-                    await supabaseClient.auth.signOut();
-                    throw new Error('Akun ini belum diberi izin pengelola link grup.');
-                }
-
-                document.getElementById('course-group-login-modal').classList.add('hidden');
-                document.getElementById('course-group-login-form').reset();
-                const resolve = resolveCourseGroupLogin;
-                resolveCourseGroupLogin = null;
-                rejectCourseGroupLogin = null;
-                courseGroupLoginPromise = null;
-                if (resolve) resolve({ email });
-            } catch (error) {
-                errorElement.textContent = error.message || 'Login gagal. Periksa email dan kata sandi.';
-                errorElement.classList.remove('hidden');
-            } finally {
-                submitButton.disabled = false;
-                submitButton.textContent = 'Masuk';
-            }
-        });
-
-        async function ensureCourseGroupAdminAccess() {
-            const { data, error } = await supabaseClient.auth.getSession();
-            if (error) throw new Error(`Gagal memeriksa sesi login: ${error.message}`);
-            if (data.session?.user) {
-                const { data: isAdmin, error: permissionError } = await supabaseClient.rpc('is_course_group_admin');
-                if (permissionError) throw new Error(`Gagal memeriksa izin akun: ${permissionError.message}`);
-                if (isAdmin === true) return data.session.user;
-                await supabaseClient.auth.signOut();
-                showToast('Akun ini belum diberi izin pengelola. Silakan login dengan akun pengelola.', 'warning');
-            }
-            return openCourseGroupLogin();
-        }
-
-        async function signOutCourseGroupAdmin() {
-            const { error } = await supabaseClient.auth.signOut();
-            if (error) {
-                showToast(`Gagal keluar dari akun pengelola: ${error.message}`, 'error');
-                return;
-            }
-            showToast('Anda telah keluar dari akun pengelola link grup.', 'success');
-        }
 
         async function requestAdminWhatsAppGroup(courseId, method, whatsappGroupLink) {
-            await ensureCourseGroupAdminAccess();
-
             if (method === 'GET') {
                 const { data, error } = await supabaseClient
                     .from('course_whatsapp_groups')
@@ -3974,7 +3845,6 @@
             const finalLinkField = encodeCourseLinkWithMeta(isBundle, selectedBundleCourseIdsAdd, rawExternalLink, sharePct, discountPct, addCoursePdf);
             const newCourse = { course_id: document.getElementById('course_id').value, title: document.getElementById('title').value.trim(), category: document.getElementById('category').value, subfilter: document.getElementById('subfilter').value, mode: document.getElementById('mode').value, instructor: document.getElementById('instructor').value.trim(), meetings: formatPertemuan(document.getElementById('meetings').value), class_type: document.getElementById('class_type').value, facility: document.getElementById('facility').value.trim(), quota: document.getElementById('quota').value.trim(), price: formatRupiah(document.getElementById('price').value), price_le: formatLE(document.getElementById('price_le').value), link: finalLinkField, image: addCourseImage.imageUrl, position: newPosition };
             try {
-                if (whatsappGroupLink) await ensureCourseGroupAdminAccess();
                 const { error } = await supabaseClient.from('courses').insert([newCourse]); if (error) throw error;
                 if (whatsappGroupLink) {
                     try {
@@ -4088,7 +3958,6 @@
             const finalLinkField = encodeCourseLinkWithMeta(isBundle, selectedBundleCourseIdsEdit, rawExternalLink, sharePct, discountPct, editCoursePdf);
             const updatedData = { title: document.getElementById('edit-title').value.trim(), category: document.getElementById('edit-category').value, subfilter: document.getElementById('edit-subfilter').value, mode: document.getElementById('edit-mode').value, class_type: document.getElementById('edit-class_type').value, instructor: document.getElementById('edit-instructor').value.trim(), meetings: formatPertemuan(document.getElementById('edit-meetings').value) || '', facility: document.getElementById('edit-facility').value.trim(), quota: document.getElementById('edit-quota').value.trim(), price: formatRupiah(document.getElementById('edit-price').value) || '', price_le: formatLE(document.getElementById('edit-price_le').value) || '', link: finalLinkField, image: document.getElementById('edit-image').value.trim() };
             try {
-                await ensureCourseGroupAdminAccess();
                 const { error } = await supabaseClient.from('courses').update(updatedData).eq('course_id', courseId); if (error) throw error;
                 try {
                     await requestAdminWhatsAppGroup(courseId, 'PUT', whatsappGroupLink);
