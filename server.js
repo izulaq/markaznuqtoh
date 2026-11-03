@@ -1,7 +1,6 @@
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
-const crypto = require('crypto');
 const midtransClient = require('midtrans-client');
 const isMidtransProduction = process.env.MIDTRANS_IS_PRODUCTION === 'true';
 const { createClient } = require('@supabase/supabase-js');
@@ -326,78 +325,6 @@ const supabaseAdmin = createClient(
     process.env.SUPABASE_URL,
     process.env.SUPABASE_SERVICE_ROLE_KEY
 );
-
-function requireAdminApiToken(req, res, next) {
-    const expectedToken = process.env.ADMIN_API_TOKEN || '';
-    const providedToken = req.get('x-admin-token') || '';
-    if (!expectedToken) {
-        return res.status(503).json({ error: 'ADMIN_API_TOKEN belum diatur pada environment backend.' });
-    }
-
-    const expectedBuffer = Buffer.from(expectedToken);
-    const providedBuffer = Buffer.from(providedToken);
-    if (expectedBuffer.length !== providedBuffer.length || !crypto.timingSafeEqual(expectedBuffer, providedBuffer)) {
-        return res.status(401).json({ error: 'Token admin tidak valid.' });
-    }
-    next();
-}
-
-app.get('/api/admin/course-whatsapp-groups/:courseId', requireAdminApiToken, async (req, res) => {
-    try {
-        const { data, error } = await supabaseAdmin
-            .from('course_whatsapp_groups')
-            .select('whatsapp_group_link')
-            .eq('course_id', req.params.courseId)
-            .maybeSingle();
-        if (error) throw error;
-        res.json({ whatsapp_group_link: data?.whatsapp_group_link || '' });
-    } catch (error) {
-        console.error('[ADMIN WHATSAPP GROUP] Gagal memuat link grup:', error.message);
-        res.status(500).json({ error: 'Gagal memuat link grup WhatsApp.' });
-    }
-});
-
-app.put('/api/admin/course-whatsapp-groups/:courseId', requireAdminApiToken, async (req, res) => {
-    try {
-        const courseId = String(req.params.courseId || '').trim();
-        const groupLink = req.body?.whatsapp_group_link;
-        if (!courseId || typeof groupLink !== 'string' || groupLink.length > 2048) {
-            return res.status(400).json({ error: 'ID materi atau link grup WhatsApp tidak valid.' });
-        }
-        if (groupLink.trim()) {
-            let parsedLink;
-            try {
-                parsedLink = new URL(groupLink.trim());
-            } catch {
-                return res.status(400).json({ error: 'Format link grup WhatsApp tidak valid.' });
-            }
-            if (parsedLink.protocol !== 'https:') {
-                return res.status(400).json({ error: 'Link grup WhatsApp harus menggunakan HTTPS.' });
-            }
-        }
-
-        const { data: course, error: courseError } = await supabaseAdmin
-            .from('courses')
-            .select('course_id')
-            .eq('course_id', courseId)
-            .maybeSingle();
-        if (courseError) throw courseError;
-        if (!course) return res.status(404).json({ error: 'Materi tidak ditemukan.' });
-
-        const { error } = await supabaseAdmin
-            .from('course_whatsapp_groups')
-            .upsert({
-                course_id: courseId,
-                whatsapp_group_link: groupLink.trim(),
-                updated_at: new Date().toISOString()
-            }, { onConflict: 'course_id' });
-        if (error) throw error;
-        res.json({ success: true });
-    } catch (error) {
-        console.error('[ADMIN WHATSAPP GROUP] Gagal menyimpan link grup:', error.message);
-        res.status(500).json({ error: 'Gagal menyimpan link grup WhatsApp.' });
-    }
-});
 
 // Inisialisasi Midtrans Snap API Client
 let snap = new midtransClient.Snap({
