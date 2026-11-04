@@ -948,6 +948,10 @@ app.post('/api/send-otp', async (req, res) => {
             });
         }
 
+        if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+            throw new Error('Pengiriman email belum dikonfigurasi.');
+        }
+
         const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
         const expiresAt = new Date(Date.now() + OTP_TTL_MS);
 
@@ -957,35 +961,22 @@ app.post('/api/send-otp', async (req, res) => {
 
         if (otpErr) throw otpErr;
 
-        if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-            await mailTransporter.sendMail({
-                from: `"Nuqthah Learning Center" <${process.env.EMAIL_USER}>`,
-                to: email,
-                subject: `${otpCode} adalah Kode Masuk OTP Nuqthah Learning Anda`,
-                html: `
-                    <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 16px;">
-                        <h2 style="color: #234B36; margin-top: 0;">Nuqthah Learning Center</h2>
-                        <p style="color: #374151; font-size: 14px;">Assalamu'alaikum <strong>${userExist.name}</strong>,</p>
-                        <p style="color: #374151; font-size: 14px;">Berikut adalah kode OTP untuk masuk dan membuka akses materi pembelajaran Anda:</p>
-                        <div style="background-color: #f3f4f6; padding: 16px; border-radius: 12px; text-align: center; margin: 20px 0;">
-                            <span style="font-size: 28px; font-weight: bold; letter-spacing: 6px; color: #234B36;">${otpCode}</span>
-                        </div>
-                        <p style="color: #6b7280; font-size: 12px;">Kode ini berlaku selama 60 detik. Jangan berikan kode ini kepada siapa pun.</p>
+        await mailTransporter.sendMail({
+            from: `"Nuqthah Learning Center" <${process.env.EMAIL_USER}>`,
+            to: email,
+            subject: `${otpCode} adalah Kode Masuk OTP Nuqthah Learning Anda`,
+            html: `
+                <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 16px;">
+                    <h2 style="color: #234B36; margin-top: 0;">Nuqthah Learning Center</h2>
+                    <p style="color: #374151; font-size: 14px;">Assalamu'alaikum <strong>${userExist.name}</strong>,</p>
+                    <p style="color: #374151; font-size: 14px;">Berikut adalah kode OTP untuk masuk dan membuka akses materi pembelajaran Anda:</p>
+                    <div style="background-color: #f3f4f6; padding: 16px; border-radius: 12px; text-align: center; margin: 20px 0;">
+                        <span style="font-size: 28px; font-weight: bold; letter-spacing: 6px; color: #234B36;">${otpCode}</span>
                     </div>
-                `
-            });
-        }
-
-        if (userExist.whatsapp && process.env.FONNTE_TOKEN) {
-            const otpWaMsg = 
-`Assalamu'alaikum *${userExist.name}*,
-
-Kode OTP untuk masuk ke akun belajar *Nuqthah Learning Center* Anda adalah:
-*${otpCode}*
-
-Kode ini berlaku selama 60 detik. Jangan berikan kode ini kepada siapa pun.`;
-            await sendFonnteWhatsApp(userExist.whatsapp, otpWaMsg);
-        }
+                    <p style="color: #6b7280; font-size: 12px;">Kode ini berlaku selama 60 detik. Jangan berikan kode ini kepada siapa pun.</p>
+                </div>
+            `
+        });
 
         res.json({ success: true, message: 'Kode OTP berhasil dikirim.' });
     } catch (err) {
