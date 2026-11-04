@@ -10,6 +10,7 @@ const app = express();
 const MAX_PDF_SIZE = 4 * 1024 * 1024;
 const MAX_COVER_SIZE = 3 * 1024 * 1024;
 const GDRIVE_COVER_SCRIPT_VERSION = 2;
+const OTP_TTL_MS = 60 * 1000;
 
 app.use(cors());
 app.use(express.json({ limit: '18mb' }));
@@ -948,7 +949,7 @@ app.post('/api/send-otp', async (req, res) => {
         }
 
         const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-        const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+        const expiresAt = new Date(Date.now() + OTP_TTL_MS);
 
         const { error: otpErr } = await supabaseAdmin
             .from('otps')
@@ -969,7 +970,7 @@ app.post('/api/send-otp', async (req, res) => {
                         <div style="background-color: #f3f4f6; padding: 16px; border-radius: 12px; text-align: center; margin: 20px 0;">
                             <span style="font-size: 28px; font-weight: bold; letter-spacing: 6px; color: #234B36;">${otpCode}</span>
                         </div>
-                        <p style="color: #6b7280; font-size: 12px;">Kode ini berlaku selama 10 menit. Jangan berikan kode ini kepada siapa pun.</p>
+                        <p style="color: #6b7280; font-size: 12px;">Kode ini berlaku selama 60 detik. Jangan berikan kode ini kepada siapa pun.</p>
                     </div>
                 `
             });
@@ -982,7 +983,7 @@ app.post('/api/send-otp', async (req, res) => {
 Kode OTP untuk masuk ke akun belajar *Nuqthah Learning Center* Anda adalah:
 *${otpCode}*
 
-Kode ini berlaku selama 10 menit. Jangan berikan kode ini kepada siapa pun.`;
+Kode ini berlaku selama 60 detik. Jangan berikan kode ini kepada siapa pun.`;
             await sendFonnteWhatsApp(userExist.whatsapp, otpWaMsg);
         }
 
@@ -1010,7 +1011,7 @@ app.post('/api/verify-otp', async (req, res) => {
             .limit(1)
             .single();
 
-        if (oErr || !otpData || new Date(otpData.expires_at) < new Date()) {
+        if (oErr || !otpData || new Date(otpData.expires_at) <= new Date()) {
             return res.status(400).json({ success: false, error: 'Kode OTP salah atau sudah kedaluwarsa.' });
         }
 
