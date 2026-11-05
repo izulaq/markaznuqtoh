@@ -422,88 +422,53 @@
                 </div>
             </div>
 
-            <button id="video-quality-help-button" type="button"
-                class="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-left text-sm font-bold text-emerald-900 shadow-sm transition hover:bg-emerald-100 focus:outline-none focus:ring-2 focus:ring-primary/40">
-                🛠️ Video Buram? Klik untuk Perjelas ke HD
-            </button>
+            <section class="overflow-hidden rounded-xl border border-emerald-200 bg-emerald-50 shadow-sm">
+                <button id="video-quality-help-button" type="button" aria-expanded="true"
+                    aria-controls="video-quality-help-guide"
+                    class="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm font-bold text-emerald-950 transition hover:bg-emerald-100 focus:outline-none focus:ring-2 focus:ring-primary/40">
+                    <span>🛠️ Video buram? Panduan membuat video lebih jernih</span>
+                    <span id="video-quality-help-toggle-label" class="shrink-0 text-xs font-semibold text-emerald-800">Sembunyikan</span>
+                </button>
+                <div id="video-quality-help-guide" class="space-y-4 border-t border-emerald-200 bg-white p-4">
+                    <p class="text-sm text-gray-700">Pasang ekstensi Auto HD + FPS agar browser mencoba memilih kualitas video yang lebih tinggi.</p>
 
-            <div id="video-quality-help-modal"
-                class="fixed inset-0 z-[1000001] hidden items-center justify-center bg-black/70 p-4"
-                aria-hidden="true">
-                <div class="absolute inset-0" data-close-quality-help></div>
-                <section role="dialog" aria-modal="true" aria-labelledby="video-quality-help-title" tabindex="-1"
-                    class="relative z-10 max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl sm:p-6">
-                    <div class="mb-4 flex items-start justify-between gap-4">
-                        <div>
-                            <h3 id="video-quality-help-title" class="text-lg font-bold text-gray-900">Bantuan Kualitas Video</h3>
-                            <p class="mt-1 text-sm text-gray-600">Coba langkah berikut jika video terlihat buram.</p>
-                        </div>
-                        <button id="close-video-quality-help" type="button" aria-label="Tutup bantuan kualitas video"
-                            class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200">
-                            <i class="fas fa-times" aria-hidden="true"></i>
-                        </button>
+                    <div class="rounded-lg border border-blue-100 bg-blue-50/70 p-3">
+                        <h3 class="font-bold text-blue-950">Laptop / PC</h3>
+                        <ol class="mt-2 list-inside list-decimal space-y-1.5 text-sm text-gray-700">
+                            <li>Klik tombol <strong>Buka ekstensi Auto HD + FPS</strong> di bawah.</li>
+                            <li>Pilih <strong>Tambahkan ke Chrome</strong>, lalu konfirmasi pemasangan.</li>
+                            <li>Kembali ke halaman Nuqthah dan muat ulang halaman.</li>
+                        </ol>
                     </div>
 
-                    <div class="space-y-5">
-                        <section class="space-y-3 rounded-xl border border-blue-100 bg-blue-50/70 p-4">
-                            <div>
-                                <h4 class="font-bold text-blue-950">Laptop / PC</h4>
-                                <p class="mt-1 text-sm leading-relaxed text-blue-900">Ekstensi browser dapat mencoba meminta kualitas lebih tinggi, tetapi tidak menjamin 1080p pada video embed.</p>
-                            </div>
-                            <a href="https://chromewebstore.google.com/detail/youtube-auto-hd-+-fps/fcphghnknhkimeagdglkljinmpbagone"
-                                target="_blank" rel="noopener noreferrer"
-                                class="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-center text-sm font-bold text-white transition hover:bg-primary/90">
-                                <i class="fas fa-arrow-up-right-from-square" aria-hidden="true"></i>
-                                Buka ekstensi Auto HD + FPS
-                            </a>
-                            <ol class="list-inside list-decimal space-y-2 text-sm leading-relaxed text-gray-700">
-                                <li>Periksa nama penerbit dan izin ekstensi, lalu pilih <strong>Tambahkan ke Chrome</strong>.</li>
-                                <li>Kembali ke halaman materi dan muat ulang. Ekstensi mungkin tidak bekerja pada setiap video embed.</li>
-                            </ol>
-                        </section>
-
-                        <section class="space-y-3 rounded-xl border border-emerald-100 bg-emerald-50/70 p-4">
-                            <div>
-                                <h4 class="font-bold text-emerald-950">HP / tablet — Firefox</h4>
-                                <p class="mt-1 text-sm leading-relaxed text-emerald-900">Pasang Firefox, lalu tambahkan ekstensi kualitas video melalui menu Ekstensi.</p>
-                            </div>
-                            <a href="https://play.google.com/store/apps/details?id=org.mozilla.firefox"
-                                target="_blank" rel="noopener noreferrer"
-                                class="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-3 text-center text-sm font-bold text-white transition hover:bg-emerald-800">
-                                <i class="fab fa-google-play" aria-hidden="true"></i>
-                                1. Instal Firefox Browser
-                            </a>
-                            <ol start="2" class="list-inside list-decimal space-y-2 text-sm leading-relaxed text-gray-700">
-                                <li>Buka Firefox, lalu ketuk menu <strong>⋮</strong> di pojok kanan atas.</li>
-                                <li>Pilih <strong>Ekstensi</strong>.</li>
-                                <li>Gulir ke bagian paling bawah, lalu ketuk <strong>Temukan lebih banyak ekstensi</strong>.</li>
-                                <li>Di kotak pencarian, cari <strong>YouTube HD</strong>.</li>
-                                <li>Pilih ekstensi yang sesuai, lalu ketuk <strong>Add to Firefox</strong>.</li>
-                                <li>Konfirmasi dengan mengetuk <strong>Tambahkan</strong>, lalu ketuk <strong>OK</strong> jika diminta.</li>
-                                <li>Kembali ke halaman utama Firefox, lalu buka website Nuqthah menggunakan alamat di bawah.</li>
-                            </ol>
-                            <div class="rounded-lg border border-white bg-white p-3">
-                                <p class="text-xs font-bold uppercase tracking-wide text-gray-500">Alamat website Nuqthah</p>
-                                <div class="mt-2 flex flex-col gap-2 sm:flex-row">
-                                    <code id="quality-help-site-url" class="min-w-0 flex-1 break-all rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-800">https://markaz.nuqthahlearning.my.id</code>
-                                    <button id="copy-quality-help-site-url" type="button"
-                                        class="shrink-0 rounded-lg border border-gray-300 px-4 py-2 text-sm font-bold text-gray-700 transition hover:bg-gray-50">
-                                        <i class="fas fa-copy mr-1" aria-hidden="true"></i>Salin alamat
-                                    </button>
-                                </div>
-                            </div>
-                            <ol start="9" class="list-inside list-decimal space-y-2 text-sm leading-relaxed text-gray-700">
-                                <li>Setiap kali akan menonton video, muat ulang (refresh) halaman belajar agar ekstensi mencoba menerapkan pengaturan kualitas.</li>
-                                <li>Untuk akses lebih mudah, saat website Nuqthah terbuka ketuk menu <strong>⋮</strong>, pilih <strong>Tambahkan ke layar utama (Add to Home screen)</strong>, lalu konfirmasi dengan mengetuk <strong>Tambahkan</strong>. Ikon Nuqthah akan muncul di layar utama perangkat.</li>
-                            </ol>
-                        </section>
-
-                        <p class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
-                            Ekstensi pihak ketiga dapat meminta akses ke data situs dan tidak menjamin kualitas 1080p. Nama dan ketersediaan ekstensi dapat berubah; periksa penerbit serta izinnya sebelum memasang.
-                        </p>
+                    <div class="rounded-lg border border-emerald-100 bg-emerald-50/70 p-3">
+                        <h3 class="font-bold text-emerald-950">HP / tablet</h3>
+                        <ol class="mt-2 list-inside list-decimal space-y-1.5 text-sm text-gray-700">
+                            <li>Instal <strong>Lemur Browser</strong> dari Play Store atau App Store.</li>
+                            <li>Tekan tombol <strong>Buka Nuqthah di Lemur Browser</strong> di bawah.</li>
+                            <li>Ketuk tombol ekstensi di bawah, lalu tambahkan ekstensi ke Lemur.</li>
+                            <li>Kembali ke halaman Nuqthah dan muat ulang halaman.</li>
+                        </ol>
+                        <a id="open-nuqthah-in-lemur" href="https://markaz.nuqthahlearning.my.id"
+                            class="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-700 px-3 py-3 text-center text-sm font-bold text-white transition hover:bg-emerald-800">
+                            <i class="fas fa-external-link-alt" aria-hidden="true"></i>
+                            Buka Nuqthah di Lemur Browser
+                        </a>
+                        <p id="lemur-open-help" class="mt-2 text-xs text-gray-600">Android: Lemur terbuka langsung, atau Play Store jika belum terpasang. iPhone/iPad: tombol membuka App Store.</p>
                     </div>
-                </section>
-            </div>
+
+                    <a href="https://chromewebstore.google.com/detail/youtube-auto-hd-+-fps/fcphghnknhkimeagdglkljinmpbagone"
+                        target="_blank" rel="noopener noreferrer"
+                        class="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-center text-sm font-bold text-white transition hover:bg-primary/90">
+                        <i class="fas fa-arrow-up-right-from-square" aria-hidden="true"></i>
+                        Buka ekstensi Auto HD + FPS
+                    </a>
+
+                    <p class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
+                        Ekstensi tidak menjamin kualitas HD di semua video. Periksa nama penerbit dan izin sebelum memasang.
+                    </p>
+                </div>
+            </section>
 
             <!-- Detail Materi & Pengajar -->
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
@@ -1012,10 +977,10 @@
         const iconFullscreen = document.getElementById('icon-fullscreen');
         const btnRotate = document.getElementById('btn-rotate');
         const videoQualityHelpButton = document.getElementById('video-quality-help-button');
-        const videoQualityHelpModal = document.getElementById('video-quality-help-modal');
-        const videoQualityHelpDialog = videoQualityHelpModal.querySelector('[role="dialog"]');
-        const closeVideoQualityHelpButton = document.getElementById('close-video-quality-help');
-        const copyQualityHelpSiteUrlButton = document.getElementById('copy-quality-help-site-url');
+        const videoQualityHelpGuide = document.getElementById('video-quality-help-guide');
+        const videoQualityHelpToggleLabel = document.getElementById('video-quality-help-toggle-label');
+        const openNuqthahInLemurButton = document.getElementById('open-nuqthah-in-lemur');
+        const lemurOpenHelp = document.getElementById('lemur-open-help');
 
         /* ================================================================
            HELPER PARSE BUNDLING PAKET
@@ -2049,45 +2014,37 @@
             }
         }
 
-        function openVideoQualityHelp() {
-            videoQualityHelpModal.classList.remove('hidden');
-            videoQualityHelpModal.classList.add('flex');
-            videoQualityHelpModal.setAttribute('aria-hidden', 'false');
-            closeVideoQualityHelpButton.focus();
+        function toggleVideoQualityHelp() {
+            const isExpanded = videoQualityHelpButton.getAttribute('aria-expanded') === 'true';
+            videoQualityHelpButton.setAttribute('aria-expanded', String(!isExpanded));
+            videoQualityHelpGuide.classList.toggle('hidden', isExpanded);
+            videoQualityHelpToggleLabel.textContent = isExpanded ? 'Tampilkan' : 'Sembunyikan';
         }
 
-        function closeVideoQualityHelp() {
-            videoQualityHelpModal.classList.add('hidden');
-            videoQualityHelpModal.classList.remove('flex');
-            videoQualityHelpModal.setAttribute('aria-hidden', 'true');
-            videoQualityHelpButton.focus();
-        }
+        function openNuqthahWithLemur(event) {
+            const websiteUrl = 'https://markaz.nuqthahlearning.my.id';
+            const playStoreUrl = 'https://play.google.com/store/apps/details?id=com.lemurbrowser.exts';
+            const appStoreUrl = 'https://apps.apple.com/id/app/id1662756821';
+            const userAgent = navigator.userAgent || '';
+            const isIOS = /iPad|iPhone|iPod/.test(userAgent) ||
+                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+            const isAndroid = /Android/i.test(userAgent);
 
-        async function copyQualityHelpSiteUrl() {
-            const websiteUrl = document.getElementById('quality-help-site-url').textContent.trim();
-            try {
-                if (navigator.clipboard && window.isSecureContext) {
-                    await navigator.clipboard.writeText(websiteUrl);
-                } else {
-                    const temporaryInput = document.createElement('textarea');
-                    temporaryInput.value = websiteUrl;
-                    temporaryInput.setAttribute('readonly', '');
-                    temporaryInput.style.position = 'fixed';
-                    temporaryInput.style.opacity = '0';
-                    document.body.appendChild(temporaryInput);
-                    let copied;
-                    try {
-                        temporaryInput.select();
-                        copied = document.execCommand('copy');
-                    } finally {
-                        temporaryInput.remove();
-                    }
-                    if (!copied) throw new Error('Browser menolak menyalin alamat website.');
-                }
-                showToast('Alamat website Nuqthah berhasil disalin.', 'success', 'Berhasil Disalin');
-            } catch (error) {
-                console.error('Gagal menyalin alamat website Nuqthah:', error);
-                showToast('Alamat tidak dapat disalin otomatis. Silakan salin alamat yang ditampilkan.', 'error', 'Gagal Menyalin');
+            if (isAndroid) {
+                event.preventDefault();
+                const url = new URL(websiteUrl);
+                const fallbackUrl = encodeURIComponent(playStoreUrl);
+                window.location.href = `intent://${url.host}${url.pathname}${url.search}${url.hash}#Intent;scheme=https;package=com.lemurbrowser.exts;S.browser_fallback_url=${fallbackUrl};end`;
+            } else if (isIOS) {
+                event.preventDefault();
+                openNuqthahInLemurButton.href = appStoreUrl;
+                openNuqthahInLemurButton.textContent = 'Buka Lemur di App Store';
+                lemurOpenHelp.textContent = 'Setelah Lemur terpasang, buka Nuqthah melalui browser tersebut.';
+                window.location.href = appStoreUrl;
+            } else {
+                openNuqthahInLemurButton.href = websiteUrl;
+                openNuqthahInLemurButton.target = '_blank';
+                openNuqthahInLemurButton.rel = 'noopener noreferrer';
             }
         }
 
@@ -2190,19 +2147,8 @@
         }
 
         function setupCustomPlayerEvents() {
-            videoQualityHelpButton.addEventListener('click', openVideoQualityHelp);
-            closeVideoQualityHelpButton.addEventListener('click', closeVideoQualityHelp);
-            videoQualityHelpModal.addEventListener('click', (event) => {
-                if (event.target === videoQualityHelpModal || event.target.closest('[data-close-quality-help]')) {
-                    closeVideoQualityHelp();
-                }
-            });
-            videoQualityHelpDialog.addEventListener('keydown', (event) => {
-                if (event.key === 'Escape') {
-                    closeVideoQualityHelp();
-                }
-            });
-            copyQualityHelpSiteUrlButton.addEventListener('click', copyQualityHelpSiteUrl);
+            videoQualityHelpButton.addEventListener('click', toggleVideoQualityHelp);
+            openNuqthahInLemurButton.addEventListener('click', openNuqthahWithLemur);
 
             videoClickArea.addEventListener('click', (e) => {
                 if (e.target.closest('#player-error')) return;
