@@ -906,6 +906,8 @@
         }
 
         let player = null;
+        let activePlayerVideoId = '';
+        let playerRestoreSettings = null;
         let isYtApiReady = false;
         let pendingVideoInit = null;
         let playerHomeTop = null;
@@ -1734,7 +1736,7 @@
                 return;
             }
 
-            if (player && typeof player.loadVideoById === 'function') {
+            if (player && activePlayerVideoId === videoId && typeof player.loadVideoById === 'function') {
                 const videoOptions = {
                     videoId: videoId,
                     startSeconds: resumeTime > 2 ? resumeTime : 0
@@ -1744,12 +1746,32 @@
                 return;
             }
 
+            const shouldAutoplay = Boolean(player);
+            if (player) {
+                playerRestoreSettings = {
+                    volume: player.getVolume ? player.getVolume() : 100,
+                    isMuted: player.isMuted ? player.isMuted() : false,
+                    playbackRate: player.getPlaybackRate ? player.getPlaybackRate() : 1
+                };
+                const iframeLayer = document.querySelector('#nuqthah-player-container .video-iframe-layer');
+                // Reload only the YouTube iframe so extensions can reapply their video rules.
+                player.destroy();
+                player = null;
+                if (iframeLayer) {
+                    iframeLayer.replaceChildren();
+                    const playerElement = document.createElement('div');
+                    playerElement.id = 'youtube-player';
+                    iframeLayer.appendChild(playerElement);
+                }
+            }
+
+            activePlayerVideoId = videoId;
             player = new YT.Player('youtube-player', {
                 height: '100%',
                 width: '100%',
                 videoId: videoId,
                 playerVars: {
-                    'autoplay': 0,
+                    'autoplay': shouldAutoplay ? 1 : 0,
                     'controls': 0,
                     'disablekb': 1,
                     'fs': 0,
@@ -1774,7 +1796,16 @@
             disablePlayerCaptions();
             showLoader(false);
             updateDurationDisplay();
-            const currentVol = player.getVolume ? player.getVolume() : 100;
+            const currentVol = playerRestoreSettings?.volume ?? (player.getVolume ? player.getVolume() : 100);
+            if (playerRestoreSettings) {
+                if (player.setVolume) player.setVolume(currentVol);
+                if (playerRestoreSettings.isMuted && player.mute) player.mute();
+                else if (player.unMute) player.unMute();
+                if (player.setPlaybackRate) player.setPlaybackRate(playerRestoreSettings.playbackRate);
+                speedSelect.value = String(playerRestoreSettings.playbackRate);
+                playerRestoreSettings = null;
+                updateVolumeIcon(currentVol, player.isMuted ? player.isMuted() : false);
+            }
             volumeSlider.value = currentVol;
             updateRangeBackground(volumeSlider, currentVol);
         }
