@@ -2956,6 +2956,7 @@
                 pendingPaymentInfo &&
                 pendingPaymentInfo.courseId === courseId &&
                 pendingPaymentInfo.userEmail === String(currentUser?.email || '').trim().toLowerCase() &&
+                Boolean(pendingPaymentInfo.token) &&
                 pendingPaymentInfo.methodSelected === true &&
                 pendingPaymentInfo.active !== false &&
                 (!pendingPaymentInfo.expiresAt || Date.parse(pendingPaymentInfo.expiresAt) > Date.now())
@@ -3086,6 +3087,7 @@
                     orderId: data.order_id,
                     courseId,
                     userEmail,
+                    token: data.token || (sameLocalTransaction ? localPayment?.token : null) || null,
                     active: true,
                     methodSelected: true,
                     paymentType: data.payment_type || null,
