@@ -943,7 +943,6 @@
                 .select('order_id, course_id, gross_amount, payment_type, created_at')
                 .eq('user_email', currentUser.email)
                 .eq('status', 'pending')
-                .not('payment_type', 'is', null)
                 .order('created_at', { ascending: false });
 
             if (error) {
@@ -953,7 +952,7 @@
 
             const latestByCourse = new Map();
             (data || []).forEach(transaction => {
-                if (!transaction.course_id || !transaction.payment_type || purchasedCourseIds.has(transaction.course_id) || latestByCourse.has(transaction.course_id)) return;
+                if (!transaction.course_id || purchasedCourseIds.has(transaction.course_id) || latestByCourse.has(transaction.course_id)) return;
                 const course = allCourses.find(item => item.course_id === transaction.course_id);
                 latestByCourse.set(transaction.course_id, {
                     order_id: transaction.order_id,
@@ -979,9 +978,21 @@
                     const courseTransaction = (data || []).find(transaction =>
                         transaction.order_id === status.order_id
                     );
+                    let localToken = null;
+                    try {
+                        const localPayment = JSON.parse(localStorage.getItem(`nuqthah_pending_payment_${item.course_id}`) || 'null');
+                        if (localPayment?.orderId === status.order_id && localPayment?.userEmail === String(currentUser.email).trim().toLowerCase()) {
+                            localToken = localPayment.token || null;
+                        }
+                    } catch (error) {
+                        console.warn('Data pembayaran tersimpan di perangkat tidak valid:', error);
+                    }
+                    const paymentToken = status.token || localToken;
+                    if (!paymentToken) return null;
                     return {
                         ...item,
                         order_id: status.order_id,
+                        token: paymentToken,
                         gross_amount: status.gross_amount ?? courseTransaction?.gross_amount ?? item.gross_amount,
                         payment_type: status.payment_type || item.payment_type,
                         expires_at: status.expires_at || null,
@@ -1247,7 +1258,7 @@
                             <div class="min-w-0 flex-grow">
                                 <span class="text-[9px] font-bold text-amber-700 uppercase tracking-wide">Menunggu Pembayaran</span>
                                 <h3 class="text-sm font-bold text-gray-800 truncate">${escapeHtml(item.title)}</h3>
-                                <p class="text-[11px] text-gray-500">${escapeHtml(String(item.payment_type).replace(/_/g, ' '))} · ${amount}</p>
+                                <p class="text-[11px] text-gray-500">${escapeHtml(String(item.payment_type || 'Metode belum dipilih').replace(/_/g, ' '))} · ${amount}</p>
                                 <p class="text-[11px] font-semibold text-amber-700 mt-1">
                                     Bayar dalam <span data-payment-countdown data-expires-at="${escapeHtml(item.expires_at || '')}" data-server-offset-ms="${item.server_offset_ms || 0}">--:--:--</span>
                                 </p>
