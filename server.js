@@ -561,16 +561,18 @@ app.post('/api/create-transaction', async (req, res) => {
 
         let transaction = await snap.createTransaction(parameter);
 
-        await supabaseAdmin.from('transactions').insert([{
+        const { error: transactionError } = await supabaseAdmin.from('transactions').insert([{
             order_id: orderId,
             user_id: user_id || userData?.id || null,
             user_email: user_email || null,
             course_id: course_id,
             gross_amount: cleanPrice,
             status: 'pending',
+            snap_token: transaction.token,
             created_at: new Date().toISOString()
             // payment_type dibiarkan null dulu sampai siswa memilih metode bayar di Midtrans
         }]);
+        if (transactionError) throw transactionError;
 
         if (studentWa) {
             const formattedRupiah = 'Rp ' + new Intl.NumberFormat('id-ID').format(cleanPrice);
@@ -618,7 +620,7 @@ app.get('/api/pending-transaction', async (req, res) => {
 
         const { data: transactions, error: transactionsError } = await supabaseAdmin
             .from('transactions')
-            .select('order_id, user_id, status, payment_type, gross_amount')
+            .select('order_id, user_id, status, payment_type, gross_amount, snap_token')
             .eq('user_email', email)
             .eq('course_id', courseId)
             .in('status', ['pending', 'success'])
@@ -662,7 +664,6 @@ app.get('/api/pending-transaction', async (req, res) => {
             }
 
             const isActive = status === 'pending' &&
-                Boolean(paymentType) &&
                 (!validExpiry || validExpiry.getTime() > Date.now());
 
             if (isActive) {
@@ -676,6 +677,7 @@ app.get('/api/pending-transaction', async (req, res) => {
                     active: true,
                     order_id: transaction.order_id,
                     payment_type: paymentType,
+                    token: transaction.snap_token || null,
                     gross_amount: transaction.gross_amount,
                     expires_at: validExpiry ? validExpiry.toISOString() : null,
                     server_time: new Date().toISOString()
