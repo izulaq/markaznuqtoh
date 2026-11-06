@@ -1388,18 +1388,34 @@
             }
 
             try {
-                const response = await fetch(`${BACKEND_BASE_URL}/api/create-transaction`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        course_id: selectedCourseObj.course_id,
-                        price: selectedCourseObj.price,
-                        user_id: userToUse.id || null,
-                        user_email: userToUse.email
-                    })
+                const pendingQuery = new URLSearchParams({
+                    email: String(userToUse.email).trim().toLowerCase(),
+                    course_id: selectedCourseObj.course_id
                 });
+                const pendingResponse = await fetch(`${BACKEND_BASE_URL}/api/pending-transaction?${pendingQuery}`);
+                const pendingData = await pendingResponse.json();
+                if (!pendingResponse.ok) throw new Error(pendingData.error || 'Gagal memeriksa transaksi pembayaran.');
 
-                const data = await response.json();
+                let data = null;
+                if (pendingData.active) {
+                    if (!pendingData.token) {
+                        throw new Error('Transaksi pembayaran aktif ini belum dapat dilanjutkan. Silakan hubungi admin sebelum mencoba membayar kembali.');
+                    }
+                    data = { token: pendingData.token, order_id: pendingData.order_id };
+                } else {
+                    const response = await fetch(`${BACKEND_BASE_URL}/api/create-transaction`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            course_id: selectedCourseObj.course_id,
+                            price: selectedCourseObj.price,
+                            user_id: userToUse.id || null,
+                            user_email: userToUse.email
+                        })
+                    });
+                    data = await response.json();
+                    if (!response.ok) throw new Error(data.error || 'Gagal membuat transaksi pembayaran.');
+                }
                 if (!data.token) throw new Error(data.error || 'Gagal mendapatkan token pembayaran.');
 
                 closeCheckoutModal();
