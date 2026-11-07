@@ -135,9 +135,12 @@
 
         .video-iframe-layer {
             position: absolute;
-            inset: 0;
-            width: 100%;
-            height: 100%;
+            top: 50%;
+            left: 50%;
+            width: calc(100% * var(--yt-viewport-scale, 1));
+            height: calc(100% * var(--yt-viewport-scale, 1));
+            transform: translate(-50%, -50%) scale(calc(1 / var(--yt-viewport-scale, 1)));
+            transform-origin: center center;
             pointer-events: none !important;
         }
 
@@ -1340,7 +1343,10 @@
             }
             playerHomeTop = playerContainer.getBoundingClientRect().top + window.scrollY;
             window.addEventListener('scroll', updatePlayerScrollMode, { passive: true });
-            window.addEventListener('resize', updatePlayerScrollMode);
+            window.addEventListener('resize', () => {
+                updatePlayerScrollMode();
+                syncYoutubeViewportScale();
+            });
             const moduleLayoutQuery = window.matchMedia('(max-width: 1023px)');
             if (moduleLayoutQuery.addEventListener) {
                 moduleLayoutQuery.addEventListener('change', updateModuleSidebarPosition);
@@ -1824,10 +1830,13 @@
                 return;
             }
 
+            syncYoutubeViewportScale();
+
             if (player && activePlayerVideoId === videoId && typeof player.loadVideoById === 'function') {
                 const videoOptions = {
                     videoId: videoId,
-                    startSeconds: resumeTime > 2 ? resumeTime : 0
+                    startSeconds: resumeTime > 2 ? resumeTime : 0,
+                    suggestedQuality: 'hd1080'
                 };
                 player.loadVideoById(videoOptions);
                 disablePlayerCaptions();
@@ -1868,6 +1877,7 @@
                     'iv_load_policy': 3,
                     'cc_load_policy': 0,
                     'playsinline': 1,
+                    'vq': 'hd1080',
                     'start': Math.floor(resumeTime > 2 ? resumeTime : 0)
                 },
                 events: {
@@ -1879,6 +1889,8 @@
         }
 
         function onPlayerReady(event) {
+            syncYoutubeViewportScale();
+            enforceHighestVideoQuality(event.target);
             const playerIframe = event.target.getIframe();
             if (playerIframe) playerIframe.setAttribute('tabindex', '-1');
             disablePlayerCaptions();
@@ -1906,6 +1918,14 @@
 
         function onPlayerStateChange(event) {
             const state = event.data;
+            syncYoutubeViewportScale();
+            if (
+                state === YT.PlayerState.BUFFERING ||
+                state === YT.PlayerState.CUED ||
+                state === YT.PlayerState.PLAYING
+            ) {
+                enforceHighestVideoQuality(event.target);
+            }
 
             if (state === YT.PlayerState.PLAYING) {
                 disablePlayerCaptions();
@@ -1975,6 +1995,44 @@
             }
         }
 
+        function syncYoutubeViewportScale() {
+            const playerHeight = playerContainer.getBoundingClientRect().height;
+            const scale = playerHeight > 0 && playerHeight < 1080
+                ? Math.min(5, Math.max(1, +(1080 / playerHeight).toFixed(3)))
+                : 1;
+            playerContainer.style.setProperty('--yt-viewport-scale', String(scale));
+        }
+
+        function enforceHighestVideoQuality(targetPlayer = player) {
+            if (!targetPlayer) return;
+
+            const qualityPriority = ['hd2160', 'hd1440', 'hd1080', 'hd720', 'large'];
+            let availableQualities = [];
+            try {
+                if (typeof targetPlayer.getAvailableQualityLevels === 'function') {
+                    availableQualities = targetPlayer.getAvailableQualityLevels() || [];
+                }
+            } catch (error) {
+                console.warn('Kualitas video YouTube tidak dapat diperiksa:', error);
+            }
+
+            const bestQuality = qualityPriority.find(quality => availableQualities.includes(quality)) || 'hd1080';
+            if (typeof targetPlayer.setPlaybackQualityRange === 'function') {
+                try {
+                    targetPlayer.setPlaybackQualityRange(bestQuality, bestQuality);
+                } catch (error) {
+                    console.warn('Rentang kualitas video tidak dapat diterapkan:', error);
+                }
+            }
+            if (typeof targetPlayer.setPlaybackQuality === 'function') {
+                try {
+                    targetPlayer.setPlaybackQuality(bestQuality);
+                } catch (error) {
+                    console.warn('Kualitas video tidak dapat diterapkan:', error);
+                }
+            }
+        }
+
         function updatePlayerScrollMode() {
             const desktopLandscape = window.matchMedia('(min-width: 1024px) and (orientation: landscape)').matches;
             const isPlaying = player && window.YT && player.getPlayerState() === YT.PlayerState.PLAYING;
@@ -1984,6 +2042,7 @@
                 removePlayerPlaceholder();
                 if (isPlaying) playerContainer.classList.add('is-sticky-playing');
                 else playerContainer.classList.remove('is-sticky-playing');
+                syncYoutubeViewportScale();
                 return;
             }
 
@@ -2005,6 +2064,7 @@
                 playerContainer.classList.add('is-sticky-playing');
                 removePlayerPlaceholder();
             }
+            syncYoutubeViewportScale();
         }
 
         function removePlayerPlaceholder() {
@@ -2209,6 +2269,7 @@
                     try { screen.orientation.unlock(); } catch (e) { }
                 }
             }
+            syncYoutubeViewportScale();
         }
 
         async function forceLandscape() {
@@ -2219,6 +2280,7 @@
                 playerContainer.classList.remove('is-forced-landscape', 'is-pseudo-fullscreen');
                 document.body.style.overflow = '';
                 iconFullscreen.className = 'fas fa-expand text-xs sm:text-sm';
+                syncYoutubeViewportScale();
                 return;
             }
 
@@ -2234,6 +2296,7 @@
                     } else {
                         await screen.orientation.lock('portrait');
                     }
+                    syncYoutubeViewportScale();
                     return; // Berhasil di Android
                 } catch (err) {
                     // Jika ditolak oleh sistem (seperti pada iPhone/iOS), lanjut ke fallback CSS di bawah
@@ -2246,6 +2309,7 @@
             playerContainer.classList.add('is-forced-landscape');
             document.body.style.overflow = 'hidden';
             iconFullscreen.className = 'fas fa-compress text-xs sm:text-sm';
+            syncYoutubeViewportScale();
         }
 
         function showControls() {
