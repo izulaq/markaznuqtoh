@@ -224,8 +224,8 @@
     let hiddenInlineAccessButton = null;
 
     function hideInstallButton() {
-        floatingActions.hidden = true;
-        document.body.classList.remove('pwa-has-bottom-actions');
+        button.hidden = true;
+        scheduleFloatingActionsUpdate();
     }
 
     function isInstalled() {
@@ -262,24 +262,24 @@
         updateScheduled = false;
         const installed = isInstalled();
         const modalOpen = isCheckoutModalOpen();
-        const target = installed || modalOpen ? null : findVisibleAccessButton();
+        const target = modalOpen ? null : findVisibleAccessButton();
         if (hiddenInlineAccessButton &&
-            (installed || !hiddenInlineAccessButton.isConnected || hiddenInlineAccessButton !== target)) {
+            (!hiddenInlineAccessButton.isConnected || hiddenInlineAccessButton !== target)) {
             hiddenInlineAccessButton.classList.remove('pwa-access-source-hidden');
             hiddenInlineAccessButton = null;
         }
-        if (target?.id === 'practice-access-button' && !installed) {
+        if (target?.id === 'practice-access-button') {
             target.classList.add('pwa-access-source-hidden');
             hiddenInlineAccessButton = target;
         }
         accessAction.hidden = !target;
         button.hidden = installed;
-        floatingActions.hidden = installed || modalOpen || (!target && button.hidden);
-        floatingActions.classList.toggle('has-access-action', Boolean(target) && !installed && !modalOpen);
+        floatingActions.hidden = modalOpen || (!target && button.hidden);
+        floatingActions.classList.toggle('has-access-action', Boolean(target) && !modalOpen);
         const miniPlayer = document.querySelector('.nuqthah-player-wrapper.is-mini-player');
         const isDesktopLayout = window.matchMedia('(min-width: 641px)').matches;
         const shouldLiftAbovePlayer = Boolean(miniPlayer) && isDesktopLayout &&
-            !installed && !modalOpen && !floatingActions.hidden;
+            !modalOpen && !floatingActions.hidden;
         floatingActions.classList.toggle('above-mini-player', shouldLiftAbovePlayer);
         if (shouldLiftAbovePlayer) {
             const playerHeight = `${miniPlayer.getBoundingClientRect().height}px`;
@@ -291,7 +291,7 @@
         }
         document.body.classList.toggle(
             'pwa-has-bottom-actions',
-            Boolean(target) && !installed && !modalOpen && window.matchMedia('(max-width: 640px)').matches
+            Boolean(target) && !modalOpen && window.matchMedia('(max-width: 640px)').matches
         );
 
         if (target) {
