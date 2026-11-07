@@ -207,7 +207,7 @@
 
         .nuqthah-player-wrapper.is-sticky-playing {
             position: sticky;
-            top: 0.75rem;
+            top: calc(var(--learning-nav-height, 0px) + 0.75rem);
             z-index: 40;
             align-self: start;
         }
@@ -1323,6 +1323,21 @@
 
         document.addEventListener('DOMContentLoaded', async () => {
             updateModuleSidebarPosition();
+            const learningTopNav = document.querySelector('.learning-top-nav');
+            const updateLearningNavHeight = () => {
+                if (learningTopNav) {
+                    document.documentElement.style.setProperty(
+                        '--learning-nav-height',
+                        `${learningTopNav.getBoundingClientRect().height}px`
+                    );
+                }
+            };
+            updateLearningNavHeight();
+            if (learningTopNav && 'ResizeObserver' in window) {
+                new ResizeObserver(updateLearningNavHeight).observe(learningTopNav);
+            } else {
+                window.addEventListener('resize', updateLearningNavHeight);
+            }
             playerHomeTop = playerContainer.getBoundingClientRect().top + window.scrollY;
             window.addEventListener('scroll', updatePlayerScrollMode, { passive: true });
             window.addEventListener('resize', updatePlayerScrollMode);
