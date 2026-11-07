@@ -108,6 +108,7 @@
         const isIOS = /iPad|iPhone|iPod/.test(userAgent) ||
             (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
         const isAndroid = /Android/i.test(userAgent);
+        const isLemur = /Lemur/i.test(userAgent);
 
         if (isIOS) {
             return {
@@ -120,6 +121,16 @@
             };
         }
         if (isAndroid) {
+            if (isLemur) {
+                return {
+                    description: 'Lemur hanya dapat menampilkan instalasi langsung jika versi browser mendukung pemasangan PWA. Jika dialog tidak muncul, coba menu Lemur.',
+                    steps: [
+                        'Buka menu Lemur (ikon tiga titik).',
+                        'Pilih “Tambahkan ke layar utama” atau “Instal aplikasi”, jika tersedia.',
+                        'Konfirmasi pemasangan. Jika pilihan tersebut tidak tersedia, buka halaman ini di Chrome lalu tekan tombol Instal Aplikasi.'
+                    ]
+                };
+            }
             return {
                 description: 'Jika dialog instalasi tidak muncul, gunakan menu browser untuk menambahkan aplikasi.',
                 steps: [
