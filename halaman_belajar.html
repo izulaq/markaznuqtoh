@@ -35,6 +35,57 @@
         }
     </script>
     <style>
+        #access-loading-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 1000000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+            background: #f9fafb;
+        }
+
+        #access-loading-overlay[hidden] {
+            display: none;
+        }
+
+        .access-loading-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.9rem;
+            color: #234b36;
+            font-size: 0.95rem;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        .access-loading-spinner {
+            width: 2.5rem;
+            height: 2.5rem;
+            border: 3px solid rgba(35, 75, 54, 0.16);
+            border-top-color: #234b36;
+            border-radius: 50%;
+            animation: access-loading-spin 0.8s linear infinite;
+        }
+
+        .access-loading-dots::after {
+            content: "";
+            animation: access-loading-dots 1.2s steps(4, end) infinite;
+        }
+
+        @keyframes access-loading-spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes access-loading-dots {
+            0% { content: ""; }
+            25% { content: "."; }
+            50% { content: ".."; }
+            75%, 100% { content: "..."; }
+        }
+
         /* ============ VIDEO PLAYER ============ */
         .nuqthah-player-wrapper {
             position: relative;
@@ -165,6 +216,12 @@
             width: 100%;
         }
 
+        .learning-top-nav {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
         @media (min-width: 1024px) and (orientation: landscape) {
             .nuqthah-player-wrapper.is-mini-player {
                 position: fixed !important;
@@ -260,13 +317,20 @@
 
 <body class="bg-gray-50 text-gray-900 font-sans">
 
+    <div id="access-loading-overlay" role="status" aria-live="polite">
+        <div class="access-loading-card">
+            <span class="access-loading-spinner" aria-hidden="true"></span>
+            <span>Memuat status akses<span class="access-loading-dots" aria-hidden="true"></span></span>
+        </div>
+    </div>
+
     <!-- ================= TOAST CONTAINER ================= -->
     <div id="toast-container" aria-live="polite"
         class="fixed top-3 right-3 left-3 sm:left-auto sm:right-5 z-[999999] flex flex-col items-end gap-2.5 pointer-events-none">
     </div>
 
     <!-- Top Navigation -->
-    <nav class="bg-primary text-white px-4 sm:px-6 py-3 flex flex-wrap justify-between items-center gap-2 shadow-md">
+    <nav class="learning-top-nav bg-primary text-white px-4 sm:px-6 py-3 flex flex-wrap justify-between items-center gap-2 shadow-md">
         <a href="index.html" class="flex items-center gap-2 font-bold text-xs sm:text-sm hover:opacity-90">
             <i class="fas fa-arrow-left"></i> Kembali ke Katalog Materi
         </a>
@@ -1483,6 +1547,8 @@
             } catch (err) {
                 console.error(err);
                 showToast(err.message || 'Terjadi kesalahan saat memuat materi.', 'error', 'Gagal Memuat');
+            } finally {
+                document.getElementById('access-loading-overlay').hidden = true;
             }
         }
 
