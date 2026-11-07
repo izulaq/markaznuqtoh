@@ -235,7 +235,8 @@
     </style>
     <link rel="apple-touch-icon" sizes="180x180"
         href="https://userkv.r2.mayar.id/landing-page/assets/nuqthah-kind-kingdom-2402/2ef2247a_file_0000000005ac82469e639ea2dfd71b0e.png" />
-    <link rel="manifest" href="/manifest.json" />
+    <link rel="manifest" href="./manifest.json" />
+    <script src="./pwa-install.js" defer></script>
 </head>
 
 <body class="text-gray-800 overflow-x-hidden pt-12 md:pt-16">
@@ -670,6 +671,10 @@
         let allCourses = [];
         let purchasedCourseIds = new Set();
         let confirmCallback = null;
+        let dashboardInitialized = false;
+        let dashboardRefreshTimeout = null;
+        let isDashboardRefreshing = false;
+        let dashboardRefreshRequested = false;
 
         // ================================================================
         // HELPER FUNCTIONS
@@ -883,6 +888,51 @@
         // ================================================================
         function getLocalItems() { try { return JSON.parse(localStorage.getItem(LOCAL_KEY) || '[]'); } catch (e) { return []; } }
         function setLocalItems(items) { try { localStorage.setItem(LOCAL_KEY, JSON.stringify(items)); } catch (e) { } }
+
+        function scheduleDashboardRefresh() {
+            if (!dashboardInitialized || document.visibilityState === 'hidden') return;
+            clearTimeout(dashboardRefreshTimeout);
+            dashboardRefreshTimeout = setTimeout(refreshDashboardData, 250);
+        }
+
+        async function refreshDashboardData() {
+            if (!dashboardInitialized || document.visibilityState === 'hidden') return;
+            if (isDashboardRefreshing) {
+                dashboardRefreshRequested = true;
+                return;
+            }
+
+            isDashboardRefreshing = true;
+            try {
+                await checkSession();
+                await loadSavedMaterials();
+                renderCoursesToDOM();
+                renderSubFilters();
+                updateAuthUI();
+            } catch (error) {
+                console.error('Gagal memperbarui data dashboard:', error);
+            } finally {
+                isDashboardRefreshing = false;
+                if (dashboardRefreshRequested) {
+                    dashboardRefreshRequested = false;
+                    scheduleDashboardRefresh();
+                }
+            }
+        }
+
+        function setupDashboardRefreshListeners() {
+            window.addEventListener('pageshow', scheduleDashboardRefresh);
+            window.addEventListener('focus', scheduleDashboardRefresh);
+            document.addEventListener('visibilitychange', scheduleDashboardRefresh);
+            window.addEventListener('storage', event => {
+                if (event.key === 'nuqthah_dashboard_access_updated' ||
+                    event.key === 'nuqthah_current_user') {
+                    scheduleDashboardRefresh();
+                } else if (event.key?.startsWith('nuqthah_quiz_history_')) {
+                    renderQuizEvaluation();
+                }
+            });
+        }
 
         async function checkSession() {
             try {
@@ -1835,6 +1885,7 @@
         document.addEventListener('DOMContentLoaded', async () => {
             const overlay = document.getElementById('page-loading-overlay');
 
+            setupDashboardRefreshListeners();
             await checkSession();
             renderQuizEvaluation();
             await fetchDynamicCourses();
@@ -1843,6 +1894,7 @@
             renderCoursesToDOM();
             renderSubFilters();
             updateAuthUI();
+            dashboardInitialized = true;
 
             if (isLoggedIn && currentUser && !sessionStorage.getItem('nuqthah_welcome_shown')) {
                 const purchasedTotal = savedItems.filter(i => i.purchased).length;

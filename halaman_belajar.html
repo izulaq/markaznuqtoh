@@ -5,9 +5,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ruang Belajar - Nuqthah Learning Center</title>
+    <meta name="theme-color" content="#0F4A3A">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <!-- Favicon -->
     <link rel="icon" type="image/png"
         href="https://userkv.r2.mayar.id/landing-page/assets/nuqthah-kind-kingdom-2402/2ef2247a_file_0000000005ac82469e639ea2dfd71b0e.png">
+    <link rel="apple-touch-icon" sizes="180x180"
+        href="https://userkv.r2.mayar.id/landing-page/assets/nuqthah-kind-kingdom-2402/2ef2247a_file_0000000005ac82469e639ea2dfd71b0e.png">
+    <link rel="manifest" href="./manifest.json">
+    <script src="./pwa-install.js" defer></script>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -3005,6 +3012,14 @@
 
             isUserHasAccess = true;
             if (currentUser?.email) saveAccessCache(courseId, currentUser.email);
+            try {
+                localStorage.setItem('nuqthah_dashboard_access_updated', JSON.stringify({
+                    courseId,
+                    updatedAt: Date.now()
+                }));
+            } catch (error) {
+                console.warn('Sinyal pembaruan dashboard tidak dapat disimpan:', error);
+            }
             document.getElementById('user-status-badge').innerHTML = '<i class="fas fa-check-circle text-emerald-300 mr-1"></i> Akses Penuh Terbuka';
             document.getElementById('paywall-container').classList.add('hidden');
             showToast('Pembayaran berhasil! Akses materi sedang diperbarui.', 'success', 'Pembayaran Berhasil');
