@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#2E5E4E">
+    <title>Pencarian Referensi Kitab AI | Nuqthah Learning Center</title>
+    <meta name="description" content="Telusuri jawaban dan referensi kitab turats dengan bantuan AI Nuqthah Learning Center.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Inter:wght@400;500;600;700;800&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        nuqthah: { green: '#2E5E4E', gold: '#C9A227', cream: '#F7F6F1', ink: '#172923' }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Poppins', 'sans-serif'],
+                        arabic: ['Amiri', 'serif']
+                    },
+                    boxShadow: {
+                        soft: '0 20px 60px rgba(23, 41, 35, .08)'
+                    }
+                }
+            }
+        };
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <script src="https://app.midtrans.com/snap/snap.js" data-client-key="Mid-client-bgr.FUM3wElPD9oBvn8q4mei"></script>
+    <style>
+        body { background: #F7F6F1; }
+        .hero-grid {
+            background-image: radial-gradient(rgba(201, 162, 39, .2) 1px, transparent 1px);
+            background-size: 22px 22px;
+        }
+        .arabic-copy { direction: rtl; text-align: right; line-height: 2.2; }
+        .tab-active { color: #2E5E4E; border-color: #2E5E4E; }
+        .spinner { border: 3px solid rgba(255,255,255,.35); border-top-color: white; }
+    </style>
+</head>
+<body class="min-h-screen font-sans text-nuqthah-ink">
+    <header class="sticky top-0 z-30 border-b border-emerald-950/10 bg-white/95 backdrop-blur">
+        <div class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
+            <a href="index.html" class="flex min-w-0 items-center gap-3" aria-label="Kembali ke katalog Nuqthah">
+                <span class="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-nuqthah-green text-lg text-white shadow-md">
+                    <i class="fa-solid fa-book-open"></i>
+                </span>
+                <span class="min-w-0">
+                    <span class="block truncate font-display text-sm font-bold text-nuqthah-green sm:text-base">Nuqthah Learning Center</span>
+                    <span class="block text-xs text-slate-500">Maktabah Syamilah AI</span>
+                </span>
+            </a>
+            <div class="flex items-center gap-2 sm:gap-3">
+                <span id="account-status" class="inline-flex max-w-[105px] truncate rounded-full bg-emerald-50 px-2 py-2 text-[10px] font-semibold text-nuqthah-green sm:max-w-52 sm:px-3 sm:text-xs">
+                    <i class="fa-regular fa-user mr-2 mt-0.5"></i><span id="account-email">Belum masuk</span>
+                </span>
+                <button id="account-action" type="button" class="whitespace-nowrap rounded-full border border-nuqthah-green/20 px-2.5 py-2 text-[10px] font-bold text-nuqthah-green transition hover:bg-emerald-50 sm:px-4 sm:text-xs">
+                    Masuk / OTP
+                </button>
+                <a href="index.html" aria-label="Kembali ke katalog" class="inline-flex items-center rounded-full bg-nuqthah-green px-3 py-2 text-xs font-bold text-white transition hover:bg-emerald-900 sm:px-4">
+                    <i class="fa-solid fa-arrow-left sm:mr-2"></i><span class="hidden sm:inline">Katalog</span>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <main class="mx-auto max-w-7xl px-4 pb-20 pt-7 sm:px-6 sm:pt-10 lg:px-8">
+        <section class="hero-grid relative overflow-hidden rounded-[2rem] bg-nuqthah-green px-6 py-9 text-white shadow-soft sm:px-10 sm:py-12">
+            <div class="pointer-events-none absolute -right-10 -top-20 h-64 w-64 rounded-full border-[34px] border-white/5"></div>
+            <div class="pointer-events-none absolute -bottom-36 right-1/4 h-72 w-72 rounded-full bg-nuqthah-gold/10 blur-3xl"></div>
+            <div class="relative max-w-3xl">
+                <span class="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-emerald-50">
+                    <i class="fa-solid fa-sparkles text-nuqthah-gold"></i> Ruang riset kitab turats
+                </span>
+                <h1 class="mt-5 font-display text-3xl font-bold leading-tight sm:text-5xl">Temukan jawaban, <span class="text-[#E7CB70]">telusuri rujukannya.</span></h1>
+                <p class="mt-4 max-w-2xl text-sm leading-7 text-emerald-50/85 sm:text-base">
+                    Ajukan pertanyaan seputar fiqih, ibadah, aqidah, dan hadits. AI membantu menyusun jawaban serta menampilkan rujukan yang perlu Anda telaah kembali.
+                </p>
+            </div>
+            <div class="relative mt-8 grid max-w-3xl grid-cols-1 gap-3 text-xs text-emerald-50/90 sm:grid-cols-3">
+                <div class="flex items-center gap-2"><i class="fa-solid fa-book text-nuqthah-gold"></i> Fokus pada kitab turats</div>
+                <div class="flex items-center gap-2"><i class="fa-solid fa-language text-nuqthah-gold"></i> Ringkasan berbahasa Indonesia</div>
+                <div class="flex items-center gap-2"><i class="fa-solid fa-shield-halved text-nuqthah-gold"></i> Akses berlangganan</div>
+            </div>
+        </section>
+
+        <section id="paywall" class="mt-7 hidden overflow-hidden rounded-3xl border border-nuqthah-gold/30 bg-white shadow-soft">
+            <div class="grid gap-0 md:grid-cols-[1fr_auto]">
+                <div class="p-6 sm:p-8">
+                    <span class="inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800"><i class="fa-solid fa-lock"></i> Akses khusus anggota</span>
+                    <h2 id="paywall-title" class="mt-4 font-display text-2xl font-bold text-nuqthah-green">Buka akses Maktabah Syamilah AI</h2>
+                    <p id="paywall-description" class="mt-2 max-w-2xl text-sm leading-6 text-slate-600">Masuk dengan OTP dan aktifkan langganan untuk memulai pencarian referensi kitab.</p>
+                    <div class="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-xs font-medium text-slate-600">
+                        <span><i class="fa-solid fa-check mr-1 text-nuqthah-green"></i> Pencarian AI</span>
+                        <span><i class="fa-solid fa-check mr-1 text-nuqthah-green"></i> Riwayat pribadi</span>
+                        <span><i class="fa-solid fa-check mr-1 text-nuqthah-green"></i> Referensi kitab</span>
+                    </div>
+                </div>
+                <div class="flex flex-col justify-center border-t border-slate-100 bg-[#FBFAF5] p-6 md:min-w-72 md:border-l md:border-t-0 sm:p-8">
+                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Langganan</span>
+                    <span class="mt-1 font-display text-3xl font-bold text-nuqthah-green">Rp 35.000</span>
+                    <span class="mt-1 text-xs text-slate-500">/ 100 LE</span>
+                    <button id="subscribe-button" type="button" class="mt-5 inline-flex items-center justify-center gap-2 rounded-xl bg-nuqthah-green px-5 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-950/10 transition hover:bg-emerald-900 disabled:cursor-not-allowed disabled:opacity-60">
+                        <i class="fa-solid fa-unlock-keyhole"></i><span>Berlangganan Sekarang</span>
+                    </button>
+                    <p class="mt-3 text-center text-[11px] leading-5 text-slate-500"><i class="fa-solid fa-lock mr-1 text-nuqthah-gold"></i>Pembayaran diproses aman melalui Midtrans</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="mt-8 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+            <div class="space-y-6">
+                <section class="rounded-3xl border border-slate-200/80 bg-white p-5 shadow-soft sm:p-7">
+                    <div class="flex items-start gap-3">
+                        <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-50 text-nuqthah-green"><i class="fa-solid fa-magnifying-glass"></i></span>
+                        <div>
+                            <h2 class="font-display text-lg font-bold text-nuqthah-green">Apa yang ingin Anda telusuri?</h2>
+                            <p class="mt-1 text-xs leading-5 text-slate-500">Tuliskan pertanyaan dengan konteks yang cukup agar pencarian lebih terarah.</p>
+                        </div>
+                    </div>
+                    <form id="search-form" class="mt-5">
+                        <label for="question" class="mb-2 block text-sm font-semibold text-slate-700">Pertanyaan atau masalah</label>
+                        <textarea id="question" rows="4" maxlength="1500" placeholder="Contoh: Bagaimana hukum menggabungkan niat puasa qadha dengan puasa enam hari Syawal menurut mazhab Syafi'i?" class="w-full resize-y rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm leading-6 outline-none transition placeholder:text-slate-400 focus:border-nuqthah-green focus:bg-white focus:ring-4 focus:ring-emerald-900/5"></textarea>
+                        <div class="mt-4 grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
+                            <div>
+                                <label for="focus" class="mb-2 block text-sm font-semibold text-slate-700">Mazhab / fokus bidang</label>
+                                <select id="focus" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-nuqthah-green focus:ring-4 focus:ring-emerald-900/5">
+                                    <option>Semua Mazhab</option>
+                                    <option>Fiqih Syafi'i</option>
+                                    <option>Fiqih Hanafi</option>
+                                    <option>Fiqih Maliki</option>
+                                    <option>Fiqih Hambali</option>
+                                    <option>Aqidah/Tauhid</option>
+                                    <option>Hadits</option>
+                                </select>
+                            </div>
+                            <button id="search-button" type="submit" class="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-nuqthah-green px-5 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-950/10 transition hover:bg-emerald-900 disabled:cursor-not-allowed disabled:opacity-60">
+                                <i class="fa-solid fa-magnifying-glass"></i><span>Cari Referensi Kitab AI</span>
+                            </button>
+                        </div>
+                    </form>
+                    <p id="search-notice" class="mt-4 hidden rounded-xl px-4 py-3 text-sm leading-6"></p>
+                    <p class="mt-4 text-[11px] leading-5 text-slate-400">Hasil AI adalah bantuan penelusuran, bukan fatwa. Periksa kembali kutipan dan rujukan pada sumber kitab atau kepada ahli yang kompeten.</p>
+                </section>
+
+                <section id="results" class="hidden space-y-5" aria-live="polite">
+                    <div class="rounded-3xl border border-emerald-900/10 bg-white p-5 shadow-soft sm:p-7">
+                        <div class="flex items-center gap-3">
+                            <span class="grid h-10 w-10 place-items-center rounded-xl bg-amber-50 text-nuqthah-gold"><i class="fa-solid fa-lightbulb"></i></span>
+                            <div>
+                                <h2 class="font-display text-lg font-bold text-nuqthah-green">Kesimpulan / Ringkasan Jawaban</h2>
+                                <p id="result-question" class="mt-1 text-xs text-slate-500"></p>
+                            </div>
+                        </div>
+                        <div id="result-answer" class="mt-5 whitespace-pre-wrap text-sm leading-7 text-slate-700"></div>
+                        <p class="mt-5 rounded-xl bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900"><i class="fa-solid fa-circle-info mr-1"></i>Ringkasan ini dihasilkan AI dan bukan pengganti fatwa. Cocokkan setiap rujukan dengan edisi kitab yang digunakan.</p>
+                    </div>
+                    <div>
+                        <div class="mb-4 flex items-end justify-between gap-3">
+                            <div>
+                                <span class="text-xs font-bold uppercase tracking-[.16em] text-nuqthah-gold">Rujukan</span>
+                                <h2 class="mt-1 font-display text-xl font-bold text-nuqthah-green">Referensi Kitab</h2>
+                            </div>
+                            <span id="reference-count" class="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-nuqthah-green"></span>
+                        </div>
+                        <div id="reference-list" class="space-y-4"></div>
+                    </div>
+                </section>
+            </div>
+
+            <aside class="rounded-3xl border border-slate-200/80 bg-white p-5 shadow-soft lg:sticky lg:top-24">
+                <div class="flex items-center justify-between gap-3">
+                    <div>
+                        <span class="text-[11px] font-bold uppercase tracking-[.16em] text-nuqthah-gold">Personal</span>
+                        <h2 class="mt-1 font-display text-base font-bold text-nuqthah-green">Riwayat pencarian</h2>
+                    </div>
+                    <span class="grid h-9 w-9 place-items-center rounded-xl bg-emerald-50 text-nuqthah-green"><i class="fa-solid fa-clock-rotate-left"></i></span>
+                </div>
+                <div id="history-list" class="mt-4 space-y-2">
+                    <p class="rounded-xl bg-slate-50 px-3 py-4 text-xs leading-5 text-slate-500">Masuk dan berlangganan untuk melihat riwayat pencarian.</p>
+                </div>
+                <button id="history-refresh" type="button" class="mt-4 hidden w-full rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-bold text-slate-600 transition hover:border-nuqthah-green hover:text-nuqthah-green">
+                    <i class="fa-solid fa-rotate-right mr-1"></i>Muat ulang riwayat
+                </button>
+            </aside>
+        </section>
+    </main>
+
+    <div id="login-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="login-title">
+        <div class="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl sm:p-8">
+            <div class="flex items-start justify-between gap-3">
+                <div>
+                    <span class="text-xs font-bold uppercase tracking-wider text-nuqthah-gold">Verifikasi akun</span>
+                    <h2 id="login-title" class="mt-1 font-display text-xl font-bold text-nuqthah-green">Masuk dengan kode OTP</h2>
+                </div>
+                <button id="login-close" type="button" class="grid h-9 w-9 place-items-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200" aria-label="Tutup"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div id="otp-email-step" class="mt-5">
+                <label for="otp-email" class="mb-2 block text-sm font-semibold text-slate-700">Email akun Nuqthah</label>
+                <input id="otp-email" type="email" autocomplete="email" placeholder="nama@email.com" class="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-nuqthah-green focus:ring-4 focus:ring-emerald-900/5">
+                <button id="otp-request" type="button" class="mt-4 w-full rounded-xl bg-nuqthah-green px-4 py-3 text-sm font-bold text-white hover:bg-emerald-900">Kirim kode OTP</button>
+            </div>
+            <div id="otp-code-step" class="mt-5 hidden">
+                <p class="mb-3 text-sm leading-6 text-slate-600">Masukkan kode yang dikirim ke <strong id="otp-email-label"></strong>.</p>
+                <label for="otp-code" class="mb-2 block text-sm font-semibold text-slate-700">Kode OTP</label>
+                <input id="otp-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6 digit kode" class="w-full rounded-xl border border-slate-200 px-4 py-3 text-center text-lg font-bold tracking-[.5em] outline-none focus:border-nuqthah-green focus:ring-4 focus:ring-emerald-900/5">
+                <button id="otp-verify" type="button" class="mt-4 w-full rounded-xl bg-nuqthah-green px-4 py-3 text-sm font-bold text-white hover:bg-emerald-900">Verifikasi &amp; masuk</button>
+                <button id="otp-back" type="button" class="mt-3 w-full py-2 text-xs font-semibold text-slate-500 hover:text-nuqthah-green">Gunakan email lain</button>
+            </div>
+            <p id="otp-message" class="mt-4 hidden rounded-xl px-3 py-2 text-xs leading-5"></p>
+        </div>
+    </div>
+
+    <div id="toast" class="pointer-events-none fixed bottom-5 left-1/2 z-[60] hidden w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-2xl bg-slate-900 px-4 py-3 text-sm text-white shadow-xl" role="status"></div>
+
+    <script>
+        const BACKEND_BASE_URL = 'https://markaznuqtoh.vercel.app';
+        const KITAB_COURSE_ID = 'nlc-syamilah-pro';
+        const KITAB_PRICE = 35000;
+        const state = { user: null, hasAccess: false, history: [], toastTimer: null };
+        const elements = {
+            accountEmail: document.getElementById('account-email'),
+            accountAction: document.getElementById('account-action'),
+            paywall: document.getElementById('paywall'),
+            paywallTitle: document.getElementById('paywall-title'),
+            paywallDescription: document.getElementById('paywall-description'),
+            subscribeButton: document.getElementById('subscribe-button'),
+            searchForm: document.getElementById('search-form'),
+            question: document.getElementById('question'),
+            focus: document.getElementById('focus'),
+            searchButton: document.getElementById('search-button'),
+            searchNotice: document.getElementById('search-notice'),
+            results: document.getElementById('results'),
+            resultQuestion: document.getElementById('result-question'),
+            resultAnswer: document.getElementById('result-answer'),
+            referenceList: document.getElementById('reference-list'),
+            referenceCount: document.getElementById('reference-count'),
+            historyList: document.getElementById('history-list'),
+            historyRefresh: document.getElementById('history-refresh'),
+            loginModal: document.getElementById('login-modal'),
+            otpEmail: document.getElementById('otp-email'),
+            otpCode: document.getElementById('otp-code'),
+            otpEmailStep: document.getElementById('otp-email-step'),
+            otpCodeStep: document.getElementById('otp-code-step'),
+            otpEmailLabel: document.getElementById('otp-email-label'),
+            otpMessage: document.getElementById('otp-message'),
+            toast: document.getElementById('toast')
+        };
+
+        function readStoredUser() {
+            try {
+                const user = JSON.parse(localStorage.getItem('nuqthah_current_user') || 'null');
+                return user && typeof user === 'object' ? user : null;
+            } catch (error) {
+                console.warn('Data login lokal tidak dapat dibaca:', error);
+                return null;
+            }
+        }
+
+        function getEmail() {
+            return String(state.user?.email || '').trim().toLowerCase();
+        }
+
+        function authHeaders() {
+            return {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${state.user?.session_token || ''}`
+            };
+        }
+
+        async function apiJson(url, options = {}) {
+            const response = await fetch(url, options);
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                const error = new Error(data.error || `Permintaan gagal (${response.status}).`);
+                error.status = response.status;
+                error.data = data;
+                throw error;
+            }
+            return data;
+        }
+
+        function showToast(message) {
+            elements.toast.textContent = message;
+            elements.toast.classList.remove('hidden');
+            clearTimeout(state.toastTimer);
+            state.toastTimer = setTimeout(() => elements.toast.classList.add('hidden'), 3800);
+        }
+
+        function setNotice(message, type = 'error') {
+            elements.searchNotice.textContent = message;
+            elements.searchNotice.className = `mt-4 rounded-xl px-4 py-3 text-sm leading-6 ${
+                type === 'success' ? 'bg-emerald-50 text-emerald-800' : 'bg-rose-50 text-rose-700'
+            }`;
+        }
+
+        function updateAccountUI() {
+            const email = getEmail();
+            elements.accountEmail.textContent = email || 'Belum masuk';
+            elements.accountAction.textContent = !email
+                ? 'Masuk / OTP'
+                : state.user?.session_token ? 'Keluar' : 'Masuk ulang / OTP';
+            elements.paywall.classList.toggle('hidden', state.hasAccess);
+            elements.paywallTitle.textContent = !email
+                ? 'Masuk untuk membuka akses Maktabah Syamilah AI'
+                : 'Buka akses Maktabah Syamilah AI';
+            elements.paywallDescription.textContent = !email
+                ? 'Masuk menggunakan kode OTP ke email akun Nuqthah Anda, lalu aktifkan langganan pencarian kitab.'
+                : 'Aktifkan langganan untuk mencari referensi kitab, menyimpan jawaban, dan membuka riwayat pencarian Anda.';
+            elements.subscribeButton.querySelector('span').textContent = email
+                ? 'Berlangganan Sekarang'
+                : 'Masuk dengan OTP';
+            elements.historyRefresh.classList.toggle('hidden', !state.hasAccess);
+            elements.searchButton.disabled = !state.hasAccess;
+            elements.question.disabled = !state.hasAccess;
+            elements.focus.disabled = !state.hasAccess;
+            if (!state.hasAccess) {
+                elements.historyList.replaceChildren(makeText('p', 'Masuk dan berlangganan untuk melihat riwayat pencarian.', 'rounded-xl bg-slate-50 px-3 py-4 text-xs leading-5 text-slate-500'));
+            }
+        }
+
+        function openLoginModal() {
+            elements.otpMessage.classList.add('hidden');
+            elements.loginModal.classList.remove('hidden');
+            elements.loginModal.classList.add('flex');
+            if (getEmail()) elements.otpEmail.value = getEmail();
+            elements.otpEmail.focus();
+        }
+
+        function closeLoginModal() {
+            elements.loginModal.classList.add('hidden');
+            elements.loginModal.classList.remove('flex');
+        }
+
+        function showOtpMessage(message, success = false) {
+            elements.otpMessage.textContent = message;
+            elements.otpMessage.className = `mt-4 rounded-xl px-3 py-2 text-xs leading-5 ${
+                success ? 'bg-emerald-50 text-emerald-800' : 'bg-rose-50 text-rose-700'
+            }`;
+        }
+
+        async function refreshAccess() {
+            state.user = readStoredUser();
+            updateAccountUI();
+            if (!getEmail() || !state.user?.session_token) return false;
+            try {
+                const data = await apiJson(
+                    `${BACKEND_BASE_URL}/api/search-kitab-history?email=${encodeURIComponent(getEmail())}&limit=20`,
+                    { headers: authHeaders() }
+                );
+                state.hasAccess = true;
+                renderHistory(data.history || []);
+                updateAccountUI();
+                return true;
+            } catch (error) {
+                if (error.status === 401) {
+                    state.hasAccess = false;
+                    showToast('Sesi OTP berakhir. Silakan masuk kembali.');
+                } else if (error.status === 403 && error.data?.requires_subscription) {
+                    state.hasAccess = false;
+                } else {
+                    console.error('Gagal memeriksa akses Maktabah Syamilah:', error);
+                    showToast(error.message || 'Status akses belum dapat diperiksa.');
+                }
+                updateAccountUI();
+                return false;
+            }
+        }
+
+        function makeText(tag, text, className = '') {
+            const node = document.createElement(tag);
+            node.textContent = text || '';
+            if (className) node.className = className;
+            return node;
+        }
+
+        function renderHistory(history) {
+            state.history = history;
+            elements.historyList.replaceChildren();
+            if (!history.length) {
+                elements.historyList.append(makeText('p', 'Belum ada pencarian. Pertanyaan Anda berikutnya akan tersimpan di sini.', 'rounded-xl bg-slate-50 px-3 py-4 text-xs leading-5 text-slate-500'));
+                return;
+            }
+            history.forEach((item, index) => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'group w-full rounded-xl border border-slate-100 bg-white p-3 text-left transition hover:border-emerald-900/20 hover:bg-emerald-50/50';
+                const title = makeText('span', item.question, 'block line-clamp-2 text-xs font-semibold leading-5 text-slate-700 group-hover:text-nuqthah-green');
+                const date = makeText('span', formatDate(item.created_at), 'mt-1.5 block text-[10px] text-slate-400');
+                button.append(title, date);
+                button.addEventListener('click', () => showResult({
+                    question: item.question,
+                    answer: item.answer,
+                    references: item.references_json
+                }));
+                elements.historyList.append(button);
+            });
+        }
+
+        function formatDate(value) {
+            if (!value) return '';
+            const date = new Date(value);
+            return Number.isNaN(date.getTime()) ? '' : date.toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
+        }
+
+        function addDetail(parent, label, value) {
+            if (!value) return;
+            const wrapper = document.createElement('div');
+            wrapper.className = 'text-xs leading-5 text-slate-600';
+            wrapper.append(makeText('span', `${label}: `, 'font-bold text-slate-700'), document.createTextNode(value));
+            parent.append(wrapper);
+        }
+
+        function renderReference(reference, index) {
+            const card = document.createElement('article');
+            card.className = 'overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm';
+            const head = document.createElement('div');
+            head.className = 'flex items-start gap-3 border-b border-slate-100 bg-[#FBFAF5] px-4 py-4 sm:px-5';
+            const icon = document.createElement('span');
+            icon.className = 'grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white text-nuqthah-gold shadow-sm';
+            icon.innerHTML = '<i class="fa-solid fa-book"></i>';
+            const titleWrap = document.createElement('div');
+            titleWrap.className = 'min-w-0 flex-1';
+            titleWrap.append(makeText('h3', reference.book_title || `Referensi ${index + 1}`, 'font-display text-base font-bold text-nuqthah-green'));
+            const authorParts = [reference.author, reference.author_death ? `w. ${reference.author_death}` : ''].filter(Boolean).join(' · ');
+            if (authorParts) titleWrap.append(makeText('p', authorParts, 'mt-1 text-xs text-slate-500'));
+            head.append(icon, titleWrap);
+            const body = document.createElement('div');
+            body.className = 'space-y-4 p-4 sm:p-5';
+            const metadata = document.createElement('div');
+            metadata.className = 'flex flex-wrap gap-2';
+            [
+                reference.madhhab,
+                reference.volume ? `Juz ${reference.volume}` : '',
+                reference.page ? `Hal. ${reference.page}` : ''
+            ].filter(Boolean).forEach(label => metadata.append(makeText('span', label, 'rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-semibold text-nuqthah-green')));
+            if (metadata.childElementCount) body.append(metadata);
+            if (reference.arabic_text) {
+                const arabicBox = document.createElement('div');
+                arabicBox.className = 'rounded-xl border border-amber-200/70 bg-[#FFFDF7] p-4';
+                arabicBox.append(makeText('p', 'النص العربي / ibarat', 'mb-2 text-[11px] font-bold text-amber-800'));
+                arabicBox.append(makeText('p', reference.arabic_text, 'arabic-copy font-arabic text-xl text-slate-800'));
+                body.append(arabicBox);
+            }
+            addDetail(body, 'Terjemahan', reference.translation);
+            addDetail(body, 'Penjelasan', reference.explanation);
+            if (reference.source_url) {
+                const link = document.createElement('a');
+                link.href = reference.source_url;
+                link.target = '_blank';
+                link.rel = 'noopener noreferrer';
+                link.className = 'inline-flex items-center gap-2 rounded-lg border border-nuqthah-green/20 px-3 py-2 text-xs font-bold text-nuqthah-green transition hover:bg-emerald-50';
+                link.append(document.createTextNode('Buka sumber asli di Shamela'), Object.assign(document.createElement('i'), { className: 'fa-solid fa-arrow-up-right-from-square' }));
+                body.append(link);
+            }
+            card.append(head, body);
+            return card;
+        }
+
+        function showResult(result) {
+            const references = Array.isArray(result.references)
+                ? result.references
+                : Array.isArray(result.references_json) ? result.references_json : [];
+            elements.resultQuestion.textContent = result.question || '';
+            elements.resultAnswer.textContent = result.answer || 'Jawaban belum tersedia.';
+            elements.referenceCount.textContent = `${references.length} referensi`;
+            elements.referenceList.replaceChildren();
+            if (!references.length) {
+                elements.referenceList.append(makeText('div', 'AI tidak dapat memastikan rujukan kitab secara memadai untuk pertanyaan ini. Tidak ada kutipan yang ditampilkan agar tidak menyajikan sumber yang belum terverifikasi.', 'rounded-2xl border border-dashed border-slate-300 bg-white p-5 text-sm leading-6 text-slate-600'));
+            } else {
+                references.forEach((reference, index) => elements.referenceList.append(renderReference(reference, index)));
+            }
+            elements.results.classList.remove('hidden');
+            elements.results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        async function performSearch(event) {
+            event.preventDefault();
+            if (!state.hasAccess) {
+                elements.paywall.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                return;
+            }
+            const question = elements.question.value.trim();
+            if (question.length < 5) {
+                setNotice('Tuliskan pertanyaan minimal 5 karakter.');
+                return;
+            }
+            elements.searchNotice.classList.add('hidden');
+            elements.searchButton.disabled = true;
+            elements.searchButton.innerHTML = '<span class="spinner h-4 w-4 animate-spin rounded-full"></span><span>Sedang menelusuri kitab...</span>';
+            try {
+                const result = await apiJson(`${BACKEND_BASE_URL}/api/search-kitab`, {
+                    method: 'POST',
+                    headers: authHeaders(),
+                    body: JSON.stringify({
+                        user_email: getEmail(),
+                        question,
+                        focus: elements.focus.value
+                    })
+                });
+                showResult(result);
+                await loadHistory();
+            } catch (error) {
+                if (error.status === 403 && error.data?.requires_subscription) {
+                    state.hasAccess = false;
+                    updateAccountUI();
+                    elements.paywall.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+                setNotice(error.message || 'Pencarian tidak berhasil. Silakan coba kembali.');
+            } finally {
+                elements.searchButton.disabled = !state.hasAccess;
+                elements.searchButton.innerHTML = '<i class="fa-solid fa-magnifying-glass"></i><span>Cari Referensi Kitab AI</span>';
+            }
+        }
+
+        async function loadHistory() {
+            if (!state.hasAccess || !getEmail()) return;
+            const data = await apiJson(
+                `${BACKEND_BASE_URL}/api/search-kitab-history?email=${encodeURIComponent(getEmail())}&limit=20`,
+                { headers: authHeaders() }
+            );
+            renderHistory(data.history || []);
+        }
+
+        function setButtonLoading(button, isLoading, label) {
+            button.disabled = isLoading;
+            button.dataset.originalLabel ||= button.textContent.trim();
+            button.innerHTML = isLoading
+                ? '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i>Memproses...'
+                : label;
+        }
+
+        async function requestOtp() {
+            const email = elements.otpEmail.value.trim().toLowerCase();
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                showOtpMessage('Masukkan alamat email yang valid.');
+                return;
+            }
+            const button = document.getElementById('otp-request');
+            setButtonLoading(button, true);
+            try {
+                await apiJson(`${BACKEND_BASE_URL}/api/send-otp`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+                elements.otpEmailLabel.textContent = email;
+                elements.otpEmailStep.classList.add('hidden');
+                elements.otpCodeStep.classList.remove('hidden');
+                elements.otpCode.focus();
+                showOtpMessage('Kode OTP telah dikirim. Kode berlaku selama 60 detik.', true);
+            } catch (error) {
+                showOtpMessage(error.message || 'Kode OTP belum dapat dikirim.');
+            } finally {
+                button.disabled = false;
+                button.textContent = 'Kirim kode OTP';
+            }
+        }
+
+        async function verifyOtp() {
+            const email = elements.otpEmail.value.trim().toLowerCase();
+            const code = elements.otpCode.value.trim();
+            if (!/^\d{6}$/.test(code)) {
+                showOtpMessage('Masukkan kode OTP 6 digit.');
+                return;
+            }
+            const button = document.getElementById('otp-verify');
+            setButtonLoading(button, true);
+            try {
+                const result = await apiJson(`${BACKEND_BASE_URL}/api/verify-otp`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, code })
+                });
+                if (!result.session_token) throw new Error('Sesi login tidak berhasil dibuat. Silakan coba kembali.');
+                state.user = { ...result.user, session_token: result.session_token };
+                localStorage.setItem('nuqthah_current_user', JSON.stringify(state.user));
+                elements.otpCode.value = '';
+                closeLoginModal();
+                await refreshAccess();
+                if (!state.hasAccess) {
+                    elements.paywall.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    showToast('Login berhasil. Berlangganan untuk menggunakan pencarian kitab.');
+                } else {
+                    showToast('Berhasil masuk dan akses langganan aktif.');
+                }
+            } catch (error) {
+                showOtpMessage(error.message || 'Verifikasi OTP gagal.');
+            } finally {
+                button.disabled = false;
+                button.textContent = 'Verifikasi & masuk';
+            }
+        }
+
+        async function checkSubscriptionAfterPayment(orderId) {
+            for (let attempt = 0; attempt < 8; attempt++) {
+                try {
+                    const query = new URLSearchParams({
+                        email: getEmail(),
+                        course_id: KITAB_COURSE_ID
+                    });
+                    const status = await apiJson(
+                        `${BACKEND_BASE_URL}/api/transaction-status/${encodeURIComponent(orderId)}?${query}`
+                    );
+                    if (status.access_granted) {
+                        await refreshAccess();
+                        if (state.hasAccess) {
+                            showToast('Pembayaran berhasil. Akses pencarian kitab telah aktif.');
+                            return;
+                        }
+                    }
+                } catch (error) {
+                    console.warn('Status pembayaran masih menunggu konfirmasi:', error.message);
+                }
+                await new Promise(resolve => setTimeout(resolve, 2500));
+            }
+            showToast('Pembayaran diproses. Muat ulang halaman beberapa saat lagi untuk memeriksa akses.');
+        }
+
+        async function startSubscription() {
+            if (!getEmail() || !state.user?.session_token) {
+                openLoginModal();
+                return;
+            }
+            if (state.hasAccess) return;
+            if (!window.snap || typeof window.snap.pay !== 'function') {
+                showToast('Layanan pembayaran belum tersedia. Periksa koneksi lalu muat ulang halaman.');
+                return;
+            }
+            setButtonLoading(elements.subscribeButton, true);
+            try {
+                const data = await apiJson(`${BACKEND_BASE_URL}/api/create-transaction`, {
+                    method: 'POST',
+                    headers: authHeaders(),
+                    body: JSON.stringify({
+                        course_id: KITAB_COURSE_ID,
+                        price: KITAB_PRICE,
+                        user_id: state.user.id || null,
+                        user_email: getEmail()
+                    })
+                });
+                if (!data.token || !data.order_id) throw new Error('Token pembayaran tidak tersedia.');
+                elements.subscribeButton.disabled = false;
+                elements.subscribeButton.innerHTML = '<i class="fa-solid fa-unlock-keyhole"></i><span>Berlangganan Sekarang</span>';
+                window.snap.pay(data.token, {
+                    onSuccess: () => checkSubscriptionAfterPayment(data.order_id),
+                    onPending: () => {
+                        showToast('Pembayaran menunggu konfirmasi. Status akan diperiksa otomatis.');
+                        checkSubscriptionAfterPayment(data.order_id);
+                    },
+                    onError: () => showToast('Pembayaran belum berhasil. Silakan coba kembali.'),
+                    onClose: () => showToast('Jendela pembayaran ditutup. Anda dapat melanjutkan pembayaran kapan saja.')
+                });
+            } catch (error) {
+                showToast(error.message || 'Transaksi tidak dapat dibuat saat ini.');
+                elements.subscribeButton.disabled = false;
+                elements.subscribeButton.innerHTML = '<i class="fa-solid fa-unlock-keyhole"></i><span>Berlangganan Sekarang</span>';
+            }
+        }
+
+        elements.accountAction.addEventListener('click', () => {
+            if (getEmail() && state.user?.session_token) {
+                localStorage.removeItem('nuqthah_current_user');
+                state.user = null;
+                state.hasAccess = false;
+                elements.results.classList.add('hidden');
+                updateAccountUI();
+                showToast('Anda telah keluar dari akun.');
+            } else {
+                openLoginModal();
+            }
+        });
+        document.getElementById('login-close').addEventListener('click', closeLoginModal);
+        elements.loginModal.addEventListener('click', event => {
+            if (event.target === elements.loginModal) closeLoginModal();
+        });
+        document.getElementById('otp-request').addEventListener('click', requestOtp);
+        document.getElementById('otp-verify').addEventListener('click', verifyOtp);
+        document.getElementById('otp-back').addEventListener('click', () => {
+            elements.otpCodeStep.classList.add('hidden');
+            elements.otpEmailStep.classList.remove('hidden');
+            elements.otpCode.value = '';
+            elements.otpMessage.classList.add('hidden');
+            elements.otpEmail.focus();
+        });
+        elements.subscribeButton.addEventListener('click', startSubscription);
+        elements.searchForm.addEventListener('submit', performSearch);
+        elements.historyRefresh.addEventListener('click', async () => {
+            try {
+                await loadHistory();
+                showToast('Riwayat pencarian diperbarui.');
+            } catch (error) {
+                showToast(error.message || 'Riwayat belum dapat dimuat.');
+            }
+        });
+        elements.otpCode.addEventListener('keydown', event => {
+            if (event.key === 'Enter') verifyOtp();
+        });
+
+        state.user = readStoredUser();
+        updateAccountUI();
+        refreshAccess();
+    </script>
+</body>
+</html>
