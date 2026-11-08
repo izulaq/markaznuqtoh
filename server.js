@@ -14,6 +14,7 @@ const GDRIVE_COVER_SCRIPT_VERSION = 2;
 const OTP_TTL_MS = 60 * 1000;
 const KITAB_COURSE_ID = 'nlc-syamilah-pro';
 const KITAB_SUBSCRIPTION_PRICE = 35000;
+const AI_REQUEST_TIMEOUT_MS = 50000;
 const KITAB_FOCUS_OPTIONS = new Set([
     'Semua Mazhab',
     "Fiqih Syafi'i",
@@ -632,10 +633,11 @@ async function callAiChatCompletion(messages) {
             body: JSON.stringify({
                 model,
                 temperature: 0.2,
+                max_tokens: 1400,
                 response_format: { type: 'json_object' },
                 messages
             }),
-            signal: AbortSignal.timeout(45000)
+            signal: AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS)
         });
         const result = await response.json().catch(() => ({}));
         if (!response.ok) {
@@ -662,10 +664,11 @@ async function callAiChatCompletion(messages) {
                 contents: [{ role: 'user', parts: [{ text: messages[1].content }] }],
                 generationConfig: {
                     temperature: 0.2,
+                    maxOutputTokens: 1400,
                     responseMimeType: 'application/json'
                 }
             }),
-            signal: AbortSignal.timeout(45000)
+            signal: AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS)
         }
     );
     const result = await response.json().catch(() => ({}));
@@ -693,7 +696,7 @@ function parseKitabAiResponse(content) {
 
     const asText = (value, maxLength = 5000) =>
         typeof value === 'string' ? value.trim().slice(0, maxLength) : '';
-    const references = Array.isArray(result.references) ? result.references.slice(0, 8).map(reference => {
+    const references = Array.isArray(result.references) ? result.references.slice(0, 3).map(reference => {
         const rawSourceUrl = asText(reference?.source_url, 500);
         let sourceUrl = null;
         try {
@@ -752,7 +755,7 @@ app.post('/api/search-kitab', async (req, res) => {
                     'Anda adalah asisten riset kitab turats untuk pembelajaran Islam berbahasa Indonesia.',
                     'Jawab secara berimbang, jelas, dan jangan mengeluarkan fatwa yang mengikat.',
                     'Jangan pernah mengarang kutipan Arab, nama kitab, pengarang, nomor juz/halaman, atau tautan.',
-                    'Cantumkan referensi hanya jika Anda yakin detailnya benar; bila tidak dapat memastikan, gunakan references: [].',
+                    'Berikan maksimal 3 referensi dan cantumkan hanya jika Anda yakin detailnya benar; bila tidak dapat memastikan, gunakan references: [].',
                     'Bedakan kesimpulan umum, perbedaan pendapat, dan keterbatasan sumber.',
                     'Kembalikan JSON valid saja dengan schema: {"answer":"...","arabic_keywords":"...","references":[{"book_title":"...","author":"...","author_death":"...","madhhab":"...","volume":"...","page":"...","arabic_text":"...","translation":"...","explanation":"...","source_url":"https://shamela.ws/..."}]}.',
                     'Isi sumber asli berbahasa Arab hanya jika benar-benar dapat diverifikasi; jika tidak, kosongkan arabic_text dan jangan membuat sumber.'
@@ -779,8 +782,11 @@ app.post('/api/search-kitab', async (req, res) => {
         return res.json({ question, focus, ...result });
     } catch (error) {
         console.error('Pencarian kitab gagal:', error);
+        const isTimeout = error?.name === 'TimeoutError' || error?.name === 'AbortError';
         return res.status(502).json({
-            error: error.message || 'Pencarian kitab gagal diproses. Silakan coba kembali.'
+            error: isTimeout
+                ? 'Layanan AI membutuhkan waktu terlalu lama. Coba lagi dengan pertanyaan yang lebih singkat.'
+                : error.message || 'Pencarian kitab gagal diproses. Silakan coba kembali.'
         });
     }
 });
@@ -1355,3 +1361,4 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 module.exports = app;
+module.exports.config = { maxDuration: 60 };
