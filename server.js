@@ -1,7 +1,6 @@
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
-const crypto = require('crypto');
 const midtransClient = require('midtrans-client');
 const isMidtransProduction = process.env.MIDTRANS_IS_PRODUCTION === 'true';
 const { createClient } = require('@supabase/supabase-js');
@@ -12,18 +11,6 @@ const MAX_PDF_SIZE = 4 * 1024 * 1024;
 const MAX_COVER_SIZE = 3 * 1024 * 1024;
 const GDRIVE_COVER_SCRIPT_VERSION = 2;
 const OTP_TTL_MS = 60 * 1000;
-const KITAB_COURSE_ID = 'nlc-syamilah-pro';
-const KITAB_SUBSCRIPTION_PRICE = 35000;
-const AI_REQUEST_TIMEOUT_MS = 55000;
-const KITAB_FOCUS_OPTIONS = new Set([
-    'Semua Mazhab',
-    "Fiqih Syafi'i",
-    'Fiqih Hanafi',
-    'Fiqih Maliki',
-    'Fiqih Hambali',
-    'Aqidah/Tauhid',
-    'Hadits'
-]);
 
 app.use(cors());
 app.use(express.json({ limit: '18mb' }));
@@ -530,324 +517,20 @@ async function grantTransactionAccessSafely({ userId, userEmail, courseId, order
     return Boolean(activeAccess?.length);
 }
 
-function normalizeEmail(value) {
-    return String(value || '').trim().toLowerCase();
-}
-
-function isValidEmail(value) {
-    return value.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-}
-
-function createOtpSessionToken(email, userId) {
-    const secret = process.env.OTP_SESSION_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!secret) throw new Error('Rahasia sesi OTP belum dikonfigurasi.');
-
-    const payload = Buffer.from(JSON.stringify({
-        email,
-        userId: userId || null,
-        expiresAt: Date.now() + (12 * 60 * 60 * 1000)
-    })).toString('base64url');
-    const signature = crypto.createHmac('sha256', secret).update(payload).digest('base64url');
-    return `${payload}.${signature}`;
-}
-
-function getAuthenticatedOtpSession(req, expectedEmail) {
-    const secret = process.env.OTP_SESSION_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY;
-    const authorization = String(req.get('authorization') || '');
-    const token = authorization.startsWith('Bearer ') ? authorization.slice(7).trim() : '';
-    if (!secret || !token || token.length > 2048) return null;
-
-    const [payload, signature, extra] = token.split('.');
-    if (!payload || !signature || extra) return null;
-    const expectedSignature = crypto.createHmac('sha256', secret).update(payload).digest();
-    let suppliedSignature;
-    try {
-        suppliedSignature = Buffer.from(signature, 'base64url');
-    } catch (error) {
-        return null;
-    }
-    if (
-        suppliedSignature.length !== expectedSignature.length ||
-        !crypto.timingSafeEqual(suppliedSignature, expectedSignature)
-    ) return null;
-
-    try {
-        const session = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
-        if (
-            !session.email ||
-            session.email !== expectedEmail ||
-            !Number.isFinite(session.expiresAt) ||
-            session.expiresAt <= Date.now()
-        ) return null;
-        return session;
-    } catch (error) {
-        return null;
-    }
-}
-
-async function hasKitabSubscription(email) {
-    const { data, error } = await supabaseAdmin
-        .from('user_access')
-        .select('id')
-        .eq('user_email', email)
-        .eq('course_id', KITAB_COURSE_ID)
-        .eq('is_active', true)
-        .limit(1);
-    if (error) throw error;
-    return Boolean(data?.length);
-}
-
-async function requireKitabSubscription(req, res, email) {
-    if (!getAuthenticatedOtpSession(req, email)) {
-        res.status(401).json({ error: 'Sesi login tidak valid atau kedaluwarsa. Silakan masuk kembali.' });
-        return false;
-    }
-    if (!await hasKitabSubscription(email)) {
-        res.status(403).json({
-            error: 'Langganan Pencarian Referensi Kitab AI belum aktif.',
-            requires_subscription: true,
-            course_id: KITAB_COURSE_ID
-        });
-        return false;
-    }
-    return true;
-}
-
-async function callAiChatCompletion(messages) {
-    const apiKey = process.env.OPENAI_API_KEY;
-    const baseUrl = String(process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1')
-        .trim()
-        .replace(/\/+$/, '');
-    const model = String(process.env.OPENAI_MODEL || 'gpt-4o-mini').trim();
-
-    if (apiKey) {
-        const endpoint = /\/chat\/completions$/i.test(baseUrl)
-            ? baseUrl
-            : `${baseUrl}/chat/completions`;
-        const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: {
-                Authorization: `Bearer ${apiKey}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                model,
-                temperature: 0.2,
-                reasoning_effort: 'low',
-                max_tokens: 900,
-                response_format: { type: 'json_object' },
-                messages
-            }),
-            signal: AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS)
-        });
-        const result = await response.json().catch(() => ({}));
-        if (!response.ok) {
-            console.error('AI provider returned an error:', response.status, result?.error?.message || '');
-            throw new Error('Layanan AI sedang tidak dapat memproses pencarian.');
-        }
-        const content = result?.choices?.[0]?.message?.content;
-        if (typeof content !== 'string' || !content.trim()) {
-            throw new Error('Layanan AI tidak mengembalikan jawaban yang dapat dibaca.');
-        }
-        return content;
-    }
-
-    const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
-    if (!geminiKey) throw new Error('Layanan AI belum dikonfigurasi pada server.');
-    const geminiModel = String(process.env.GEMINI_MODEL || 'gemini-2.0-flash').trim();
-    const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(geminiModel)}:generateContent?key=${encodeURIComponent(geminiKey)}`,
-        {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                systemInstruction: { parts: [{ text: messages[0].content }] },
-                contents: [{ role: 'user', parts: [{ text: messages[1].content }] }],
-                generationConfig: {
-                    temperature: 0.2,
-                    maxOutputTokens: 900,
-                    responseMimeType: 'application/json'
-                }
-            }),
-            signal: AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS)
-        }
-    );
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok) {
-        console.error('Gemini provider returned an error:', response.status, result?.error?.message || '');
-        throw new Error('Layanan AI sedang tidak dapat memproses pencarian.');
-    }
-    const content = result?.candidates?.[0]?.content?.parts
-        ?.map(part => part.text || '')
-        .join('')
-        .trim();
-    if (!content) throw new Error('Layanan AI tidak mengembalikan jawaban yang dapat dibaca.');
-    return content;
-}
-
-function parseKitabAiResponse(content) {
-    const normalizedContent = String(content || '')
-        .replace(/^```(?:json)?\s*/i, '')
-        .replace(/\s*```$/, '')
-        .trim();
-    const result = JSON.parse(normalizedContent);
-    if (!result || typeof result !== 'object' || Array.isArray(result)) {
-        throw new Error('Format jawaban AI tidak valid.');
-    }
-
-    const asText = (value, maxLength = 5000) =>
-        typeof value === 'string' ? value.trim().slice(0, maxLength) : '';
-    const references = Array.isArray(result.references) ? result.references.slice(0, 3).map(reference => {
-        const rawSourceUrl = asText(reference?.source_url, 500);
-        let sourceUrl = null;
-        try {
-            const parsedUrl = new URL(rawSourceUrl);
-            if (
-                parsedUrl.protocol === 'https:' &&
-                (parsedUrl.hostname === 'shamela.ws' || parsedUrl.hostname.endsWith('.shamela.ws'))
-            ) sourceUrl = parsedUrl.toString();
-        } catch (error) {
-            sourceUrl = null;
-        }
-
-        return {
-            book_title: asText(reference?.book_title, 300),
-            author: asText(reference?.author, 200),
-            author_death: asText(reference?.author_death, 100),
-            madhhab: asText(reference?.madhhab, 120),
-            volume: asText(reference?.volume, 50),
-            page: asText(reference?.page, 50),
-            arabic_text: asText(reference?.arabic_text, 5000),
-            translation: asText(reference?.translation, 5000),
-            explanation: asText(reference?.explanation, 3000),
-            source_url: sourceUrl
-        };
-    }).filter(reference => reference.book_title || reference.arabic_text) : [];
-
-    const answer = asText(result.answer, 10000);
-    if (!answer) throw new Error('Jawaban AI kosong.');
-    return {
-        answer,
-        arabic_keywords: asText(result.arabic_keywords, 1000),
-        references
-    };
-}
-
-app.post('/api/search-kitab', async (req, res) => {
-    const email = normalizeEmail(req.body?.user_email);
-    const question = String(req.body?.question || '').trim();
-    const focus = String(req.body?.focus || 'Semua Mazhab').trim();
-    const requestStartedAt = Date.now();
-    let requestStage = 'validation';
-
-    if (!isValidEmail(email)) return res.status(400).json({ error: 'Email pengguna tidak valid.' });
-    if (question.length < 5 || question.length > 1500) {
-        return res.status(400).json({ error: 'Pertanyaan harus berisi 5 sampai 1.500 karakter.' });
-    }
-    if (!KITAB_FOCUS_OPTIONS.has(focus)) {
-        return res.status(400).json({ error: 'Pilihan mazhab atau bidang tidak valid.' });
-    }
-
-    try {
-        requestStage = 'access-check';
-        if (!await requireKitabSubscription(req, res, email)) return;
-
-        const messages = [
-            {
-                role: 'system',
-                content: [
-                    'Anda asisten riset kitab turats untuk pembelajaran Islam berbahasa Indonesia, bukan pemberi fatwa mengikat.',
-                    'Jawab ringkas (maksimal 250 kata), berimbang, dan sebutkan bila ada perbedaan pendapat.',
-                    'Jangan mengarang kutipan Arab, kitab, pengarang, juz, halaman, atau tautan.',
-                    'Berikan maksimal 2 rujukan hanya bila yakin; jika tidak, references harus [].',
-                    'Kembalikan JSON valid saja dengan schema: {"answer":"...","arabic_keywords":"...","references":[{"book_title":"...","author":"...","author_death":"...","madhhab":"...","volume":"...","page":"...","arabic_text":"...","translation":"...","explanation":"...","source_url":"https://shamela.ws/..."}]}.',
-                    'Jangan mengklaim kutipan atau tautan telah diverifikasi bila tidak. Kosongkan data rujukan yang tidak diketahui.'
-                ].join(' ')
-            },
-            {
-                role: 'user',
-                content: `Fokus: ${focus}\nPertanyaan: ${question}`
-            }
-        ];
-        requestStage = 'ai-provider';
-        const aiContent = await callAiChatCompletion(messages);
-        const result = parseKitabAiResponse(aiContent);
-        requestStage = 'save-search-log';
-        const { error: logError } = await supabaseAdmin
-            .from('kitab_search_logs')
-            .insert([{
-                user_email: email,
-                question,
-                arabic_keywords: result.arabic_keywords,
-                answer: result.answer,
-                references_json: result.references
-            }]);
-        if (logError) throw logError;
-
-        return res.json({ question, focus, ...result });
-    } catch (error) {
-        console.error(
-            `Pencarian kitab gagal pada tahap ${requestStage} setelah ${Date.now() - requestStartedAt}ms:`,
-            error?.name || 'Error',
-            error?.message || error
-        );
-        const isTimeout = error?.name === 'TimeoutError' || error?.name === 'AbortError';
-        return res.status(502).json({
-            error: isTimeout
-                ? 'Layanan AI membutuhkan waktu terlalu lama. Coba lagi dengan pertanyaan yang lebih singkat.'
-                : error.message || 'Pencarian kitab gagal diproses. Silakan coba kembali.'
-        });
-    }
-});
-
-app.get('/api/search-kitab-history', async (req, res) => {
-    const email = normalizeEmail(req.query.email);
-    if (!isValidEmail(email)) return res.status(400).json({ error: 'Email pengguna tidak valid.' });
-
-    try {
-        if (!await requireKitabSubscription(req, res, email)) return;
-
-        const requestedLimit = Number.parseInt(String(req.query.limit || '20'), 10);
-        const limit = Number.isFinite(requestedLimit) ? Math.min(50, Math.max(1, requestedLimit)) : 20;
-        const { data, error } = await supabaseAdmin
-            .from('kitab_search_logs')
-            .select('id, question, arabic_keywords, answer, references_json, created_at')
-            .eq('user_email', email)
-            .order('created_at', { ascending: false })
-            .limit(limit);
-        if (error) throw error;
-        return res.json({ history: data || [] });
-    } catch (error) {
-        console.error('Riwayat pencarian kitab gagal dimuat:', error);
-        return res.status(500).json({ error: 'Riwayat pencarian belum dapat dimuat.' });
-    }
-});
-
 // ================= ENDPOINT TRANSAKSI & FOLLOW-UP WA =================
 
 // Endpoint 1: Membuat Transaksi Midtrans & Mengirim WA Follow-Up Pembayaran
 app.post('/api/create-transaction', async (req, res) => {
     try {
         const { course_id, price, user_id, user_email } = req.body;
-        const cleanEmail = normalizeEmail(user_email);
-        if (course_id === KITAB_COURSE_ID) {
-            if (!isValidEmail(cleanEmail)) {
-                return res.status(400).json({ error: 'Email pengguna tidak valid.' });
-            }
-            if (!getAuthenticatedOtpSession(req, cleanEmail)) {
-                return res.status(401).json({ error: 'Silakan masuk dengan kode OTP sebelum berlangganan.' });
-            }
-        }
         const orderId = 'NUQTHAH-' + Date.now();
         
-        const cleanPrice = course_id === KITAB_COURSE_ID
-            ? KITAB_SUBSCRIPTION_PRICE
-            : parseInt(String(price).replace(/[^0-9]/g, '')) || 10000;
+        const cleanPrice = parseInt(String(price).replace(/[^0-9]/g, '')) || 10000;
 
         const { data: userData } = await supabaseAdmin
             .from('users')
             .select('*')
-            .eq('email', cleanEmail || user_email)
+            .eq('email', user_email)
             .single();
 
         const { data: courseData } = await supabaseAdmin
@@ -868,7 +551,7 @@ app.post('/api/create-transaction', async (req, res) => {
             },
             customer_details: {
                 first_name: studentName,
-                email: cleanEmail || 'student@nuqthah.com',
+                email: user_email || 'student@nuqthah.com',
                 phone: studentWa
             },
             callbacks: {
@@ -881,7 +564,7 @@ app.post('/api/create-transaction', async (req, res) => {
         const { error: transactionError } = await supabaseAdmin.from('transactions').insert([{
             order_id: orderId,
             user_id: user_id || userData?.id || null,
-            user_email: cleanEmail || null,
+            user_email: user_email || null,
             course_id: course_id,
             gross_amount: cleanPrice,
             status: 'pending',
@@ -1340,11 +1023,7 @@ app.post('/api/verify-otp', async (req, res) => {
             return res.status(404).json({ success: false, error: 'Data pengguna tidak ditemukan.' });
         }
 
-        res.json({
-            success: true,
-            user: userData,
-            session_token: createOtpSessionToken(normalizeEmail(userData.email), userData.id)
-        });
+        res.json({ success: true, user: userData });
     } catch (err) {
         console.error('Error verify-otp:', err);
         res.status(500).json({ success: false, error: err.message });
@@ -1370,4 +1049,3 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 module.exports = app;
-module.exports.config = { maxDuration: 60 };
