@@ -14,7 +14,7 @@ const GDRIVE_COVER_SCRIPT_VERSION = 2;
 const OTP_TTL_MS = 60 * 1000;
 const KITAB_COURSE_ID = 'nlc-syamilah-pro';
 const KITAB_SUBSCRIPTION_PRICE = 35000;
-const AI_REQUEST_TIMEOUT_MS = 50000;
+const AI_REQUEST_TIMEOUT_MS = 55000;
 const KITAB_FOCUS_OPTIONS = new Set([
     'Semua Mazhab',
     "Fiqih Syafi'i",
@@ -633,7 +633,8 @@ async function callAiChatCompletion(messages) {
             body: JSON.stringify({
                 model,
                 temperature: 0.2,
-                max_tokens: 1400,
+                reasoning_effort: 'low',
+                max_tokens: 900,
                 response_format: { type: 'json_object' },
                 messages
             }),
@@ -664,7 +665,7 @@ async function callAiChatCompletion(messages) {
                 contents: [{ role: 'user', parts: [{ text: messages[1].content }] }],
                 generationConfig: {
                     temperature: 0.2,
-                    maxOutputTokens: 1400,
+                    maxOutputTokens: 900,
                     responseMimeType: 'application/json'
                 }
             }),
@@ -736,6 +737,8 @@ app.post('/api/search-kitab', async (req, res) => {
     const email = normalizeEmail(req.body?.user_email);
     const question = String(req.body?.question || '').trim();
     const focus = String(req.body?.focus || 'Semua Mazhab').trim();
+    const requestStartedAt = Date.now();
+    let requestStage = 'validation';
 
     if (!isValidEmail(email)) return res.status(400).json({ error: 'Email pengguna tidak valid.' });
     if (question.length < 5 || question.length > 1500) {
@@ -746,19 +749,19 @@ app.post('/api/search-kitab', async (req, res) => {
     }
 
     try {
+        requestStage = 'access-check';
         if (!await requireKitabSubscription(req, res, email)) return;
 
         const messages = [
             {
                 role: 'system',
                 content: [
-                    'Anda adalah asisten riset kitab turats untuk pembelajaran Islam berbahasa Indonesia.',
-                    'Jawab secara berimbang, jelas, dan jangan mengeluarkan fatwa yang mengikat.',
-                    'Jangan pernah mengarang kutipan Arab, nama kitab, pengarang, nomor juz/halaman, atau tautan.',
-                    'Berikan maksimal 3 referensi dan cantumkan hanya jika Anda yakin detailnya benar; bila tidak dapat memastikan, gunakan references: [].',
-                    'Bedakan kesimpulan umum, perbedaan pendapat, dan keterbatasan sumber.',
+                    'Anda asisten riset kitab turats untuk pembelajaran Islam berbahasa Indonesia, bukan pemberi fatwa mengikat.',
+                    'Jawab ringkas (maksimal 250 kata), berimbang, dan sebutkan bila ada perbedaan pendapat.',
+                    'Jangan mengarang kutipan Arab, kitab, pengarang, juz, halaman, atau tautan.',
+                    'Berikan maksimal 2 rujukan hanya bila yakin; jika tidak, references harus [].',
                     'Kembalikan JSON valid saja dengan schema: {"answer":"...","arabic_keywords":"...","references":[{"book_title":"...","author":"...","author_death":"...","madhhab":"...","volume":"...","page":"...","arabic_text":"...","translation":"...","explanation":"...","source_url":"https://shamela.ws/..."}]}.',
-                    'Isi sumber asli berbahasa Arab hanya jika benar-benar dapat diverifikasi; jika tidak, kosongkan arabic_text dan jangan membuat sumber.'
+                    'Jangan mengklaim kutipan atau tautan telah diverifikasi bila tidak. Kosongkan data rujukan yang tidak diketahui.'
                 ].join(' ')
             },
             {
@@ -766,8 +769,10 @@ app.post('/api/search-kitab', async (req, res) => {
                 content: `Fokus: ${focus}\nPertanyaan: ${question}`
             }
         ];
+        requestStage = 'ai-provider';
         const aiContent = await callAiChatCompletion(messages);
         const result = parseKitabAiResponse(aiContent);
+        requestStage = 'save-search-log';
         const { error: logError } = await supabaseAdmin
             .from('kitab_search_logs')
             .insert([{
@@ -781,7 +786,11 @@ app.post('/api/search-kitab', async (req, res) => {
 
         return res.json({ question, focus, ...result });
     } catch (error) {
-        console.error('Pencarian kitab gagal:', error);
+        console.error(
+            `Pencarian kitab gagal pada tahap ${requestStage} setelah ${Date.now() - requestStartedAt}ms:`,
+            error?.name || 'Error',
+            error?.message || error
+        );
         const isTimeout = error?.name === 'TimeoutError' || error?.name === 'AbortError';
         return res.status(502).json({
             error: isTimeout
