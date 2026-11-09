@@ -1675,7 +1675,9 @@
                                 onchange="updateRescheduleTarget()"
                                 class="w-full border border-amber-300 p-2 rounded-lg text-xs bg-white mb-3">
                                 <option value="next">Undur ke jadwal berikutnya dan geser jadwal selanjutnya</option>
-                                <option value="custom">Undur ke tanggal dan waktu khusus</option>
+                                    <option value="custom">Ubah ke tanggal khusus dan geser jadwal selanjutnya</option>
+                                    <option value="advance_only">Majukan hanya pertemuan ini</option>
+                                    <option value="advance_all">Majukan dan geser jadwal selanjutnya</option>
                             </select><p id="reschedule-target-hint"
                                 class="text-[10px] text-amber-800 mb-3"></p><label
                                 class="block text-[11px] font-bold text-amber-700 uppercase mb-1">Alasan Perubahan
@@ -3367,7 +3369,18 @@
                 if (currentSchedule) startTimeInput.value = toLocalDatetimeInput(currentSchedule.start_time);
             }
             startTimeInput.disabled = false;
-            hint.textContent = 'Pilih tanggal dan waktu baru. Semua pertemuan terjadwal setelahnya ikut bergeser dengan jumlah hari yang sama; jam masing-masing tetap. Hari dalam pekan dapat berubah (misalnya Selasa menjadi Rabu). Pengumuman WhatsApp hanya menyebut pertemuan yang dipilih.';
+            const currentSchedule = cachedSchedules.find(schedule => String(schedule.id) === String(scheduleId));
+            const isAdvancing = currentSchedule
+                && new Date(startTimeInput.value) < new Date(toLocalDatetimeInput(currentSchedule.start_time));
+            if (modeSelect.value === 'advance_only') {
+                hint.textContent = 'Pilih waktu lebih awal. Hanya pertemuan ini yang berubah; jadwal berikutnya tetap.';
+            } else if (modeSelect.value === 'advance_all') {
+                hint.textContent = 'Pilih waktu lebih awal. Jadwal berikutnya ikut dimajukan dengan selisih jumlah hari yang sama; jam masing-masing tetap dan hari dalam pekan dapat berubah.';
+            } else if (isAdvancing) {
+                hint.textContent = 'Waktu yang dipilih lebih awal. Pilih “Majukan hanya pertemuan ini” atau “Majukan dan geser jadwal selanjutnya”.';
+            } else {
+                hint.textContent = 'Pilih waktu baru. Semua pertemuan terjadwal setelahnya ikut bergeser dengan selisih jumlah hari yang sama; jam masing-masing tetap. Pengumuman WhatsApp hanya menyebut pertemuan yang dipilih.';
+            }
         }
 
         function toggleRescheduleReason(preferNext = false) {
@@ -3424,22 +3437,32 @@
             }
             const isMovingToLaterTime = new Date(newStartTime) > new Date(currentSchedule.start_time);
             const hasChangedTime = new Date(newStartTime).getTime() !== new Date(currentSchedule.start_time).getTime();
-            const shouldShiftFuture = isRescheduled
-                && isMovingToLaterTime
+            const shouldRescheduleSeries = isRescheduled
+                && hasChangedTime
                 && document.getElementById('edit-jadwal-status').value === 'scheduled';
-            if (isRescheduled && hasChangedTime && !isMovingToLaterTime) {
-                showToast('Waktu reschedule harus lebih akhir dari jadwal sebelumnya.', 'warning');
-                btn.disabled = false; btn.innerHTML = 'Simpan Perubahan';
-                return;
-            }
-            if (shouldShiftFuture && document.getElementById('edit-jadwal-course_id').value !== String(currentSchedule.course_id)) {
-                showToast('Materi tidak dapat diganti saat mengundur jadwal berulang. Simpan perubahan materi secara terpisah.', 'warning');
+            if (shouldRescheduleSeries && document.getElementById('edit-jadwal-course_id').value !== String(currentSchedule.course_id)) {
+                showToast('Materi tidak dapat diganti saat mengatur ulang rangkaian jadwal. Simpan perubahan materi secara terpisah.', 'warning');
                 btn.disabled = false; btn.innerHTML = 'Simpan Perubahan';
                 return;
             }
 
-            if (shouldShiftFuture && rescheduleMode === 'next' && !getNextScheduledMeeting(id, currentSchedule.course_id)) {
+            if (shouldRescheduleSeries && rescheduleMode === 'next' && !getNextScheduledMeeting(id, currentSchedule.course_id)) {
                 showToast('Tidak ada jadwal berikutnya untuk materi ini. Pilih tanggal khusus.', 'warning');
+                btn.disabled = false; btn.innerHTML = 'Simpan Perubahan';
+                return;
+            }
+            if (shouldRescheduleSeries && isMovingToLaterTime && rescheduleMode.startsWith('advance_')) {
+                showToast('Pilih opsi undur untuk waktu yang lebih akhir.', 'warning');
+                btn.disabled = false; btn.innerHTML = 'Simpan Perubahan';
+                return;
+            }
+            if (shouldRescheduleSeries && !isMovingToLaterTime && rescheduleMode === 'next') {
+                showToast('Pilih opsi majukan untuk waktu yang lebih awal.', 'warning');
+                btn.disabled = false; btn.innerHTML = 'Simpan Perubahan';
+                return;
+            }
+            if (shouldRescheduleSeries && !isMovingToLaterTime && rescheduleMode === 'custom') {
+                showToast('Pilih apakah hanya pertemuan ini atau seluruh jadwal setelahnya yang ikut dimajukan.', 'warning');
                 btn.disabled = false; btn.innerHTML = 'Simpan Perubahan';
                 return;
             }
@@ -3455,7 +3478,7 @@
             };
 
             try {
-                if (shouldShiftFuture) {
+                if (shouldRescheduleSeries) {
                     const { data, error } = await supabaseClient.rpc('reschedule_class_meeting', {
                         p_schedule_id: String(id),
                         p_title: updateData.title,
