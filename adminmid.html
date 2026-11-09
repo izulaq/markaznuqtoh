@@ -1647,7 +1647,7 @@
                 <form id="edit-jadwal-form" class="space-y-4">
                     <input type="hidden" id="edit-jadwal-id">
                     <div><label class="block text-xs font-bold text-gray-700 uppercase mb-1">Kelas</label><select
-                            id="edit-jadwal-course_id" required
+                            id="edit-jadwal-course_id" required onchange="updateRescheduleTarget()"
                             class="w-full border border-gray-200 p-2.5 rounded-xl text-sm bg-white"></select></div>
                     <div><label class="block text-xs font-bold text-gray-700 uppercase mb-1">Judul</label><input
                             type="text" id="edit-jadwal-title" required
@@ -1667,9 +1667,17 @@
                         </select></div>
                     <div class="bg-amber-50 p-4 rounded-xl border border-amber-200 space-y-3">
                         <label class="flex items-center gap-2 text-xs font-bold text-amber-800 cursor-pointer"><input
-                                type="checkbox" id="edit-jadwal-is_rescheduled" onchange="toggleRescheduleReason()"
+                                type="checkbox" id="edit-jadwal-is_rescheduled" onchange="toggleRescheduleReason(true)"
                                 class="rounded text-amber-600"><span>Tandai sebagai "Reschedule"</span></label>
                         <div id="reschedule-reason-container" class="hidden"><label
+                                class="block text-[11px] font-bold text-amber-700 uppercase mb-1">Cara Mengundur
+                                Pertemuan</label><select id="edit-jadwal-reschedule-mode"
+                                onchange="updateRescheduleTarget()"
+                                class="w-full border border-amber-300 p-2 rounded-lg text-xs bg-white mb-3">
+                                <option value="next">Undur ke jadwal berikutnya dan geser jadwal selanjutnya</option>
+                                <option value="custom">Undur ke tanggal dan waktu khusus</option>
+                            </select><p id="reschedule-target-hint"
+                                class="text-[10px] text-amber-800 mb-3"></p><label
                                 class="block text-[11px] font-bold text-amber-700 uppercase mb-1">Alasan Perubahan
                                 *</label><input type="text" id="edit-jadwal-reschedule_reason"
                                 class="w-full border border-amber-300 p-2 rounded-lg text-xs"></div>
@@ -3316,15 +3324,67 @@
             document.getElementById('edit-jadwal-status').value = s.status || 'scheduled';
 
             document.getElementById('edit-jadwal-is_rescheduled').checked = s.is_rescheduled || false;
+            document.getElementById('edit-jadwal-reschedule-mode').value = 'custom';
             document.getElementById('edit-jadwal-reschedule_reason').value = s.reschedule_reason || '';
-            toggleRescheduleReason();
+            document.getElementById('reschedule-reason-container').classList.toggle('hidden', !s.is_rescheduled);
+            document.getElementById('edit-jadwal-start_time').disabled = false;
+            updateRescheduleTarget();
 
             document.getElementById('edit-jadwal-modal').classList.remove('hidden');
         }
 
-        function toggleRescheduleReason() {
+        function getNextScheduledMeeting(scheduleId, courseId) {
+            const currentSchedule = cachedSchedules.find(schedule => String(schedule.id) === String(scheduleId));
+            if (!currentSchedule) return null;
+            return cachedSchedules
+                .filter(schedule => String(schedule.course_id) === String(courseId)
+                    && schedule.status === 'scheduled'
+                    && String(schedule.id) !== String(scheduleId)
+                    && new Date(schedule.start_time) > new Date(currentSchedule.start_time))
+                .sort((a, b) => new Date(a.start_time) - new Date(b.start_time))[0] || null;
+        }
+
+        function updateRescheduleTarget() {
+            const scheduleId = document.getElementById('edit-jadwal-id').value;
+            const courseId = document.getElementById('edit-jadwal-course_id').value;
+            const nextSchedule = getNextScheduledMeeting(scheduleId, courseId);
+            const nextOption = document.querySelector('#edit-jadwal-reschedule-mode option[value="next"]');
+            const modeSelect = document.getElementById('edit-jadwal-reschedule-mode');
+            const startTimeInput = document.getElementById('edit-jadwal-start_time');
+            const hint = document.getElementById('reschedule-target-hint');
+            nextOption.disabled = !nextSchedule;
+
+            if (modeSelect.value === 'next' && !nextSchedule) modeSelect.value = 'custom';
+            if (modeSelect.value === 'next' && nextSchedule) {
+                startTimeInput.value = toLocalDatetimeInput(nextSchedule.start_time);
+                startTimeInput.disabled = true;
+                hint.textContent = `Waktu baru: ${nextSchedule.title} (${new Date(nextSchedule.start_time).toLocaleString('id-ID', { timeZone: 'Africa/Cairo', dateStyle: 'medium', timeStyle: 'short' })} CLT). Jadwal setelahnya ikut bergeser.`;
+                return;
+            }
+
+            if (startTimeInput.disabled) {
+                const currentSchedule = cachedSchedules.find(schedule => String(schedule.id) === String(scheduleId));
+                if (currentSchedule) startTimeInput.value = toLocalDatetimeInput(currentSchedule.start_time);
+            }
+            startTimeInput.disabled = false;
+            hint.textContent = 'Pilih tanggal dan waktu baru. Semua pertemuan terjadwal setelahnya ikut bergeser dengan jumlah hari yang sama; jam masing-masing tetap.';
+        }
+
+        function toggleRescheduleReason(preferNext = false) {
             const isChecked = document.getElementById('edit-jadwal-is_rescheduled').checked;
             document.getElementById('reschedule-reason-container').classList.toggle('hidden', !isChecked);
+            if (!isChecked) {
+                document.getElementById('edit-jadwal-start_time').disabled = false;
+                return;
+            }
+            if (preferNext) {
+                const nextSchedule = getNextScheduledMeeting(
+                    document.getElementById('edit-jadwal-id').value,
+                    document.getElementById('edit-jadwal-course_id').value
+                );
+                document.getElementById('edit-jadwal-reschedule-mode').value = nextSchedule ? 'next' : 'custom';
+            }
+            updateRescheduleTarget();
         }
 
         function closeEditJadwalModal() {
@@ -3338,7 +3398,9 @@
 
             const id = document.getElementById('edit-jadwal-id').value;
             const isRescheduled = document.getElementById('edit-jadwal-is_rescheduled').checked;
+            const rescheduleMode = document.getElementById('edit-jadwal-reschedule-mode').value;
             const reason = document.getElementById('edit-jadwal-reschedule_reason').value.trim();
+            const currentSchedule = cachedSchedules.find(schedule => String(schedule.id) === String(id));
 
             if (isRescheduled && !reason) {
                 showToast('Alasan perubahan wajib diisi jika ditandai Reschedule.', 'warning');
@@ -3346,10 +3408,46 @@
                 return;
             }
 
+            if (!currentSchedule) {
+                showToast('Jadwal tidak ditemukan. Muat ulang daftar jadwal lalu coba lagi.', 'error');
+                btn.disabled = false; btn.innerHTML = 'Simpan Perubahan';
+                return;
+            }
+
+            let newStartTime;
+            try {
+                newStartTime = cairoDateTimeToIso(document.getElementById('edit-jadwal-start_time').value);
+            } catch (error) {
+                showToast(error.message, 'error');
+                btn.disabled = false; btn.innerHTML = 'Simpan Perubahan';
+                return;
+            }
+            const isMovingToLaterTime = new Date(newStartTime) > new Date(currentSchedule.start_time);
+            const hasChangedTime = new Date(newStartTime).getTime() !== new Date(currentSchedule.start_time).getTime();
+            const shouldShiftFuture = isRescheduled
+                && isMovingToLaterTime
+                && document.getElementById('edit-jadwal-status').value === 'scheduled';
+            if (isRescheduled && hasChangedTime && !isMovingToLaterTime) {
+                showToast('Waktu reschedule harus lebih akhir dari jadwal sebelumnya.', 'warning');
+                btn.disabled = false; btn.innerHTML = 'Simpan Perubahan';
+                return;
+            }
+            if (shouldShiftFuture && document.getElementById('edit-jadwal-course_id').value !== String(currentSchedule.course_id)) {
+                showToast('Materi tidak dapat diganti saat mengundur jadwal berulang. Simpan perubahan materi secara terpisah.', 'warning');
+                btn.disabled = false; btn.innerHTML = 'Simpan Perubahan';
+                return;
+            }
+
+            if (shouldShiftFuture && rescheduleMode === 'next' && !getNextScheduledMeeting(id, currentSchedule.course_id)) {
+                showToast('Tidak ada jadwal berikutnya untuk materi ini. Pilih tanggal khusus.', 'warning');
+                btn.disabled = false; btn.innerHTML = 'Simpan Perubahan';
+                return;
+            }
+
             const updateData = {
                 course_id: document.getElementById('edit-jadwal-course_id').value,
                 title: document.getElementById('edit-jadwal-title').value.trim(),
-                start_time: cairoDateTimeToIso(document.getElementById('edit-jadwal-start_time').value),
+                start_time: newStartTime,
                 meeting_link: document.getElementById('edit-jadwal-meeting_link').value.trim(),
                 status: document.getElementById('edit-jadwal-status').value,
                 is_rescheduled: isRescheduled,
@@ -3357,9 +3455,24 @@
             };
 
             try {
-                const { error } = await supabaseClient.from('schedules').update(updateData).eq('id', id);
-                if (error) throw error;
-                showToast('Jadwal berhasil diperbarui!', 'success');
+                if (shouldShiftFuture) {
+                    const { data, error } = await supabaseClient.rpc('reschedule_class_meeting', {
+                        p_schedule_id: String(id),
+                        p_title: updateData.title,
+                        p_start_time: updateData.start_time,
+                        p_meeting_link: updateData.meeting_link,
+                        p_status: updateData.status,
+                        p_reschedule_mode: rescheduleMode,
+                        p_reason: reason
+                    });
+                    if (error) throw error;
+                    const affectedCount = Array.isArray(data?.changes) ? data.changes.length : 1;
+                    showToast(`${affectedCount} jadwal diperbarui. Pengumuman perubahan akan dikirim ke grup WhatsApp.`, 'success');
+                } else {
+                    const { error } = await supabaseClient.from('schedules').update(updateData).eq('id', id);
+                    if (error) throw error;
+                    showToast('Jadwal berhasil diperbarui!', 'success');
+                }
                 closeEditJadwalModal();
                 await fetchSchedules();
             } catch (err) {
