@@ -1026,6 +1026,7 @@
         let playerSyncInterval = null;
         let controlsHideTimeout = null;
         let isDraggingTimeline = false;
+        let qualityEnforceTimeouts = [];
 
         const urlParams = new URLSearchParams(window.location.search);
         const courseId = urlParams.get('course_id');
@@ -1824,12 +1825,20 @@
             return (match && match[2].length === 11) ? match[2] : url.trim();
         }
 
+        function clearQualityEnforceTimeouts() {
+            if (qualityEnforceTimeouts.length > 0) {
+                qualityEnforceTimeouts.forEach(t => clearTimeout(t));
+                qualityEnforceTimeouts = [];
+            }
+        }
+
         function createOrLoadYtPlayer(videoId, resumeTime = 0) {
             if (!videoId) {
                 showVideoError('ID atau URL video tidak valid.');
                 return;
             }
 
+            clearQualityEnforceTimeouts();
             syncYoutubeViewportScale();
 
             if (player && activePlayerVideoId === videoId && typeof player.loadVideoById === 'function') {
@@ -1928,6 +1937,19 @@
             }
 
             if (state === YT.PlayerState.PLAYING) {
+                // SOLUSI A: Paksa ulang kualitas HD setelah buffer awal di HP selesai dimuat
+                clearQualityEnforceTimeouts();
+                qualityEnforceTimeouts.push(
+                    setTimeout(() => {
+                        syncYoutubeViewportScale();
+                        enforceHighestVideoQuality(event.target);
+                    }, 1500),
+                    setTimeout(() => {
+                        syncYoutubeViewportScale();
+                        enforceHighestVideoQuality(event.target);
+                    }, 4000)
+                );
+
                 disablePlayerCaptions();
                 playerContainer.classList.add('is-sticky-playing');
                 updatePlayerScrollMode();
@@ -1938,6 +1960,7 @@
                 startPlayerSync();
                 scheduleHideControls();
             } else if (state === YT.PlayerState.PAUSED) {
+                clearQualityEnforceTimeouts();
                 playerContainer.classList.remove('is-sticky-playing', 'is-mini-player');
                 removePlayerPlaceholder();
                 showLoader(false);
@@ -1951,6 +1974,7 @@
                 showLoader(true);
                 centerPlayBtn.classList.add('hidden');
             } else if (state === YT.PlayerState.ENDED) {
+                clearQualityEnforceTimeouts();
                 playerContainer.classList.remove('is-sticky-playing', 'is-mini-player');
                 removePlayerPlaceholder();
                 showLoader(false);
@@ -1973,6 +1997,7 @@
         }
 
         function onPlayerError(event) {
+            clearQualityEnforceTimeouts();
             showLoader(false);
             stopPlayerSync();
             playerContainer.classList.remove('is-sticky-playing', 'is-mini-player');
@@ -1995,11 +2020,21 @@
             }
         }
 
+        /* ================================================================
+           SOLUSI A: PERBAIKAN KALKULASI VIEWPORT SCALE & ENFORCE QUALITY
+        ================================================================ */
         function syncYoutubeViewportScale() {
-            const playerHeight = playerContainer.getBoundingClientRect().height;
-            const scale = playerHeight > 0 && playerHeight < 1080
-                ? Math.min(5, Math.max(1, +(1080 / playerHeight).toFixed(3)))
-                : 1;
+            // Gunakan offsetHeight/clientHeight agar akurat meski terkena CSS rotate(90deg) pada mode landscape iOS
+            const rawHeight = playerContainer.offsetHeight || playerContainer.clientHeight || playerContainer.getBoundingClientRect().height;
+            const rawWidth = playerContainer.offsetWidth || playerContainer.clientWidth || playerContainer.getBoundingClientRect().width;
+
+            // Pastikan tinggi efektif mencapai minimal 1088px dan lebar mencapai minimal 1920px
+            const scaleByHeight = rawHeight > 0 && rawHeight < 1080 ? (1088 / rawHeight) : 1;
+            const scaleByWidth = rawWidth > 0 && rawWidth < 1920 ? (1920 / rawWidth) : 1;
+            const targetScale = Math.max(scaleByHeight, scaleByWidth);
+
+            // Batasi maksimal 6.5x agar HP layar kecil (tinggi player ~180px) tetap tembus threshold 1080p
+            const scale = Math.min(6.5, Math.max(1, +targetScale.toFixed(3)));
             playerContainer.style.setProperty('--yt-viewport-scale', String(scale));
         }
 
@@ -2016,7 +2051,11 @@
                 console.warn('Kualitas video YouTube tidak dapat diperiksa:', error);
             }
 
-            const bestQuality = qualityPriority.find(quality => availableQualities.includes(quality)) || 'hd1080';
+            // YouTube mengurutkan availableQualities dari tertinggi ke terendah (index 0 = paling tinggi)
+            const bestQuality = availableQualities.length > 0
+                ? (qualityPriority.find(quality => availableQualities.includes(quality)) || availableQualities[0])
+                : 'hd1080';
+
             if (typeof targetPlayer.setPlaybackQualityRange === 'function') {
                 try {
                     targetPlayer.setPlaybackQualityRange(bestQuality, bestQuality);
@@ -2270,6 +2309,7 @@
                 }
             }
             syncYoutubeViewportScale();
+            enforceHighestVideoQuality();
         }
 
         async function forceLandscape() {
@@ -2281,6 +2321,7 @@
                 document.body.style.overflow = '';
                 iconFullscreen.className = 'fas fa-expand text-xs sm:text-sm';
                 syncYoutubeViewportScale();
+                enforceHighestVideoQuality();
                 return;
             }
 
@@ -2297,6 +2338,7 @@
                         await screen.orientation.lock('portrait');
                     }
                     syncYoutubeViewportScale();
+                    enforceHighestVideoQuality();
                     return; // Berhasil di Android
                 } catch (err) {
                     // Jika ditolak oleh sistem (seperti pada iPhone/iOS), lanjut ke fallback CSS di bawah
@@ -2310,6 +2352,7 @@
             document.body.style.overflow = 'hidden';
             iconFullscreen.className = 'fas fa-compress text-xs sm:text-sm';
             syncYoutubeViewportScale();
+            enforceHighestVideoQuality();
         }
 
         function showControls() {
@@ -2398,6 +2441,8 @@
                         try { screen.orientation.unlock(); } catch (e) { }
                     }
                 }
+                syncYoutubeViewportScale();
+                enforceHighestVideoQuality();
             });
 
             document.addEventListener('webkitfullscreenchange', () => {
@@ -2409,6 +2454,8 @@
                         try { screen.orientation.unlock(); } catch (e) { }
                     }
                 }
+                syncYoutubeViewportScale();
+                enforceHighestVideoQuality();
             });
 
             playerContainer.addEventListener('mousemove', showControls);
