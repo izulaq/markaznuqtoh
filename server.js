@@ -577,7 +577,7 @@ async function processClassRescheduleNotices() {
         }
 
         const courseTitle = coursesById.get(notice.course_id)?.title || notice.course_id;
-        const changes = Array.isArray(notice.changes) ? notice.changes : [];
+        const changes = Array.isArray(notice.changes) ? notice.changes.slice(0, 1) : [];
         const messageLines = [
             '📢 PEMBERITAHUAN PERUBAHAN JADWAL BIMBEL',
             `Materi: ${courseTitle}`,
