@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const { timingSafeEqual } = require('crypto');
 require('dotenv').config();
 const midtransClient = require('midtrans-client');
 const isMidtransProduction = process.env.MIDTRANS_IS_PRODUCTION === 'true';
@@ -459,6 +460,241 @@ async function sendFonnteWhatsApp(targetPhone, messageText) {
         return false;
     }
 }
+
+function formatClassReminderTime(startTime) {
+    return new Intl.DateTimeFormat('id-ID', {
+        timeZone: 'Africa/Cairo',
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hourCycle: 'h23'
+    }).format(new Date(startTime)) + ' CLT';
+}
+
+async function sendFonnteGroupReminder(groupIds, messageText) {
+    const token = process.env.FONNTE_TOKEN;
+    if (!token) throw new Error('FONNTE_TOKEN belum diatur pada environment backend.');
+
+    const response = await fetch('https://api.fonnte.com/send', {
+        method: 'POST',
+        headers: {
+            Authorization: token,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            target: groupIds,
+            message: messageText,
+            countryCode: '0'
+        }),
+        signal: AbortSignal.timeout(10000)
+    });
+
+    let result;
+    try {
+        result = await response.json();
+    } catch (error) {
+        throw new Error(`Respons Fonnte bukan JSON (HTTP ${response.status}).`);
+    }
+    if (!response.ok || result?.status !== true) {
+        throw new Error(result?.detail || result?.reason || `Fonnte gagal mengirim pesan (HTTP ${response.status}).`);
+    }
+    return result;
+}
+
+app.get('/api/cron/class-reminders', async (req, res) => {
+    const cronSecret = process.env.CRON_SECRET;
+    if (!cronSecret) {
+        return res.status(503).json({ success: false, error: 'CRON_SECRET belum diatur pada environment backend.' });
+    }
+    const expectedAuthorization = Buffer.from(`Bearer ${cronSecret}`);
+    const actualAuthorization = Buffer.from(req.get('authorization') || '');
+    if (actualAuthorization.length !== expectedAuthorization.length
+        || !timingSafeEqual(actualAuthorization, expectedAuthorization)) {
+        return res.status(401).json({ success: false, error: 'Unauthorized.' });
+    }
+    if (!process.env.FONNTE_TOKEN) {
+        return res.status(503).json({ success: false, error: 'FONNTE_TOKEN belum diatur pada environment backend.' });
+    }
+
+    const now = new Date();
+    const reminderTypes = [
+        { type: '60m', minutesBefore: 60, label: '1 jam lagi' },
+        { type: '15m', minutesBefore: 15, label: '15 menit lagi' }
+    ];
+
+    try {
+        const dueSchedulesByKey = new Map();
+        for (const reminder of reminderTypes) {
+            const threshold = new Date(now.getTime() + reminder.minutesBefore * 60 * 1000);
+            const windowStart = new Date(threshold.getTime() - 2 * 60 * 1000);
+            const { data, error } = await supabaseAdmin
+                .from('schedules')
+                .select('id, course_id, title, start_time, meeting_link, status')
+                .eq('status', 'scheduled')
+                .gte('start_time', windowStart.toISOString())
+                .lte('start_time', threshold.toISOString());
+            if (error) throw error;
+            for (const schedule of data || []) {
+                dueSchedulesByKey.set(`${schedule.id}:${reminder.type}`, { schedule, reminder });
+            }
+
+            const retrySince = new Date(now.getTime() - 10 * 60 * 1000).toISOString();
+            const [{ data: pendingDeliveries, error: pendingError }, { data: expiredClaims, error: expiredError }] = await Promise.all([
+                supabaseAdmin
+                    .from('class_reminder_deliveries')
+                    .select('schedule_id')
+                    .eq('reminder_type', reminder.type)
+                    .eq('status', 'pending')
+                    .gte('created_at', retrySince),
+                supabaseAdmin
+                    .from('class_reminder_deliveries')
+                    .select('schedule_id')
+                    .eq('reminder_type', reminder.type)
+                    .eq('status', 'processing')
+                    .lt('locked_until', now.toISOString())
+                    .gte('created_at', retrySince)
+            ]);
+            if (pendingError) throw pendingError;
+            if (expiredError) throw expiredError;
+
+            const retryScheduleIds = [...new Set([
+                ...(pendingDeliveries || []).map(delivery => delivery.schedule_id),
+                ...(expiredClaims || []).map(delivery => delivery.schedule_id)
+            ])];
+            if (retryScheduleIds.length > 0) {
+                const { data: retrySchedules, error: retryError } = await supabaseAdmin
+                    .from('schedules')
+                    .select('id, course_id, title, start_time, meeting_link, status')
+                    .in('id', retryScheduleIds)
+                    .eq('status', 'scheduled')
+                    .gt('start_time', now.toISOString());
+                if (retryError) throw retryError;
+                for (const schedule of retrySchedules || []) {
+                    dueSchedulesByKey.set(`${schedule.id}:${reminder.type}`, { schedule, reminder });
+                }
+            }
+        }
+        const dueSchedules = [...dueSchedulesByKey.values()];
+
+        if (dueSchedules.length === 0) {
+            return res.json({ success: true, checked: 0, sent: 0, skipped: 0 });
+        }
+
+        const courseIds = [...new Set(dueSchedules.map(({ schedule }) => schedule.course_id))];
+        const [{ data: groups, error: groupError }, { data: courses, error: courseError }] = await Promise.all([
+            supabaseAdmin
+                .from('course_whatsapp_groups')
+                .select('course_id, whatsapp_group_id')
+                .in('course_id', courseIds),
+            supabaseAdmin
+                .from('courses')
+                .select('course_id, title, mode')
+                .in('course_id', courseIds)
+        ]);
+        if (groupError) throw groupError;
+        if (courseError) throw courseError;
+
+        const groupIdsByCourse = new Map((groups || []).map(group => [
+            group.course_id,
+            String(group.whatsapp_group_id || '').split(',').map(id => id.trim()).filter(Boolean)
+        ]));
+        const coursesById = new Map((courses || []).map(course => [course.course_id, course]));
+        let sent = 0;
+        let skipped = 0;
+        const failures = [];
+
+        for (const { schedule, reminder } of dueSchedules) {
+            const groupIds = groupIdsByCourse.get(schedule.course_id) || [];
+            if (groupIds.length === 0) {
+                skipped++;
+                console.warn(`[CLASS REMINDER] ID grup Fonnte belum diatur untuk materi ${schedule.course_id}.`);
+                continue;
+            }
+            if (groupIds.some(groupId => !/^[A-Za-z0-9._-]+@g\.us$/.test(groupId))) {
+                failures.push({
+                    schedule_id: schedule.id,
+                    reminder_type: reminder.type,
+                    error: `ID grup Fonnte untuk materi ${schedule.course_id} tidak valid.`
+                });
+                continue;
+            }
+
+            const { data: claimed, error: claimError } = await supabaseAdmin.rpc('claim_class_reminder', {
+                p_schedule_id: String(schedule.id),
+                p_reminder_type: reminder.type
+            });
+            if (claimError) {
+                failures.push({ schedule_id: schedule.id, reminder_type: reminder.type, error: claimError.message });
+                continue;
+            }
+            if (!claimed) {
+                skipped++;
+                continue;
+            }
+
+            const course = coursesById.get(schedule.course_id);
+            const messageLines = [
+                `🔔 Pengingat bimbel: kelas dimulai ${reminder.label}.`,
+                `Materi: ${course?.title || schedule.course_id}`,
+                `Pertemuan: ${schedule.title}`,
+                `Jadwal: ${formatClassReminderTime(schedule.start_time)}`,
+                course?.mode ? `Mode: ${course.mode}` : '',
+                schedule.meeting_link ? `Link kelas: ${schedule.meeting_link}` : ''
+            ].filter(Boolean);
+
+            let messageSent = false;
+            try {
+                await sendFonnteGroupReminder(groupIds.join(','), messageLines.join('\n'));
+                messageSent = true;
+                const { data: updated, error: updateError } = await supabaseAdmin
+                    .from('class_reminder_deliveries')
+                    .update({
+                        status: 'sent',
+                        sent_at: new Date().toISOString(),
+                        locked_until: null,
+                        last_error: null,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('schedule_id', String(schedule.id))
+                    .eq('reminder_type', reminder.type)
+                    .eq('status', 'processing')
+                    .select('schedule_id')
+                    .maybeSingle();
+                if (updateError) throw updateError;
+                if (!updated) throw new Error('Status pengiriman tidak dapat disimpan setelah Fonnte menerima pesan.');
+                sent++;
+            } catch (error) {
+                if (!messageSent) {
+                    const { error: resetError } = await supabaseAdmin
+                        .from('class_reminder_deliveries')
+                        .update({
+                            status: 'pending',
+                            locked_until: null,
+                            last_error: String(error.message || error).slice(0, 1000),
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('schedule_id', String(schedule.id))
+                        .eq('reminder_type', reminder.type)
+                        .eq('status', 'processing');
+                    if (resetError) console.error('[CLASS REMINDER] Gagal mereset status pengiriman:', resetError.message);
+                }
+                failures.push({ schedule_id: schedule.id, reminder_type: reminder.type, error: error.message });
+            }
+        }
+
+        if (failures.length > 0) {
+            console.error('[CLASS REMINDER] Sebagian pengingat gagal:', failures);
+            return res.status(500).json({ success: false, checked: dueSchedules.length, sent, skipped, failures });
+        }
+        return res.json({ success: true, checked: dueSchedules.length, sent, skipped });
+    } catch (error) {
+        console.error('[CLASS REMINDER] Gagal memproses pengingat:', error);
+        return res.status(500).json({ success: false, error: error.message || 'Gagal memproses pengingat kelas.' });
+    }
+});
 
 // ================= HELPER: GRANT ACCESS ANTI-DUPLIKAT =================
 async function grantUserAccessSafely({ userId, userEmail, courseId, orderId }) {
