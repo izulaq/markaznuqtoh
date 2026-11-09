@@ -504,6 +504,133 @@ async function sendFonnteGroupReminder(groupIds, messageText) {
     return result;
 }
 
+async function processClassRescheduleNotices() {
+    const now = new Date();
+    const retrySince = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+    const [{ data: pending, error: pendingError }, { data: expired, error: expiredError }] = await Promise.all([
+        supabaseAdmin
+            .from('class_reschedule_notices')
+            .select('id, course_id, changes, reason')
+            .eq('status', 'pending')
+            .gte('created_at', retrySince)
+            .limit(10),
+        supabaseAdmin
+            .from('class_reschedule_notices')
+            .select('id, course_id, changes, reason')
+            .eq('status', 'processing')
+            .lt('locked_until', now.toISOString())
+            .gte('created_at', retrySince)
+            .limit(10)
+    ]);
+    if (pendingError) throw pendingError;
+    if (expiredError) throw expiredError;
+
+    const noticesById = new Map([...(pending || []), ...(expired || [])].map(notice => [notice.id, notice]));
+    const notices = [...noticesById.values()];
+    if (notices.length === 0) return { sent: 0, skipped: 0, failures: [] };
+
+    const courseIds = [...new Set(notices.map(notice => notice.course_id))];
+    const [{ data: groups, error: groupError }, { data: courses, error: courseError }] = await Promise.all([
+        supabaseAdmin
+            .from('course_whatsapp_groups')
+            .select('course_id, whatsapp_group_id')
+            .in('course_id', courseIds),
+        supabaseAdmin
+            .from('courses')
+            .select('course_id, title')
+            .in('course_id', courseIds)
+    ]);
+    if (groupError) throw groupError;
+    if (courseError) throw courseError;
+
+    const groupsByCourse = new Map((groups || []).map(group => [
+        group.course_id,
+        String(group.whatsapp_group_id || '').split(',').map(id => id.trim()).filter(Boolean)
+    ]));
+    const coursesById = new Map((courses || []).map(course => [course.course_id, course]));
+    let sent = 0;
+    let skipped = 0;
+    const failures = [];
+
+    for (const notice of notices) {
+        const groupIds = groupsByCourse.get(notice.course_id) || [];
+        if (groupIds.length === 0) {
+            skipped++;
+            console.warn(`[CLASS RESCHEDULE] ID grup Fonnte belum diatur untuk materi ${notice.course_id}.`);
+            continue;
+        }
+        if (groupIds.some(groupId => !/^[A-Za-z0-9._-]+@g\.us$/.test(groupId))) {
+            failures.push({ notice_id: notice.id, error: `ID grup Fonnte untuk materi ${notice.course_id} tidak valid.` });
+            continue;
+        }
+
+        const { data: claimed, error: claimError } = await supabaseAdmin.rpc('claim_class_reschedule_notice', {
+            p_notice_id: notice.id
+        });
+        if (claimError) {
+            failures.push({ notice_id: notice.id, error: claimError.message });
+            continue;
+        }
+        if (!claimed) {
+            skipped++;
+            continue;
+        }
+
+        const courseTitle = coursesById.get(notice.course_id)?.title || notice.course_id;
+        const changes = Array.isArray(notice.changes) ? notice.changes : [];
+        const messageLines = [
+            '📢 PEMBERITAHUAN PERUBAHAN JADWAL BIMBEL',
+            `Materi: ${courseTitle}`,
+            ...changes.flatMap(change => [
+                `${change.title || 'Pertemuan'}:`,
+                `Sebelumnya: ${formatClassReminderTime(change.old_start_time)}`,
+                `Jadwal baru: ${formatClassReminderTime(change.new_start_time)}`
+            ]),
+            `Alasan: ${notice.reason}`,
+            'Pengingat akan dikirim mengikuti jadwal baru.'
+        ];
+
+        let messageSent = false;
+        try {
+            await sendFonnteGroupReminder(groupIds.join(','), messageLines.join('\n'));
+            messageSent = true;
+            const { data: updated, error: updateError } = await supabaseAdmin
+                .from('class_reschedule_notices')
+                .update({
+                    status: 'sent',
+                    sent_at: new Date().toISOString(),
+                    locked_until: null,
+                    last_error: null,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', notice.id)
+                .eq('status', 'processing')
+                .select('id')
+                .maybeSingle();
+            if (updateError) throw updateError;
+            if (!updated) throw new Error('Status pengumuman tidak dapat disimpan setelah Fonnte menerima pesan.');
+            sent++;
+        } catch (error) {
+            if (!messageSent) {
+                const { error: resetError } = await supabaseAdmin
+                    .from('class_reschedule_notices')
+                    .update({
+                        status: 'pending',
+                        locked_until: null,
+                        last_error: String(error.message || error).slice(0, 1000),
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', notice.id)
+                    .eq('status', 'processing');
+                if (resetError) console.error('[CLASS RESCHEDULE] Gagal mereset status pengumuman:', resetError.message);
+            }
+            failures.push({ notice_id: notice.id, error: error.message });
+        }
+    }
+
+    return { sent, skipped, failures };
+}
+
 app.get('/api/cron/class-reminders', async (req, res) => {
     const cronSecret = process.env.CRON_SECRET;
     if (!cronSecret) {
@@ -526,6 +653,7 @@ app.get('/api/cron/class-reminders', async (req, res) => {
     ];
 
     try {
+        const noticeResults = await processClassRescheduleNotices();
         const dueSchedulesByKey = new Map();
         for (const reminder of reminderTypes) {
             const threshold = new Date(now.getTime() + reminder.minutesBefore * 60 * 1000);
@@ -580,7 +708,15 @@ app.get('/api/cron/class-reminders', async (req, res) => {
         const dueSchedules = [...dueSchedulesByKey.values()];
 
         if (dueSchedules.length === 0) {
-            return res.json({ success: true, checked: 0, sent: 0, skipped: 0 });
+            return res.status(noticeResults.failures.length > 0 ? 500 : 200).json({
+                success: noticeResults.failures.length === 0,
+                checked: 0,
+                sent: 0,
+                skipped: 0,
+                reschedule_notices_sent: noticeResults.sent,
+                reschedule_notices_skipped: noticeResults.skipped,
+                failures: noticeResults.failures
+            });
         }
 
         const courseIds = [...new Set(dueSchedules.map(({ schedule }) => schedule.course_id))];
@@ -604,7 +740,7 @@ app.get('/api/cron/class-reminders', async (req, res) => {
         const coursesById = new Map((courses || []).map(course => [course.course_id, course]));
         let sent = 0;
         let skipped = 0;
-        const failures = [];
+        const failures = [...noticeResults.failures];
 
         for (const { schedule, reminder } of dueSchedules) {
             const groupIds = groupIdsByCourse.get(schedule.course_id) || [];
@@ -687,9 +823,24 @@ app.get('/api/cron/class-reminders', async (req, res) => {
 
         if (failures.length > 0) {
             console.error('[CLASS REMINDER] Sebagian pengingat gagal:', failures);
-            return res.status(500).json({ success: false, checked: dueSchedules.length, sent, skipped, failures });
+            return res.status(500).json({
+                success: false,
+                checked: dueSchedules.length,
+                sent,
+                skipped,
+                reschedule_notices_sent: noticeResults.sent,
+                reschedule_notices_skipped: noticeResults.skipped,
+                failures
+            });
         }
-        return res.json({ success: true, checked: dueSchedules.length, sent, skipped });
+        return res.json({
+            success: true,
+            checked: dueSchedules.length,
+            sent,
+            skipped,
+            reschedule_notices_sent: noticeResults.sent,
+            reschedule_notices_skipped: noticeResults.skipped
+        });
     } catch (error) {
         console.error('[CLASS REMINDER] Gagal memproses pengingat:', error);
         return res.status(500).json({ success: false, error: error.message || 'Gagal memproses pengingat kelas.' });
