@@ -3367,7 +3367,7 @@
                 if (currentSchedule) startTimeInput.value = toLocalDatetimeInput(currentSchedule.start_time);
             }
             startTimeInput.disabled = false;
-            hint.textContent = 'Pilih tanggal dan waktu baru. Semua pertemuan terjadwal setelahnya ikut bergeser dengan jumlah hari yang sama; jam masing-masing tetap.';
+            hint.textContent = 'Pilih tanggal dan waktu baru. Semua pertemuan terjadwal setelahnya ikut bergeser dengan jumlah hari yang sama; jam masing-masing tetap. Hari dalam pekan dapat berubah (misalnya Selasa menjadi Rabu). Pengumuman WhatsApp hanya menyebut pertemuan yang dipilih.';
         }
 
         function toggleRescheduleReason(preferNext = false) {
