@@ -983,6 +983,29 @@
         const BACKEND_BASE_URL = 'https://markaznuqtoh.vercel.app';
         const SOAL_PER_SESI = 20;
 
+        function getOrCreateDeviceInfo() {
+            let deviceId = localStorage.getItem('nuqthah_device_id');
+            if (!deviceId) {
+                deviceId = window.crypto?.randomUUID
+                    ? window.crypto.randomUUID()
+                    : 'dev-' + Date.now() + '-' + Math.random().toString(36).substring(2, 10);
+                localStorage.setItem('nuqthah_device_id', deviceId);
+            }
+
+            const userAgent = navigator.userAgent || '';
+            const os = /iPhone|iPad|iPod/i.test(userAgent) ? 'iPhone'
+                : /Android/i.test(userAgent) ? 'Android'
+                    : /Windows/i.test(userAgent) ? 'Windows'
+                        : /Macintosh|Mac OS/i.test(userAgent) ? 'Mac'
+                            : /Linux/i.test(userAgent) ? 'Linux' : 'Perangkat';
+            const browser = /Lemur/i.test(userAgent) ? 'Lemur'
+                : /Firefox|FxiOS/i.test(userAgent) ? 'Firefox'
+                    : /Edg/i.test(userAgent) ? 'Edge'
+                        : /CriOS|Chrome/i.test(userAgent) ? 'Chrome'
+                            : /Safari/i.test(userAgent) ? 'Safari' : 'Browser';
+            return { device_id: deviceId, device_name: `${os} • ${browser}` };
+        }
+
         /* ================================================================
            STATE
         ================================================================ */
@@ -1276,6 +1299,8 @@
             const validAccessIds = [courseId, ...parentBundleIdsContainingCurrentCourse];
 
             try {
+                if (!await ensureCurrentDeviceRegistered()) return false;
+
                 // 1. CEK KETAT KE SUPABASE: Hanya izinkan jika ada di user_access DAN is_active = true
                 const { data: accByEmail, error: emailErr } = await supabaseClient
                     .from('user_access')
@@ -1324,6 +1349,58 @@
                     localStorage.removeItem(`nuqthah_access_${cid}`);
                     localStorage.removeItem(`nuqthah_access_${cid}_email`);
                 });
+                return false;
+            }
+        }
+
+        function logoutForUnregisteredDevice() {
+            localStorage.removeItem('nuqthah_current_user');
+            Object.keys(localStorage).forEach(key => {
+                if (key.startsWith('nuqthah_access_')) localStorage.removeItem(key);
+            });
+            currentUser = null;
+            userAccessibleCourseIds = [];
+            isUserHasAccess = false;
+            updateNavUserBadge();
+            showToast('Perangkat ini tidak terdaftar pada akun tersebut. Silakan login dari perangkat terdaftar atau hubungi Admin.', 'warning', 'Perangkat Tidak Terdaftar');
+        }
+
+        async function ensureCurrentDeviceRegistered() {
+            if (!currentUser?.email) return false;
+            const deviceInfo = getOrCreateDeviceInfo();
+            try {
+                const { data: userData, error } = await supabaseClient
+                    .from('users')
+                    .select('registered_devices')
+                    .eq('email', currentUser.email)
+                    .maybeSingle();
+                if (error) throw error;
+                if (!userData) throw new Error('Data perangkat akun tidak ditemukan.');
+
+                const devices = Array.isArray(userData.registered_devices) ? userData.registered_devices : [];
+                if (devices.some(device => device?.device_id === deviceInfo.device_id)) return true;
+                if (devices.length >= 2) {
+                    logoutForUnregisteredDevice();
+                    return false;
+                }
+
+                const response = await fetch(`${BACKEND_BASE_URL}/api/register-device`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: currentUser.email, ...deviceInfo })
+                });
+                const result = await response.json();
+                if (!response.ok || !result.allowed) {
+                    if (result.code === 'DEVICE_LIMIT_REACHED') {
+                        logoutForUnregisteredDevice();
+                        return false;
+                    }
+                    throw new Error(result.error || 'Gagal memverifikasi perangkat akun.');
+                }
+                return true;
+            } catch (error) {
+                console.error('Gagal memverifikasi perangkat akun:', error);
+                showToast('Perangkat akun tidak dapat diverifikasi. Silakan coba kembali saat koneksi tersedia.', 'error', 'Verifikasi Perangkat Gagal');
                 return false;
             }
         }
@@ -3421,6 +3498,17 @@
 
                 if (userErr) throw new Error('Gagal menyimpan data akun: ' + userErr.message);
 
+                const deviceInfo = getOrCreateDeviceInfo();
+                const deviceResponse = await fetch(`${BACKEND_BASE_URL}/api/register-device`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, ...deviceInfo })
+                });
+                const deviceResult = await deviceResponse.json();
+                if (!deviceResponse.ok || !deviceResult.allowed) {
+                    throw new Error(deviceResult.error || 'Perangkat ini tidak dapat didaftarkan pada akun.');
+                }
+
                 currentUser = savedUser || { email, name, whatsapp };
                 localStorage.setItem('nuqthah_current_user', JSON.stringify(currentUser));
                 updateNavUserBadge();
@@ -3607,14 +3695,19 @@
             btnVerify.innerHTML = '<i class="fas fa-circle-notch fa-spin mr-1"></i> Memverifikasi...';
 
             try {
+                const { device_id, device_name } = getOrCreateDeviceInfo();
                 const res = await fetch(`${BACKEND_BASE_URL}/api/verify-otp`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email: emailInput, code: codeInput })
+                    body: JSON.stringify({ email: emailInput, code: codeInput, device_id, device_name })
                 });
                 const data = await res.json();
 
                 if (!res.ok || !data.success) {
+                    if (res.status === 403 && data.code === 'DEVICE_LIMIT_REACHED') {
+                        showToast(data.error, 'error', 'Batas Perangkat Tercapai');
+                        return;
+                    }
                     throw new Error(data.error || 'Kode OTP tidak valid.');
                 }
 
