@@ -231,14 +231,14 @@
                                     <label class="block text-xs font-bold text-gray-800 uppercase"><i
                                             class="fas fa-boxes-stacked text-accent mr-1"></i> Pilih Produk / Materi
                                         Bundling *</label>
-                                    <p class="text-[11px] text-gray-500">Pilih materi satuan yang masuk ke paket ini.
+                                    <p class="text-[11px] text-gray-500">Pilih materi satuan, lalu tarik ikon titik untuk mengatur urutannya di halaman belajar.
                                     </p>
                                 </div>
                                 <button type="button" onclick="selectAllEligibleBundleCourses('add')"
                                     class="shrink-0 text-[11px] bg-white border border-accent text-accent font-bold px-3 py-1.5 rounded-lg hover:bg-accent hover:text-white transition"><i
                                         class="fas fa-check-double mr-1"></i> Pilih Semua Kategori Ini</button>
                             </div>
-                            <div id="add-bundle-chips" class="flex flex-wrap gap-2 min-h-[28px]"><span
+                            <div id="add-bundle-chips" class="flex flex-col gap-2 min-h-[28px]"><span
                                     class="text-xs text-gray-400 italic">Belum ada materi yang dipilih...</span></div>
                             <div class="relative" id="add-bundle-dropdown-wrapper">
                                 <div class="relative flex items-center">
@@ -1378,7 +1378,8 @@
                                 class="text-[11px] bg-white border border-accent text-accent font-bold px-3 py-1 rounded-lg">Pilih
                                 Semua</button>
                         </div>
-                        <div id="edit-bundle-chips" class="flex flex-wrap gap-2 min-h-[28px]"></div>
+                        <p class="text-[11px] text-gray-500">Tarik ikon titik pada daftar untuk mengatur urutan kelas di halaman belajar.</p>
+                        <div id="edit-bundle-chips" class="flex flex-col gap-2 min-h-[28px]"></div>
                         <div class="relative" id="edit-bundle-dropdown-wrapper">
                             <input type="text" id="edit-bundle-search" placeholder="Ketik Nama Produk..."
                                 onfocus="openBundleDropdown('edit')" oninput="renderBundleDropdownList('edit')"
@@ -1846,6 +1847,7 @@
 
         let sortableInstances = [];
         let moduleSortableInstances = [];
+        let bundleChipSortableInstances = { add: null, edit: null };
 
         let selectedBundleCourseIdsAdd = [];
         let selectedBundleCourseIdsEdit = [];
@@ -2463,6 +2465,10 @@
         function renderBundleChips(mode) {
             const chipsContainer = document.getElementById(`${mode}-bundle-chips`);
             const selectedIds = mode === 'add' ? selectedBundleCourseIdsAdd : selectedBundleCourseIdsEdit;
+            if (bundleChipSortableInstances[mode]) {
+                bundleChipSortableInstances[mode].destroy();
+                bundleChipSortableInstances[mode] = null;
+            }
             if (!selectedIds || selectedIds.length === 0) {
                 chipsContainer.innerHTML = `<span class="text-xs text-gray-400 italic">Belum ada materi yang dipilih ke dalam paket...</span>`;
                 return;
@@ -2472,9 +2478,24 @@
                 const course = cachedCourses.find(c => c.course_id === cid);
                 const title = course ? `${course.title} (${course.mode || 'Online'})` : cid;
                 const chip = document.createElement('div');
-                chip.className = 'inline-flex items-center gap-1.5 bg-primary text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-sm';
-                chip.innerHTML = `<span>${escapeHtml(title)}</span><button type="button" onclick="removeCourseFromBundle('${mode}', '${cid}')" class="hover:text-red-200 ml-1"><i class="fas fa-times"></i></button>`;
+                chip.dataset.courseId = cid;
+                chip.className = 'bundle-course-chip flex items-center gap-2 bg-primary text-white text-xs font-bold px-3 py-2 rounded-xl shadow-sm';
+                chip.innerHTML = `<span class="bundle-course-drag-handle drag-handle text-white/70 hover:text-white px-1" title="Tarik untuk mengubah urutan"><i class="fas fa-grip-vertical"></i></span><span class="flex-1">${escapeHtml(title)}</span><button type="button" class="hover:text-red-200 ml-1" aria-label="Hapus ${escapeHtml(title)} dari paket"><i class="fas fa-times"></i></button>`;
+                chip.querySelector('button').addEventListener('click', () => removeCourseFromBundle(mode, cid));
                 chipsContainer.appendChild(chip);
+            });
+            bundleChipSortableInstances[mode] = Sortable.create(chipsContainer, {
+                handle: '.bundle-course-drag-handle',
+                draggable: '.bundle-course-chip',
+                animation: 150,
+                ghostClass: 'sortable-ghost',
+                onEnd: () => {
+                    const reorderedIds = Array.from(chipsContainer.querySelectorAll('.bundle-course-chip'))
+                        .map(item => item.dataset.courseId)
+                        .filter(Boolean);
+                    if (mode === 'add') selectedBundleCourseIdsAdd = reorderedIds;
+                    else selectedBundleCourseIdsEdit = reorderedIds;
+                }
             });
         }
 
