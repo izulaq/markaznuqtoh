@@ -3576,7 +3576,9 @@
                 const rawSub = cObj ? cObj.subfilter : '';
                 const isActive = row.is_active !== false;
                 const isBundleAccess = cObj ? parseBundleInfo(cObj).isBundle : false;
-                return { ...row, studentName, studentEmail, studentWa, courseTitle, courseMode, courseCategory, rawCat, rawSub, isActive, isBundleAccess };
+                const registeredDevices = Array.isArray(uObj?.registered_devices) ? uObj.registered_devices : [];
+                const deviceResetCount = Number.isFinite(Number(uObj?.device_reset_count)) ? Number(uObj.device_reset_count) : 0;
+                return { ...row, studentName, studentEmail, studentWa, courseTitle, courseMode, courseCategory, rawCat, rawSub, isActive, isBundleAccess, registeredDevices, deviceResetCount };
             });
         }
 
@@ -3629,9 +3631,21 @@
                 groupHeader.className = 'bg-gray-50 hover:bg-emerald-50 transition cursor-pointer border-y border-gray-200';
                 const studentContact = escapeHtml(items[0].studentEmail) + (items[0].studentWa ? ` • ${escapeHtml(items[0].studentWa)}` : '');
                 const packageSummary = packageCount ? ` • ${packageCount} paket` : '';
-                groupHeader.innerHTML = `<td colspan="6" class="p-0"><button type="button" aria-expanded="${isExpanded}" class="w-full flex items-center justify-between gap-3 text-left p-3.5"><span class="flex items-center gap-2 min-w-0"><i class="fas fa-chevron-${isExpanded ? 'down' : 'right'} text-[10px] text-gray-400"></i><span class="min-w-0"><span class="block font-bold text-gray-900 text-sm truncate">${escapeHtml(items[0].studentName)}</span><span class="block text-[11px] text-gray-500 truncate">${studentContact}</span></span></span><span class="text-[10px] text-gray-500 whitespace-nowrap">${materialCount} materi${packageSummary}</span></button></td>`;
+                const devices = items[0].registeredDevices;
+                const deviceCount = devices.length;
+                const deviceNames = devices.length
+                    ? devices.map(device => `${device?.device_name || 'Perangkat Tidak Dikenal'} — ${device?.last_login ? new Date(device.last_login).toLocaleString('id-ID') : 'Waktu login tidak diketahui'}`).join('\n')
+                    : 'Belum ada perangkat terdaftar';
+                const deviceBadgeClass = deviceCount >= 2 ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800';
+                const resetInfo = items[0].deviceResetCount > 0 ? `<span class="text-[10px] text-gray-500">(Reset: ${items[0].deviceResetCount}x)</span>` : '';
+                groupHeader.innerHTML = `<td colspan="6" class="p-0"><div class="w-full flex items-center justify-between gap-3 p-3.5"><button type="button" aria-expanded="${isExpanded}" class="flex min-w-0 flex-1 items-center justify-between gap-3 text-left"><span class="flex items-center gap-2 min-w-0"><i class="fas fa-chevron-${isExpanded ? 'down' : 'right'} text-[10px] text-gray-400"></i><span class="min-w-0"><span class="block font-bold text-gray-900 text-sm truncate">${escapeHtml(items[0].studentName)}</span><span class="block text-[11px] text-gray-500 truncate">${studentContact}</span></span></span><span class="text-[10px] text-gray-500 whitespace-nowrap">${materialCount} materi${packageSummary}</span></button><span class="flex shrink-0 items-center gap-2"><span class="inline-flex items-center gap-1"><span class="rounded-full px-2 py-1 text-[10px] font-bold ${deviceBadgeClass}" title="${escapeHtml(deviceNames)}">📱 ${deviceCount}/2 Perangkat</span>${resetInfo}</span><button type="button" class="reset-student-devices rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-[10px] font-bold text-blue-700 hover:bg-blue-100 whitespace-nowrap"><i class="fas fa-mobile-screen-button"></i> Reset Perangkat</button></span></div></td>`;
                 tbody.appendChild(groupHeader);
                 const detailRows = [];
+                const resetButton = groupHeader.querySelector('.reset-student-devices');
+                resetButton.addEventListener('click', event => {
+                    event.stopPropagation();
+                    resetStudentDevices(items[0].studentEmail, items[0].studentName);
+                });
                 groupHeader.addEventListener('click', () => {
                     const shouldExpand = !expandedUserAccessGroups.has(studentKey);
                     if (shouldExpand) expandedUserAccessGroups.add(studentKey);
@@ -3669,6 +3683,35 @@
                 detailRows.push(tr);
                 });
             });
+        }
+
+        async function resetStudentDevices(userEmail, studentName) {
+            if (!confirm('Reset daftar perangkat untuk ' + studentName + ' (' + userEmail + ')? Seluruh perangkat lama akan dilepas dan siswa harus login ulang.')) return;
+
+            const user = cachedUsers.find(candidate => (candidate.email || '').toLowerCase() === String(userEmail || '').toLowerCase());
+            if (!userEmail || userEmail === '-' || !user) {
+                showToast('Data akun siswa tidak ditemukan. Daftar perangkat tidak dapat di-reset.', 'error');
+                return;
+            }
+            const currentResetCount = Number(user.device_reset_count) || 0;
+            try {
+                const { error } = await supabaseClient
+                    .from('users')
+                    .update({
+                        registered_devices: [],
+                        device_reset_count: currentResetCount + 1
+                    })
+                    .eq('email', userEmail);
+                if (error) throw error;
+
+                user.registered_devices = [];
+                user.device_reset_count = currentResetCount + 1;
+                renderUserAccessTable();
+                showToast('Daftar perangkat untuk ' + studentName + ' berhasil di-reset (0/2).', 'success');
+            } catch (error) {
+                console.error('Gagal mereset perangkat siswa:', error);
+                showToast('Gagal mereset perangkat: ' + error.message, 'error');
+            }
         }
 
         function openEditStudentModal(item) {
