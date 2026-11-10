@@ -10,7 +10,6 @@ const nodemailer = require('nodemailer');
 const app = express();
 const MAX_PDF_SIZE = 4 * 1024 * 1024;
 const MAX_COVER_SIZE = 3 * 1024 * 1024;
-const MAX_DEVICES = 2;
 const GDRIVE_COVER_SCRIPT_VERSION = 2;
 const OTP_TTL_MS = 60 * 1000;
 
@@ -1263,7 +1262,7 @@ Silakan mulai belajar melalui tautan berikut:
 👉 ${learningUrl}
 ${groupLinksMessage}
 
-*(Tips: Akun hanya dapat digunakan pada maksimal 2 perangkat pribadi. Jangan membagikan kode OTP kepada orang lain).*
+*(Tips: Jika Anda ingin membuka materi di perangkat atau HP lain, cukup klik tombol "Masuk Akun" di pojok kanan atas dan masukkan email Anda untuk menerima kode OTP).*
 
 Selamat belajar, semoga ilmunya bermanfaat dan berkah! 🌟
 *#MumtazBarengNuqthah*`;
@@ -1376,12 +1375,9 @@ app.post('/api/send-otp', async (req, res) => {
 });
 
 app.post('/api/verify-otp', async (req, res) => {
-    const { email, code, device_id, device_name } = req.body;
+    const { email, code } = req.body;
     if (!email || !code) {
         return res.status(400).json({ success: false, error: 'Email dan kode OTP wajib diisi.' });
-    }
-    if (!device_id) {
-        return res.status(400).json({ success: false, error: 'ID perangkat wajib diisi.' });
     }
 
     try {
@@ -1399,6 +1395,11 @@ app.post('/api/verify-otp', async (req, res) => {
             return res.status(400).json({ success: false, error: 'Kode OTP salah atau sudah kedaluwarsa.' });
         }
 
+        await supabaseAdmin
+            .from('otps')
+            .update({ used: true })
+            .eq('id', otpData.id);
+
         const { data: userData, error: uErr } = await supabaseAdmin
             .from('users')
             .select('*')
@@ -1409,102 +1410,10 @@ app.post('/api/verify-otp', async (req, res) => {
             return res.status(404).json({ success: false, error: 'Data pengguna tidak ditemukan.' });
         }
 
-        const registeredDevices = Array.isArray(userData.registered_devices)
-            ? userData.registered_devices
-            : [];
-        const deviceIndex = registeredDevices.findIndex(device => device?.device_id === device_id);
-        const now = new Date().toISOString();
-        let updatedDevices;
-
-        if (deviceIndex !== -1) {
-            updatedDevices = registeredDevices.map((device, index) => index === deviceIndex
-                ? { ...device, device_name: device_name || 'Perangkat Tidak Dikenal', last_login: now }
-                : device
-            );
-        } else if (registeredDevices.length < MAX_DEVICES) {
-            updatedDevices = [
-                ...registeredDevices,
-                { device_id, device_name: device_name || 'Perangkat Tidak Dikenal', last_login: now }
-            ];
-        } else {
-            return res.status(403).json({
-                success: false,
-                code: 'DEVICE_LIMIT_REACHED',
-                error: 'Akun ini telah mencapai batas maksimal 2 perangkat. Silakan gunakan perangkat Anda yang sudah terdaftar atau hubungi Admin untuk reset perangkat.'
-            });
-        }
-
-        const { error: otpUpdateError } = await supabaseAdmin
-            .from('otps')
-            .update({ used: true })
-            .eq('id', otpData.id);
-        if (otpUpdateError) throw otpUpdateError;
-
-        const { data: updatedUserData, error: userUpdateError } = await supabaseAdmin
-            .from('users')
-            .update({ registered_devices: updatedDevices })
-            .eq('email', email)
-            .select()
-            .single();
-        if (userUpdateError) throw userUpdateError;
-
-        res.json({ success: true, user: updatedUserData });
+        res.json({ success: true, user: userData });
     } catch (err) {
         console.error('Error verify-otp:', err);
         res.status(500).json({ success: false, error: err.message });
-    }
-});
-
-app.post('/api/register-device', async (req, res) => {
-    const { email, device_id, device_name } = req.body;
-    if (!email || !device_id) {
-        return res.status(400).json({ success: false, allowed: false, error: 'Email dan ID perangkat wajib diisi.' });
-    }
-
-    try {
-        const { data: userData, error: userError } = await supabaseAdmin
-            .from('users')
-            .select('registered_devices')
-            .eq('email', email)
-            .single();
-        if (userError || !userData) {
-            return res.status(404).json({ success: false, allowed: false, error: 'Data pengguna tidak ditemukan.' });
-        }
-
-        const registeredDevices = Array.isArray(userData.registered_devices)
-            ? userData.registered_devices
-            : [];
-        if (registeredDevices.some(device => device?.device_id === device_id)) {
-            return res.json({ success: true, allowed: true });
-        }
-        if (registeredDevices.length >= MAX_DEVICES) {
-            return res.status(403).json({
-                success: false,
-                allowed: false,
-                code: 'DEVICE_LIMIT_REACHED',
-                error: 'Batas maksimal 2 perangkat tercapai.'
-            });
-        }
-
-        const { error: updateError } = await supabaseAdmin
-            .from('users')
-            .update({
-                registered_devices: [
-                    ...registeredDevices,
-                    {
-                        device_id,
-                        device_name: device_name || 'Perangkat Tidak Dikenal',
-                        last_login: new Date().toISOString()
-                    }
-                ]
-            })
-            .eq('email', email);
-        if (updateError) throw updateError;
-
-        res.json({ success: true, allowed: true });
-    } catch (err) {
-        console.error('Error register-device:', err);
-        res.status(500).json({ success: false, allowed: false, error: err.message });
     }
 });
 
