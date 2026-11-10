@@ -18,6 +18,7 @@
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
     <!-- Midtrans Snap JS -->
     <script src="https://app.midtrans.com/snap/snap.js" data-client-key="Mid-client-bgr.FUM3wElPD9oBvn8q4mei"></script>
     <!-- YouTube IFrame API -->
@@ -223,6 +224,19 @@
             position: sticky;
             top: 0;
             z-index: 50;
+        }
+
+        .module-sortable-ghost {
+            opacity: 0.45;
+            background-color: #e5e7eb !important;
+        }
+
+        .module-drag-handle {
+            cursor: grab;
+        }
+
+        .module-drag-handle:active {
+            cursor: grabbing;
         }
 
         @media (min-width: 1024px) and (orientation: landscape) {
@@ -990,6 +1004,7 @@
         let pendingPaymentStatusInterval = null;
         let currentModules = [];
         let currentModuleSections = [];
+        let moduleListSortables = [];
         let activeModuleIndex = 0;
         let isUserHasAccess = false;
         let userAccessibleCourseIds = [];
@@ -1026,7 +1041,6 @@
         let playerSyncInterval = null;
         let controlsHideTimeout = null;
         let isDraggingTimeline = false;
-        let qualityEnforceTimeouts = [];
 
         const urlParams = new URLSearchParams(window.location.search);
         const courseId = urlParams.get('course_id');
@@ -1365,7 +1379,7 @@
             await initializePageData();
         });
 
-        async function initializePageData() {
+        async function initializePageData(preferredActiveModuleId = null) {
             try {
                 // Ambil seluruh courses untuk memetakan relasi Paket Bundling & Satuan
                 const { data: allCourses, error: cErr } = await supabaseClient
@@ -1556,7 +1570,10 @@
                 renderModulesList();
 
                 if (currentModules.length > 0) {
-                    loadModule(0);
+                    const targetIndex = preferredActiveModuleId
+                        ? currentModules.findIndex(mod => String(mod.id) === String(preferredActiveModuleId))
+                        : 0;
+                    loadModule(targetIndex >= 0 ? targetIndex : 0);
                 } else {
                     renderModulesList();
                     document.getElementById('current-module-title').textContent = 'Belum ada sesi';
@@ -1613,6 +1630,8 @@
             const container = document.getElementById('modules-list');
             const searchQuery = (document.getElementById('module-search-input')?.value || '').toLowerCase().trim();
             container.innerHTML = '';
+            moduleListSortables.forEach(sortable => sortable.destroy());
+            moduleListSortables = [];
 
             if (currentModules.length === 0 && currentModuleSections.length === 0) {
                 container.innerHTML = '<p class="text-xs text-gray-400 text-center py-4">Belum ada modul video.</p>';
@@ -1654,9 +1673,11 @@
                         const isLocked = !isUserHasAccess && !mod.is_free_trial;
                         const isActive = globalIdx === activeModuleIndex;
                         return `
-                            <div onclick="handleModuleItemClick(${globalIdx}, ${isLocked})"
-                                class="p-3 border-t border-gray-100 flex items-center justify-between transition cursor-pointer ${isActive ? 'bg-primary/10 border-l-4 border-l-primary' : 'hover:bg-gray-50'}">
-                                <div class="flex items-center gap-2.5 min-w-0 pr-2">
+                            <div data-module-id="${mod.id}" class="module-drag-item p-3 border-t border-gray-100 flex items-center justify-between transition cursor-pointer ${isActive ? 'bg-primary/10 border-l-4 border-l-primary' : 'hover:bg-gray-50'}">
+                                <div onclick="handleModuleItemClick(${globalIdx}, ${isLocked})" class="flex items-center gap-2.5 min-w-0 pr-2 flex-1">
+                                    <div class="module-drag-handle flex items-center justify-center text-gray-400 hover:text-primary w-6 h-6 shrink-0">
+                                        <i class="fas fa-grip-vertical text-[11px]"></i>
+                                    </div>
                                     <div class="w-7 h-7 rounded-lg ${isActive ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600'} flex items-center justify-center font-bold text-[11px] shrink-0">${rowIndex + 1}</div>
                                     <div class="min-w-0">
                                         <h4 class="text-xs font-bold ${isActive ? 'text-primary' : 'text-gray-800'} line-clamp-1">${escapeHtml(mod.title)}</h4>
@@ -1683,7 +1704,7 @@
                                     <i id="icon-${sectionId}" class="fas fa-chevron-down text-[10px] text-gray-400 transition-transform duration-200 ${sectionIsActive || searchQuery ? 'rotate-180' : ''}"></i>
                                 </div>
                             </button>
-                            <div id="${sectionId}" class="${sectionIsActive || searchQuery ? '' : 'hidden'}">${rows || '<p class="px-3 py-2 text-[10px] text-gray-400">Belum ada video pada bagian ini.</p>'}</div>
+                            <div id="${sectionId}" class="module-sortable-list ${sectionIsActive || searchQuery ? '' : 'hidden'}">${rows || '<p class="px-3 py-2 text-[10px] text-gray-400">Belum ada video pada bagian ini.</p>'}</div>
                         </section>`;
                 }).join('');
             };
@@ -1757,6 +1778,42 @@
             if (container.children.length === 0) {
                 container.innerHTML = `<p class="text-xs text-gray-400 text-center py-4">${searchQuery ? 'Tidak ada sesi video yang cocok dengan pencarian.' : 'Belum ada sesi pembelajaran.'}</p>`;
             }
+
+            setupModuleListSortables();
+        }
+
+        function setupModuleListSortables() {
+            moduleListSortables.forEach(sortable => sortable.destroy());
+            moduleListSortables = [];
+
+            document.querySelectorAll('.module-sortable-list').forEach(list => {
+                const sortable = Sortable.create(list, {
+                    handle: '.module-drag-handle',
+                    animation: 150,
+                    ghostClass: 'module-sortable-ghost',
+                    draggable: '.module-drag-item',
+                    onEnd: async function () {
+                        const reorderedIds = Array.from(list.querySelectorAll('.module-drag-item')).map(item => item.dataset.moduleId).filter(Boolean);
+                        if (reorderedIds.length < 2) return;
+
+                        const activeId = currentModules[activeModuleIndex]?.id || null;
+                        try {
+                            await Promise.all(reorderedIds.map((modId, index) =>
+                                supabaseClient
+                                    .from('modules')
+                                    .update({ position: index })
+                                    .eq('id', modId)
+                            ));
+                            showToast('Urutan sesi pembelajaran berhasil diperbarui.', 'success', 'Urutan diperbarui');
+                            await initializePageData(activeId);
+                        } catch (error) {
+                            console.error('Gagal memperbarui urutan sesi:', error);
+                            showToast(error?.message || 'Gagal menyimpan urutan sesi.', 'error', 'Gagal memperbarui');
+                        }
+                    }
+                });
+                moduleListSortables.push(sortable);
+            });
         }
 
         function handleModuleItemClick(index, isLocked) {
@@ -1825,20 +1882,12 @@
             return (match && match[2].length === 11) ? match[2] : url.trim();
         }
 
-        function clearQualityEnforceTimeouts() {
-            if (qualityEnforceTimeouts.length > 0) {
-                qualityEnforceTimeouts.forEach(t => clearTimeout(t));
-                qualityEnforceTimeouts = [];
-            }
-        }
-
         function createOrLoadYtPlayer(videoId, resumeTime = 0) {
             if (!videoId) {
                 showVideoError('ID atau URL video tidak valid.');
                 return;
             }
 
-            clearQualityEnforceTimeouts();
             syncYoutubeViewportScale();
 
             if (player && activePlayerVideoId === videoId && typeof player.loadVideoById === 'function') {
@@ -1937,19 +1986,6 @@
             }
 
             if (state === YT.PlayerState.PLAYING) {
-                // SOLUSI A: Paksa ulang kualitas HD setelah buffer awal di HP selesai dimuat
-                clearQualityEnforceTimeouts();
-                qualityEnforceTimeouts.push(
-                    setTimeout(() => {
-                        syncYoutubeViewportScale();
-                        enforceHighestVideoQuality(event.target);
-                    }, 1500),
-                    setTimeout(() => {
-                        syncYoutubeViewportScale();
-                        enforceHighestVideoQuality(event.target);
-                    }, 4000)
-                );
-
                 disablePlayerCaptions();
                 playerContainer.classList.add('is-sticky-playing');
                 updatePlayerScrollMode();
@@ -1960,7 +1996,6 @@
                 startPlayerSync();
                 scheduleHideControls();
             } else if (state === YT.PlayerState.PAUSED) {
-                clearQualityEnforceTimeouts();
                 playerContainer.classList.remove('is-sticky-playing', 'is-mini-player');
                 removePlayerPlaceholder();
                 showLoader(false);
@@ -1974,7 +2009,6 @@
                 showLoader(true);
                 centerPlayBtn.classList.add('hidden');
             } else if (state === YT.PlayerState.ENDED) {
-                clearQualityEnforceTimeouts();
                 playerContainer.classList.remove('is-sticky-playing', 'is-mini-player');
                 removePlayerPlaceholder();
                 showLoader(false);
@@ -1997,7 +2031,6 @@
         }
 
         function onPlayerError(event) {
-            clearQualityEnforceTimeouts();
             showLoader(false);
             stopPlayerSync();
             playerContainer.classList.remove('is-sticky-playing', 'is-mini-player');
@@ -2020,21 +2053,11 @@
             }
         }
 
-        /* ================================================================
-           SOLUSI A: PERBAIKAN KALKULASI VIEWPORT SCALE & ENFORCE QUALITY
-        ================================================================ */
         function syncYoutubeViewportScale() {
-            // Gunakan offsetHeight/clientHeight agar akurat meski terkena CSS rotate(90deg) pada mode landscape iOS
-            const rawHeight = playerContainer.offsetHeight || playerContainer.clientHeight || playerContainer.getBoundingClientRect().height;
-            const rawWidth = playerContainer.offsetWidth || playerContainer.clientWidth || playerContainer.getBoundingClientRect().width;
-
-            // Pastikan tinggi efektif mencapai minimal 1088px dan lebar mencapai minimal 1920px
-            const scaleByHeight = rawHeight > 0 && rawHeight < 1080 ? (1088 / rawHeight) : 1;
-            const scaleByWidth = rawWidth > 0 && rawWidth < 1920 ? (1920 / rawWidth) : 1;
-            const targetScale = Math.max(scaleByHeight, scaleByWidth);
-
-            // Batasi maksimal 6.5x agar HP layar kecil (tinggi player ~180px) tetap tembus threshold 1080p
-            const scale = Math.min(6.5, Math.max(1, +targetScale.toFixed(3)));
+            const playerHeight = playerContainer.getBoundingClientRect().height;
+            const scale = playerHeight > 0 && playerHeight < 1080
+                ? Math.min(5, Math.max(1, +(1080 / playerHeight).toFixed(3)))
+                : 1;
             playerContainer.style.setProperty('--yt-viewport-scale', String(scale));
         }
 
@@ -2051,11 +2074,7 @@
                 console.warn('Kualitas video YouTube tidak dapat diperiksa:', error);
             }
 
-            // YouTube mengurutkan availableQualities dari tertinggi ke terendah (index 0 = paling tinggi)
-            const bestQuality = availableQualities.length > 0
-                ? (qualityPriority.find(quality => availableQualities.includes(quality)) || availableQualities[0])
-                : 'hd1080';
-
+            const bestQuality = qualityPriority.find(quality => availableQualities.includes(quality)) || 'hd1080';
             if (typeof targetPlayer.setPlaybackQualityRange === 'function') {
                 try {
                     targetPlayer.setPlaybackQualityRange(bestQuality, bestQuality);
@@ -2309,7 +2328,6 @@
                 }
             }
             syncYoutubeViewportScale();
-            enforceHighestVideoQuality();
         }
 
         async function forceLandscape() {
@@ -2321,7 +2339,6 @@
                 document.body.style.overflow = '';
                 iconFullscreen.className = 'fas fa-expand text-xs sm:text-sm';
                 syncYoutubeViewportScale();
-                enforceHighestVideoQuality();
                 return;
             }
 
@@ -2338,7 +2355,6 @@
                         await screen.orientation.lock('portrait');
                     }
                     syncYoutubeViewportScale();
-                    enforceHighestVideoQuality();
                     return; // Berhasil di Android
                 } catch (err) {
                     // Jika ditolak oleh sistem (seperti pada iPhone/iOS), lanjut ke fallback CSS di bawah
@@ -2352,7 +2368,6 @@
             document.body.style.overflow = 'hidden';
             iconFullscreen.className = 'fas fa-compress text-xs sm:text-sm';
             syncYoutubeViewportScale();
-            enforceHighestVideoQuality();
         }
 
         function showControls() {
@@ -2441,8 +2456,6 @@
                         try { screen.orientation.unlock(); } catch (e) { }
                     }
                 }
-                syncYoutubeViewportScale();
-                enforceHighestVideoQuality();
             });
 
             document.addEventListener('webkitfullscreenchange', () => {
@@ -2454,8 +2467,6 @@
                         try { screen.orientation.unlock(); } catch (e) { }
                     }
                 }
-                syncYoutubeViewportScale();
-                enforceHighestVideoQuality();
             });
 
             playerContainer.addEventListener('mousemove', showControls);
