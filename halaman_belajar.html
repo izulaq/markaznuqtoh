@@ -18,7 +18,6 @@
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
     <!-- Midtrans Snap JS -->
     <script src="https://app.midtrans.com/snap/snap.js" data-client-key="Mid-client-bgr.FUM3wElPD9oBvn8q4mei"></script>
     <!-- YouTube IFrame API -->
@@ -224,19 +223,6 @@
             position: sticky;
             top: 0;
             z-index: 50;
-        }
-
-        .module-sortable-ghost {
-            opacity: 0.45;
-            background-color: #e5e7eb !important;
-        }
-
-        .module-drag-handle {
-            cursor: grab;
-        }
-
-        .module-drag-handle:active {
-            cursor: grabbing;
         }
 
         @media (min-width: 1024px) and (orientation: landscape) {
@@ -1004,7 +990,6 @@
         let pendingPaymentStatusInterval = null;
         let currentModules = [];
         let currentModuleSections = [];
-        let moduleListSortables = [];
         let activeModuleIndex = 0;
         let isUserHasAccess = false;
         let userAccessibleCourseIds = [];
@@ -1630,9 +1615,6 @@
             const container = document.getElementById('modules-list');
             const searchQuery = (document.getElementById('module-search-input')?.value || '').toLowerCase().trim();
             container.innerHTML = '';
-            moduleListSortables.forEach(sortable => sortable.destroy());
-            moduleListSortables = [];
-
             if (currentModules.length === 0 && currentModuleSections.length === 0) {
                 container.innerHTML = '<p class="text-xs text-gray-400 text-center py-4">Belum ada modul video.</p>';
                 return;
@@ -1673,11 +1655,8 @@
                         const isLocked = !isUserHasAccess && !mod.is_free_trial;
                         const isActive = globalIdx === activeModuleIndex;
                         return `
-                            <div data-module-id="${mod.id}" class="module-drag-item p-3 border-t border-gray-100 flex items-center justify-between transition cursor-pointer ${isActive ? 'bg-primary/10 border-l-4 border-l-primary' : 'hover:bg-gray-50'}">
+                            <div data-module-id="${mod.id}" class="module-session-item p-3 border-t border-gray-100 flex items-center justify-between transition cursor-pointer ${isActive ? 'bg-primary/10 border-l-4 border-l-primary' : 'hover:bg-gray-50'}">
                                 <div onclick="handleModuleItemClick(${globalIdx}, ${isLocked})" class="flex items-center gap-2.5 min-w-0 pr-2 flex-1">
-                                    <div class="module-drag-handle flex items-center justify-center text-gray-400 hover:text-primary w-6 h-6 shrink-0">
-                                        <i class="fas fa-grip-vertical text-[11px]"></i>
-                                    </div>
                                     <div class="w-7 h-7 rounded-lg ${isActive ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600'} flex items-center justify-center font-bold text-[11px] shrink-0">${rowIndex + 1}</div>
                                     <div class="min-w-0">
                                         <h4 class="text-xs font-bold ${isActive ? 'text-primary' : 'text-gray-800'} line-clamp-1">${escapeHtml(mod.title)}</h4>
@@ -1704,7 +1683,7 @@
                                     <i id="icon-${sectionId}" class="fas fa-chevron-down text-[10px] text-gray-400 transition-transform duration-200 ${sectionIsActive || searchQuery ? 'rotate-180' : ''}"></i>
                                 </div>
                             </button>
-                            <div id="${sectionId}" class="module-sortable-list ${sectionIsActive || searchQuery ? '' : 'hidden'}">${rows || '<p class="px-3 py-2 text-[10px] text-gray-400">Belum ada video pada bagian ini.</p>'}</div>
+                            <div id="${sectionId}" class="module-session-list ${sectionIsActive || searchQuery ? '' : 'hidden'}">${rows || '<p class="px-3 py-2 text-[10px] text-gray-400">Belum ada video pada bagian ini.</p>'}</div>
                         </section>`;
                 }).join('');
             };
@@ -1779,41 +1758,6 @@
                 container.innerHTML = `<p class="text-xs text-gray-400 text-center py-4">${searchQuery ? 'Tidak ada sesi video yang cocok dengan pencarian.' : 'Belum ada sesi pembelajaran.'}</p>`;
             }
 
-            setupModuleListSortables();
-        }
-
-        function setupModuleListSortables() {
-            moduleListSortables.forEach(sortable => sortable.destroy());
-            moduleListSortables = [];
-
-            document.querySelectorAll('.module-sortable-list').forEach(list => {
-                const sortable = Sortable.create(list, {
-                    handle: '.module-drag-handle',
-                    animation: 150,
-                    ghostClass: 'module-sortable-ghost',
-                    draggable: '.module-drag-item',
-                    onEnd: async function () {
-                        const reorderedIds = Array.from(list.querySelectorAll('.module-drag-item')).map(item => item.dataset.moduleId).filter(Boolean);
-                        if (reorderedIds.length < 2) return;
-
-                        const activeId = currentModules[activeModuleIndex]?.id || null;
-                        try {
-                            await Promise.all(reorderedIds.map((modId, index) =>
-                                supabaseClient
-                                    .from('modules')
-                                    .update({ position: index })
-                                    .eq('id', modId)
-                            ));
-                            showToast('Urutan sesi pembelajaran berhasil diperbarui.', 'success', 'Urutan diperbarui');
-                            await initializePageData(activeId);
-                        } catch (error) {
-                            console.error('Gagal memperbarui urutan sesi:', error);
-                            showToast(error?.message || 'Gagal menyimpan urutan sesi.', 'error', 'Gagal memperbarui');
-                        }
-                    }
-                });
-                moduleListSortables.push(sortable);
-            });
         }
 
         function handleModuleItemClick(index, isLocked) {
