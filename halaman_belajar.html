@@ -135,9 +135,12 @@
 
         .video-iframe-layer {
             position: absolute;
-            inset: 0;
-            width: 100%;
-            height: 100%;
+            top: 50%;
+            left: 50%;
+            width: calc(100% * var(--yt-viewport-scale, 1));
+            height: calc(100% * var(--yt-viewport-scale, 1));
+            transform: translate(-50%, -50%) scale(calc(1 / var(--yt-viewport-scale, 1)));
+            transform-origin: center center;
             pointer-events: none !important;
         }
 
@@ -493,8 +496,52 @@
                 </div>
             </div>
 
-            <section class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950 shadow-sm">
-                <p><i class="fas fa-circle-info mr-2 text-emerald-700" aria-hidden="true"></i>Kualitas video dikelola otomatis oleh YouTube dan menyesuaikan sumber video, ukuran pemutar, perangkat, serta kondisi jaringan.</p>
+            <section class="overflow-hidden rounded-xl border border-emerald-200 bg-emerald-50 shadow-sm">
+                <button id="video-quality-help-button" type="button" aria-expanded="true"
+                    aria-controls="video-quality-help-guide"
+                    class="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm font-bold text-emerald-950 transition hover:bg-emerald-100 focus:outline-none focus:ring-2 focus:ring-primary/40">
+                    <span>🛠️ Video buram? Panduan membuat video lebih jernih</span>
+                    <span id="video-quality-help-toggle-label" class="shrink-0 text-xs font-semibold text-emerald-800">Sembunyikan</span>
+                </button>
+                <div id="video-quality-help-guide" class="space-y-4 border-t border-emerald-200 bg-white p-4">
+                    <p class="text-sm text-gray-700">Pasang ekstensi Auto HD + FPS agar browser mencoba memilih kualitas video yang lebih tinggi.</p>
+
+                    <div class="rounded-lg border border-blue-100 bg-blue-50/70 p-3">
+                        <h3 class="font-bold text-blue-950">Laptop / PC</h3>
+                        <ol class="mt-2 list-inside list-decimal space-y-1.5 text-sm text-gray-700">
+                            <li>Klik tombol <strong>Buka ekstensi Auto HD + FPS</strong> di bawah.</li>
+                            <li>Pilih <strong>Tambahkan ke Chrome</strong>, lalu konfirmasi pemasangan.</li>
+                            <li>Kembali ke halaman Nuqthah dan muat ulang halaman.</li>
+                        </ol>
+                    </div>
+
+                    <div class="rounded-lg border border-emerald-100 bg-emerald-50/70 p-3">
+                        <h3 class="font-bold text-emerald-950">HP / tablet</h3>
+                        <ol class="mt-2 list-inside list-decimal space-y-1.5 text-sm text-gray-700">
+                            <li>Instal <strong>Lemur Browser</strong> dari Play Store atau App Store.</li>
+                            <li>Tekan tombol <strong>Buka Nuqthah di Lemur Browser</strong> di bawah.</li>
+                            <li>Ketuk tombol ekstensi di bawah, lalu tambahkan ekstensi ke Lemur.</li>
+                            <li>Kembali ke halaman Nuqthah dan muat ulang halaman.</li>
+                        </ol>
+                        <a id="open-nuqthah-in-lemur" href="https://markaz.nuqthahlearning.my.id"
+                            class="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-700 px-3 py-3 text-center text-sm font-bold text-white transition hover:bg-emerald-800">
+                            <i class="fas fa-external-link-alt" aria-hidden="true"></i>
+                            Buka Nuqthah di Lemur Browser
+                        </a>
+                        <p id="lemur-open-help" class="mt-2 text-xs text-gray-600">Android: Lemur terbuka langsung, atau Play Store jika belum terpasang. iPhone/iPad: tombol membuka App Store.</p>
+                    </div>
+
+                    <a href="https://chromewebstore.google.com/detail/youtube-auto-hd-+-fps/fcphghnknhkimeagdglkljinmpbagone"
+                        target="_blank" rel="noopener noreferrer"
+                        class="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-center text-sm font-bold text-white transition hover:bg-primary/90">
+                        <i class="fas fa-arrow-up-right-from-square" aria-hidden="true"></i>
+                        Buka ekstensi Auto HD + FPS
+                    </a>
+
+                    <p class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
+                        Ekstensi tidak menjamin kualitas HD di semua video. Periksa nama penerbit dan izin sebelum memasang.
+                    </p>
+                </div>
             </section>
 
             <!-- Detail Materi & Pengajar -->
@@ -1005,6 +1052,12 @@
         const btnFullscreen = document.getElementById('btn-fullscreen');
         const iconFullscreen = document.getElementById('icon-fullscreen');
         const btnRotate = document.getElementById('btn-rotate');
+        const videoQualityHelpButton = document.getElementById('video-quality-help-button');
+        const videoQualityHelpGuide = document.getElementById('video-quality-help-guide');
+        const videoQualityHelpToggleLabel = document.getElementById('video-quality-help-toggle-label');
+        const openNuqthahInLemurButton = document.getElementById('open-nuqthah-in-lemur');
+        const lemurOpenHelp = document.getElementById('lemur-open-help');
+
         /* ================================================================
            HELPER PARSE BUNDLING PAKET
         ================================================================ */
@@ -1290,7 +1343,10 @@
             }
             playerHomeTop = playerContainer.getBoundingClientRect().top + window.scrollY;
             window.addEventListener('scroll', updatePlayerScrollMode, { passive: true });
-            window.addEventListener('resize', updatePlayerScrollMode);
+            window.addEventListener('resize', () => {
+                updatePlayerScrollMode();
+                syncYoutubeViewportScale();
+            });
             const moduleLayoutQuery = window.matchMedia('(max-width: 1023px)');
             if (moduleLayoutQuery.addEventListener) {
                 moduleLayoutQuery.addEventListener('change', updateModuleSidebarPosition);
@@ -1776,10 +1832,13 @@
                 return;
             }
 
+            syncYoutubeViewportScale();
+
             if (player && activePlayerVideoId === videoId && typeof player.loadVideoById === 'function') {
                 const videoOptions = {
                     videoId: videoId,
-                    startSeconds: resumeTime > 2 ? resumeTime : 0
+                    startSeconds: resumeTime > 2 ? resumeTime : 0,
+                    suggestedQuality: 'hd1080'
                 };
                 player.loadVideoById(videoOptions);
                 disablePlayerCaptions();
@@ -1794,6 +1853,7 @@
                     playbackRate: player.getPlaybackRate ? player.getPlaybackRate() : 1
                 };
                 const iframeLayer = document.querySelector('#nuqthah-player-container .video-iframe-layer');
+                // Reload only the YouTube iframe so extensions can reapply their video rules.
                 player.destroy();
                 player = null;
                 if (iframeLayer) {
@@ -1819,6 +1879,7 @@
                     'iv_load_policy': 3,
                     'cc_load_policy': 0,
                     'playsinline': 1,
+                    'vq': 'hd1080',
                     'start': Math.floor(resumeTime > 2 ? resumeTime : 0)
                 },
                 events: {
@@ -1830,6 +1891,8 @@
         }
 
         function onPlayerReady(event) {
+            syncYoutubeViewportScale();
+            enforceHighestVideoQuality(event.target);
             const playerIframe = event.target.getIframe();
             if (playerIframe) playerIframe.setAttribute('tabindex', '-1');
             disablePlayerCaptions();
@@ -1857,6 +1920,15 @@
 
         function onPlayerStateChange(event) {
             const state = event.data;
+            syncYoutubeViewportScale();
+            if (
+                state === YT.PlayerState.BUFFERING ||
+                state === YT.PlayerState.CUED ||
+                state === YT.PlayerState.PLAYING
+            ) {
+                enforceHighestVideoQuality(event.target);
+            }
+
             if (state === YT.PlayerState.PLAYING) {
                 disablePlayerCaptions();
                 playerContainer.classList.add('is-sticky-playing');
@@ -1925,6 +1997,44 @@
             }
         }
 
+        function syncYoutubeViewportScale() {
+            const playerHeight = playerContainer.getBoundingClientRect().height;
+            const scale = playerHeight > 0 && playerHeight < 1080
+                ? Math.min(5, Math.max(1, +(1080 / playerHeight).toFixed(3)))
+                : 1;
+            playerContainer.style.setProperty('--yt-viewport-scale', String(scale));
+        }
+
+        function enforceHighestVideoQuality(targetPlayer = player) {
+            if (!targetPlayer) return;
+
+            const qualityPriority = ['hd2160', 'hd1440', 'hd1080', 'hd720', 'large'];
+            let availableQualities = [];
+            try {
+                if (typeof targetPlayer.getAvailableQualityLevels === 'function') {
+                    availableQualities = targetPlayer.getAvailableQualityLevels() || [];
+                }
+            } catch (error) {
+                console.warn('Kualitas video YouTube tidak dapat diperiksa:', error);
+            }
+
+            const bestQuality = qualityPriority.find(quality => availableQualities.includes(quality)) || 'hd1080';
+            if (typeof targetPlayer.setPlaybackQualityRange === 'function') {
+                try {
+                    targetPlayer.setPlaybackQualityRange(bestQuality, bestQuality);
+                } catch (error) {
+                    console.warn('Rentang kualitas video tidak dapat diterapkan:', error);
+                }
+            }
+            if (typeof targetPlayer.setPlaybackQuality === 'function') {
+                try {
+                    targetPlayer.setPlaybackQuality(bestQuality);
+                } catch (error) {
+                    console.warn('Kualitas video tidak dapat diterapkan:', error);
+                }
+            }
+        }
+
         function updatePlayerScrollMode() {
             const desktopLandscape = window.matchMedia('(min-width: 1024px) and (orientation: landscape)').matches;
             const isPlaying = player && window.YT && player.getPlayerState() === YT.PlayerState.PLAYING;
@@ -1934,6 +2044,7 @@
                 removePlayerPlaceholder();
                 if (isPlaying) playerContainer.classList.add('is-sticky-playing');
                 else playerContainer.classList.remove('is-sticky-playing');
+                syncYoutubeViewportScale();
                 return;
             }
 
@@ -1955,6 +2066,7 @@
                 playerContainer.classList.add('is-sticky-playing');
                 removePlayerPlaceholder();
             }
+            syncYoutubeViewportScale();
         }
 
         function removePlayerPlaceholder() {
@@ -2083,6 +2195,40 @@
             }
         }
 
+        function toggleVideoQualityHelp() {
+            const isExpanded = videoQualityHelpButton.getAttribute('aria-expanded') === 'true';
+            videoQualityHelpButton.setAttribute('aria-expanded', String(!isExpanded));
+            videoQualityHelpGuide.classList.toggle('hidden', isExpanded);
+            videoQualityHelpToggleLabel.textContent = isExpanded ? 'Tampilkan' : 'Sembunyikan';
+        }
+
+        function openNuqthahWithLemur(event) {
+            const websiteUrl = 'https://markaz.nuqthahlearning.my.id';
+            const playStoreUrl = 'https://play.google.com/store/apps/details?id=com.lemurbrowser.exts';
+            const appStoreUrl = 'https://apps.apple.com/id/app/id1662756821';
+            const userAgent = navigator.userAgent || '';
+            const isIOS = /iPad|iPhone|iPod/.test(userAgent) ||
+                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+            const isAndroid = /Android/i.test(userAgent);
+
+            if (isAndroid) {
+                event.preventDefault();
+                const url = new URL(websiteUrl);
+                const fallbackUrl = encodeURIComponent(playStoreUrl);
+                window.location.href = `intent://${url.host}${url.pathname}${url.search}${url.hash}#Intent;scheme=https;package=com.lemurbrowser.exts;S.browser_fallback_url=${fallbackUrl};end`;
+            } else if (isIOS) {
+                event.preventDefault();
+                openNuqthahInLemurButton.href = appStoreUrl;
+                openNuqthahInLemurButton.textContent = 'Buka Lemur di App Store';
+                lemurOpenHelp.textContent = 'Setelah Lemur terpasang, buka Nuqthah melalui browser tersebut.';
+                window.location.href = appStoreUrl;
+            } else {
+                openNuqthahInLemurButton.href = websiteUrl;
+                openNuqthahInLemurButton.target = '_blank';
+                openNuqthahInLemurButton.rel = 'noopener noreferrer';
+            }
+        }
+
         /* ================================================================
            FULLSCREEN & PUTAR LAYAR LANSKAP (SUPPORT ANDROID & IPHONE/IOS)
         ================================================================ */
@@ -2125,6 +2271,7 @@
                     try { screen.orientation.unlock(); } catch (e) { }
                 }
             }
+            syncYoutubeViewportScale();
         }
 
         async function forceLandscape() {
@@ -2135,6 +2282,7 @@
                 playerContainer.classList.remove('is-forced-landscape', 'is-pseudo-fullscreen');
                 document.body.style.overflow = '';
                 iconFullscreen.className = 'fas fa-expand text-xs sm:text-sm';
+                syncYoutubeViewportScale();
                 return;
             }
 
@@ -2150,6 +2298,7 @@
                     } else {
                         await screen.orientation.lock('portrait');
                     }
+                    syncYoutubeViewportScale();
                     return; // Berhasil di Android
                 } catch (err) {
                     // Jika ditolak oleh sistem (seperti pada iPhone/iOS), lanjut ke fallback CSS di bawah
@@ -2162,6 +2311,7 @@
             playerContainer.classList.add('is-forced-landscape');
             document.body.style.overflow = 'hidden';
             iconFullscreen.className = 'fas fa-compress text-xs sm:text-sm';
+            syncYoutubeViewportScale();
         }
 
         function showControls() {
@@ -2182,6 +2332,9 @@
         }
 
         function setupCustomPlayerEvents() {
+            videoQualityHelpButton.addEventListener('click', toggleVideoQualityHelp);
+            openNuqthahInLemurButton.addEventListener('click', openNuqthahWithLemur);
+
             videoClickArea.addEventListener('click', (e) => {
                 if (e.target.closest('#player-error')) return;
                 if (e.target.closest('#center-play-btn')) togglePlayPause();
