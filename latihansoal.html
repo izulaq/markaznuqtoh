@@ -98,6 +98,27 @@
         .option-btn {
             transition: all .18s ease;
         }
+
+        .button-loading-skeleton {
+            display: inline-block;
+            width: 5rem;
+            height: 0.75rem;
+            border-radius: 9999px;
+            background: linear-gradient(90deg, rgba(255,255,255,.25) 25%, rgba(255,255,255,.65) 50%, rgba(255,255,255,.25) 75%);
+            background-size: 200% 100%;
+            animation: loadingSkeletonShimmer 1.4s ease infinite;
+            vertical-align: middle;
+        }
+
+        @keyframes loadingSkeletonShimmer {
+            to { background-position: -200% 0; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .button-loading-skeleton {
+                animation: none;
+            }
+        }
     </style>
 </head>
 
@@ -963,7 +984,7 @@
 
             const startBtn = document.getElementById('start-quiz-btn');
             startBtn.disabled = true;
-            startBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin mr-1"></i> Memuat Soal...';
+            startBtn.innerHTML = '<span class="button-loading-skeleton mr-1" aria-hidden="true"></span> Memuat Soal...';
 
             try {
                 selectedCourseObj = allCoursesData.find(c => c.course_id === courseId) || null;
@@ -1340,7 +1361,7 @@
             }
 
             submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Memproses Akun...';
+            submitBtn.innerHTML = '<span class="button-loading-skeleton mr-1" aria-hidden="true"></span> Memproses Akun...';
 
             try {
                 const { data: savedUser, error: userErr } = await supabaseClient
@@ -1507,7 +1528,7 @@
             }
 
             btnRequest.disabled = true;
-            btnRequest.innerHTML = '<i class="fas fa-circle-notch fa-spin mr-1"></i> Mengirim OTP...';
+            btnRequest.innerHTML = '<span class="button-loading-skeleton mr-1" aria-hidden="true"></span> Mengirim OTP...';
 
             try {
                 const res = await fetch(`${BACKEND_BASE_URL}/api/send-otp`, {
@@ -1546,7 +1567,7 @@
             }
 
             btnVerify.disabled = true;
-            btnVerify.innerHTML = '<i class="fas fa-circle-notch fa-spin mr-1"></i> Memverifikasi...';
+            btnVerify.innerHTML = '<span class="button-loading-skeleton mr-1" aria-hidden="true"></span> Memverifikasi...';
 
             try {
                 const res = await fetch(`${BACKEND_BASE_URL}/api/verify-otp`, {
