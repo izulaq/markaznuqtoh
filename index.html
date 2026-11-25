@@ -133,23 +133,19 @@
         }
 
         /* Toast & Loading */
-        @keyframes nlc-spin {
+        @keyframes skeleton-shimmer {
             to {
-                transform: rotate(360deg);
+                background-position: -200% 0;
             }
         }
 
         #page-loading-overlay {
             position: fixed;
             inset: 0;
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(4px);
+            overflow: hidden;
+            padding: 0 1rem;
+            background: #fff;
             z-index: 999999;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
-            gap: 16px;
             transition: opacity 0.35s ease;
             opacity: 1;
         }
@@ -159,13 +155,147 @@
             pointer-events: none;
         }
 
-        .page-loading-spinner {
-            width: 40px;
-            height: 40px;
-            border: 3px solid rgba(46, 94, 78, 0.15);
-            border-top-color: #2E5E4E;
-            border-radius: 50%;
-            animation: nlc-spin 0.8s linear infinite;
+        .skeleton {
+            background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 37%, #e5e7eb 63%);
+            background-size: 200% 100%;
+            animation: skeleton-shimmer 1.4s ease infinite;
+        }
+
+        .page-skeleton-nav,
+        .page-skeleton-content {
+            width: 100%;
+            max-width: 1280px;
+            margin: 0 auto;
+        }
+
+        .page-skeleton-nav {
+            height: 3rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .page-skeleton-content {
+            padding-top: 1.5rem;
+        }
+
+        .page-skeleton-dashboard {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 1rem;
+        }
+
+        .page-skeleton-welcome,
+        .page-skeleton-schedule {
+            min-height: 220px;
+            border-radius: 1.5rem;
+            padding: 1.5rem;
+        }
+
+        .page-skeleton-welcome {
+            background: #e8efec;
+        }
+
+        .page-skeleton-schedule {
+            background: #f8fafc;
+            border: 1px solid #f1f5f9;
+        }
+
+        .page-skeleton-lines {
+            display: grid;
+            gap: 0.65rem;
+        }
+
+        .page-skeleton-stats {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+        }
+
+        .page-skeleton-stat {
+            width: 9rem;
+            height: 3.5rem;
+            border-radius: 0.75rem;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 0.75rem;
+        }
+
+        .page-skeleton-catalog {
+            margin-top: 2rem;
+        }
+
+        .page-skeleton-filters {
+            display: flex;
+            gap: 0.5rem;
+            margin: 1rem 0;
+            overflow: hidden;
+        }
+
+        .page-skeleton-cards {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 1rem;
+        }
+
+        .page-skeleton-course {
+            overflow: hidden;
+            border: 1px solid #f1f5f9;
+            border-radius: 1rem;
+            padding-bottom: 1rem;
+        }
+
+        .page-skeleton-course-image {
+            aspect-ratio: 4 / 3;
+        }
+
+        .page-skeleton-course-lines {
+            display: grid;
+            gap: 0.6rem;
+            padding: 1rem;
+        }
+
+        .button-loading-skeleton {
+            display: inline-block;
+            width: 5rem;
+            height: 0.75rem;
+            border-radius: 9999px;
+            background: linear-gradient(90deg, rgba(255, 255, 255, 0.25) 25%, rgba(255, 255, 255, 0.65) 50%, rgba(255, 255, 255, 0.25) 75%);
+            background-size: 200% 100%;
+            animation: skeleton-shimmer 1.4s ease infinite;
+            vertical-align: middle;
+        }
+
+        @media (min-width: 768px) {
+            .page-skeleton-nav {
+                height: 4rem;
+            }
+        }
+
+        @media (max-width: 767px) {
+            .page-skeleton-dashboard {
+                grid-template-columns: 1fr;
+            }
+
+            .page-skeleton-schedule {
+                display: none;
+            }
+
+            .page-skeleton-cards {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 0.75rem;
+            }
+
+            .page-skeleton-course:nth-child(n + 3) {
+                display: none;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .skeleton,
+            .button-loading-skeleton {
+                animation: none;
+            }
         }
 
         .toast-item {
@@ -247,9 +377,89 @@
     </div>
 
     <!-- PAGE LOADING OVERLAY -->
-    <div id="page-loading-overlay">
-        <div class="page-loading-spinner"></div>
-        <div class="text-primary text-xs font-bold tracking-widest uppercase opacity-85">Memuat Data...</div>
+    <div id="page-loading-overlay" role="status" aria-label="Memuat data">
+        <div class="page-skeleton-nav">
+            <div class="skeleton h-5 w-32 rounded"></div>
+            <div class="flex items-center gap-3">
+                <div class="skeleton h-7 w-16 rounded-lg"></div>
+                <div class="skeleton h-7 w-20 rounded-lg"></div>
+            </div>
+        </div>
+        <div class="page-skeleton-content">
+            <div class="page-skeleton-dashboard">
+                <div class="page-skeleton-welcome">
+                    <div class="page-skeleton-lines">
+                        <div class="skeleton h-3 w-28 rounded"></div>
+                        <div class="skeleton h-7 w-48 max-w-full rounded"></div>
+                        <div class="skeleton h-3 w-64 max-w-full rounded"></div>
+                        <div class="skeleton h-3 w-52 max-w-full rounded"></div>
+                    </div>
+                    <div class="page-skeleton-stats">
+                        <div class="page-skeleton-stat">
+                            <div class="skeleton h-2.5 w-16 rounded"></div>
+                            <div class="skeleton h-4 w-10 rounded mt-2"></div>
+                        </div>
+                        <div class="page-skeleton-stat">
+                            <div class="skeleton h-2.5 w-16 rounded"></div>
+                            <div class="skeleton h-4 w-12 rounded mt-2"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="page-skeleton-schedule">
+                    <div class="page-skeleton-lines">
+                        <div class="skeleton h-5 w-36 rounded"></div>
+                        <div class="skeleton h-3 w-28 rounded"></div>
+                        <div class="skeleton h-16 w-full rounded-xl mt-3"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="page-skeleton-catalog">
+                <div class="page-skeleton-lines">
+                    <div class="skeleton h-5 w-40 rounded"></div>
+                    <div class="skeleton h-3 w-56 max-w-full rounded"></div>
+                </div>
+                <div class="page-skeleton-filters">
+                    <div class="skeleton h-8 w-28 shrink-0 rounded-full"></div>
+                    <div class="skeleton h-8 w-32 shrink-0 rounded-full"></div>
+                    <div class="skeleton h-8 w-24 shrink-0 rounded-full"></div>
+                    <div class="skeleton h-8 w-28 shrink-0 rounded-full"></div>
+                </div>
+                <div class="page-skeleton-cards">
+                    <div class="page-skeleton-course">
+                        <div class="skeleton page-skeleton-course-image"></div>
+                        <div class="page-skeleton-course-lines">
+                            <div class="skeleton h-3 w-full rounded"></div>
+                            <div class="skeleton h-3 w-2/3 rounded"></div>
+                            <div class="skeleton h-3 w-1/2 rounded"></div>
+                        </div>
+                    </div>
+                    <div class="page-skeleton-course">
+                        <div class="skeleton page-skeleton-course-image"></div>
+                        <div class="page-skeleton-course-lines">
+                            <div class="skeleton h-3 w-full rounded"></div>
+                            <div class="skeleton h-3 w-2/3 rounded"></div>
+                            <div class="skeleton h-3 w-1/2 rounded"></div>
+                        </div>
+                    </div>
+                    <div class="page-skeleton-course">
+                        <div class="skeleton page-skeleton-course-image"></div>
+                        <div class="page-skeleton-course-lines">
+                            <div class="skeleton h-3 w-full rounded"></div>
+                            <div class="skeleton h-3 w-2/3 rounded"></div>
+                            <div class="skeleton h-3 w-1/2 rounded"></div>
+                        </div>
+                    </div>
+                    <div class="page-skeleton-course">
+                        <div class="skeleton page-skeleton-course-image"></div>
+                        <div class="page-skeleton-course-lines">
+                            <div class="skeleton h-3 w-full rounded"></div>
+                            <div class="skeleton h-3 w-2/3 rounded"></div>
+                            <div class="skeleton h-3 w-1/2 rounded"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- NAVIGATION -->
@@ -295,8 +505,9 @@
                     <span id="drawer-count-badge"
                         class="bg-accent px-2 py-0.5 rounded-full text-[10px] font-bold uppercase whitespace-nowrap">0</span>
                 </div>
-                <span id="drawer-user-email" class="text-[10px] md:text-[11px] text-gray-300 truncate mt-0.5">Memuat
-                    email...</span>
+                <span id="drawer-user-email" class="text-[10px] md:text-[11px] text-gray-300 truncate mt-0.5"><span
+                        class="skeleton inline-block h-2.5 w-28 rounded align-middle"
+                        aria-label="Memuat email"></span></span>
             </div>
             <button id="close-drawer" onclick="toggleDrawer()"
                 class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 shrink-0"><i
@@ -397,8 +608,8 @@
                 <div id="dashboard-schedule"
                     class="bg-gray-50 rounded-xl p-4 text-center border border-gray-100 border-dashed flex-grow flex flex-col justify-center items-center relative min-h-[140px]">
                     <!-- Diisi oleh JS -->
-                    <i class="fas fa-mug-hot text-gray-300 text-2xl mb-2 animate-pulse"></i>
-                    <p class="text-xs text-gray-500 font-medium">Memuat jadwal...</p>
+                    <div class="skeleton h-4 w-32 rounded mb-3"></div>
+                    <div class="skeleton h-3 w-24 rounded"></div>
                 </div>
             </div>
         </div>
@@ -1769,8 +1980,12 @@
             document.getElementById('otp-code-input').value = '';
             document.getElementById('btn-request-otp').disabled = false;
             document.getElementById('btn-request-otp').innerHTML = 'Minta Kode OTP';
+            document.getElementById('btn-request-otp').removeAttribute('aria-busy');
+            document.getElementById('btn-request-otp').removeAttribute('aria-label');
             document.getElementById('btn-verify-otp').disabled = false;
             document.getElementById('btn-verify-otp').innerHTML = 'Verifikasi &amp; Masuk';
+            document.getElementById('btn-verify-otp').removeAttribute('aria-busy');
+            document.getElementById('btn-verify-otp').removeAttribute('aria-label');
         }
 
         async function requestOtpCode() {
@@ -1783,7 +1998,9 @@
             }
 
             btnRequest.disabled = true;
-            btnRequest.innerHTML = '<i class="fas fa-circle-notch fa-spin mr-1"></i> Mengecek...';
+            btnRequest.setAttribute('aria-busy', 'true');
+            btnRequest.setAttribute('aria-label', 'Mengecek email');
+            btnRequest.innerHTML = '<span class="sr-only">Mengecek email...</span><span class="button-loading-skeleton" aria-hidden="true"></span>';
 
             try {
                 const res = await fetch(`${BACKEND_BASE_URL}/api/send-otp`, {
@@ -1811,6 +2028,8 @@
             } finally {
                 btnRequest.disabled = false;
                 btnRequest.innerHTML = 'Minta Kode OTP';
+                btnRequest.removeAttribute('aria-busy');
+                btnRequest.removeAttribute('aria-label');
             }
         }
 
@@ -1825,7 +2044,9 @@
             }
 
             btnVerify.disabled = true;
-            btnVerify.innerHTML = '<i class="fas fa-circle-notch fa-spin mr-1"></i> Memverifikasi...';
+            btnVerify.setAttribute('aria-busy', 'true');
+            btnVerify.setAttribute('aria-label', 'Memverifikasi kode OTP');
+            btnVerify.innerHTML = '<span class="sr-only">Memverifikasi...</span><span class="button-loading-skeleton" aria-hidden="true"></span>';
 
             try {
                 const res = await fetch(`${BACKEND_BASE_URL}/api/verify-otp`, {
@@ -1876,6 +2097,8 @@
             } finally {
                 btnVerify.disabled = false;
                 btnVerify.innerHTML = 'Verifikasi &amp; Masuk';
+                btnVerify.removeAttribute('aria-busy');
+                btnVerify.removeAttribute('aria-label');
             }
         }
 
