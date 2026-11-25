@@ -49,6 +49,36 @@
             white-space: nowrap;
         }
 
+        .loading-skeleton {
+            display: block;
+            border-radius: 0.375rem;
+            background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 37%, #e5e7eb 63%);
+            background-size: 200% 100%;
+            animation: loadingSkeletonShimmer 1.4s ease infinite;
+        }
+
+        .button-loading-skeleton {
+            display: inline-block;
+            width: 5rem;
+            height: 0.75rem;
+            border-radius: 9999px;
+            background: linear-gradient(90deg, rgba(255,255,255,.25) 25%, rgba(255,255,255,.65) 50%, rgba(255,255,255,.25) 75%);
+            background-size: 200% 100%;
+            animation: loadingSkeletonShimmer 1.4s ease infinite;
+            vertical-align: middle;
+        }
+
+        @keyframes loadingSkeletonShimmer {
+            to { background-position: -200% 0; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .loading-skeleton,
+            .button-loading-skeleton {
+                animation: none;
+            }
+        }
+
         .finance-amount,
         .access-stat-number {
             font-weight: 400 !important;
@@ -474,7 +504,11 @@
                 </div>
 
                 <div id="grouped-course-list" class="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-                    <p class="text-sm text-gray-500 text-center py-4">Memuat data materi...</p>
+                    <div class="space-y-3 p-4" role="status" aria-label="Memuat data materi">
+                        <div class="loading-skeleton h-4 w-2/3"></div>
+                        <div class="loading-skeleton h-3 w-full"></div>
+                        <div class="loading-skeleton h-3 w-4/5"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -523,10 +557,16 @@
                         <div class="md:col-span-2">
                             <label for="module-section" class="block text-xs font-bold text-gray-700 uppercase mb-1">Bagian Materi</label>
                             <div class="flex flex-col sm:flex-row gap-2">
-                                <select id="module-section"
-                                    class="w-full border border-gray-200 p-2.5 rounded-xl text-sm bg-white focus:outline-none">
-                                    <option value="">Langsung di materi ini (tanpa bagian)</option>
-                                </select>
+                                <div class="relative w-full">
+                                    <select id="module-section"
+                                        class="w-full border border-gray-200 p-2.5 rounded-xl text-sm bg-white focus:outline-none">
+                                        <option value="">Langsung di materi ini (tanpa bagian)</option>
+                                    </select>
+                                    <div id="module-section-loading"
+                                        class="hidden absolute inset-0 flex items-center px-3 rounded-xl border border-gray-200 bg-white pointer-events-none">
+                                        <div class="loading-skeleton h-3 w-2/3"></div>
+                                    </div>
+                                </div>
                                 <button type="button" onclick="toggleAddModuleSectionForm()"
                                     class="shrink-0 rounded-xl border border-primary/30 bg-primary/5 px-4 py-2 text-xs font-bold text-primary hover:bg-primary/10 transition">
                                     <i class="fas fa-plus mr-1"></i>Tambah Bagian Baru
@@ -632,7 +672,11 @@
                 </div>
 
                 <div id="grouped-module-list" class="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-                    <p class="text-sm text-gray-500 text-center py-4">Memuat modul video...</p>
+                    <div class="space-y-3 p-4" role="status" aria-label="Memuat modul video">
+                        <div class="loading-skeleton h-4 w-2/3"></div>
+                        <div class="loading-skeleton h-3 w-full"></div>
+                        <div class="loading-skeleton h-3 w-4/5"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -748,7 +792,11 @@
                 </div>
 
                 <div id="grouped-quiz-list" class="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-                    <p class="text-sm text-gray-500 text-center py-4">Memuat data soal...</p>
+                    <div class="space-y-3 p-4" role="status" aria-label="Memuat data soal">
+                        <div class="loading-skeleton h-4 w-2/3"></div>
+                        <div class="loading-skeleton h-3 w-full"></div>
+                        <div class="loading-skeleton h-3 w-4/5"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -959,7 +1007,12 @@
                         </thead>
                         <tbody id="jadwal-table-body" class="divide-y divide-gray-100 text-xs">
                             <tr>
-                                <td colspan="5" class="p-6 text-center text-gray-400">Memuat data jadwal...</td>
+                                <td colspan="5" class="p-6">
+                                    <div class="space-y-2" role="status" aria-label="Memuat data jadwal">
+                                        <div class="loading-skeleton h-3 w-full"></div>
+                                        <div class="loading-skeleton h-3 w-4/5"></div>
+                                    </div>
+                                </td>
                             </tr>
                         </tbody>
                     </table>
@@ -1123,7 +1176,12 @@
                         </thead>
                         <tbody id="user-access-table-body" class="divide-y divide-gray-100 text-xs">
                             <tr>
-                                <td colspan="6" class="p-6 text-center text-gray-400">Memuat akses siswa...</td>
+                                <td colspan="6" class="p-6">
+                                    <div class="space-y-2" role="status" aria-label="Memuat akses siswa">
+                                        <div class="loading-skeleton h-3 w-full"></div>
+                                        <div class="loading-skeleton h-3 w-4/5"></div>
+                                    </div>
+                                </td>
                             </tr>
                         </tbody>
                     </table>
@@ -1217,7 +1275,12 @@
                         </thead>
                         <tbody id="instructor-revenue-tbody" class="divide-y divide-gray-100 text-xs">
                             <tr>
-                                <td colspan="10" class="p-6 text-center text-gray-400">Memuat kalkulasi...</td>
+                                <td colspan="10" class="p-6">
+                                    <div class="space-y-2" role="status" aria-label="Memuat kalkulasi">
+                                        <div class="loading-skeleton h-3 w-full"></div>
+                                        <div class="loading-skeleton h-3 w-4/5"></div>
+                                    </div>
+                                </td>
                             </tr>
                         </tbody>
                     </table>
@@ -1282,7 +1345,11 @@
                         placeholder="Cari riwayat..." class="w-full border border-gray-200 p-2.5 rounded-xl text-xs">
                     <div id="balance-history-container"
                         class="divide-y divide-gray-100 max-h-[500px] overflow-y-auto pr-1">
-                        <p class="text-xs text-gray-400 text-center py-8">Memuat riwayat...</p>
+                        <div class="space-y-3 py-6" role="status" aria-label="Memuat riwayat">
+                            <div class="loading-skeleton h-3 w-full"></div>
+                            <div class="loading-skeleton h-3 w-4/5"></div>
+                            <div class="loading-skeleton h-3 w-2/3"></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1552,9 +1619,11 @@
                     <div><label class="block text-xs font-bold text-gray-700 uppercase mb-1">Judul Sesi</label><input
                             type="text" id="edit-module-title" required
                             class="w-full border border-gray-200 p-2.5 rounded-xl text-sm"></div>
-                    <div class="md:col-span-2"><label class="block text-xs font-bold text-gray-700 uppercase mb-1">Bagian Materi</label><select
+                    <div class="md:col-span-2"><label class="block text-xs font-bold text-gray-700 uppercase mb-1">Bagian Materi</label><div class="relative"><select
                             id="edit-module-section"
-                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm bg-white"></select></div>
+                            class="w-full border border-gray-200 p-2.5 rounded-xl text-sm bg-white"></select><div id="edit-module-section-loading"
+                            class="hidden absolute inset-0 flex items-center px-3 rounded-xl border border-gray-200 bg-white pointer-events-none"><div
+                                class="loading-skeleton h-3 w-2/3"></div></div></div></div>
                     <div><label class="block text-xs font-bold text-gray-700 uppercase mb-1">Link YouTube</label><input
                             type="text" id="edit-module-youtube" required
                             class="w-full border border-gray-200 p-2.5 rounded-xl text-sm"></div>
@@ -2074,7 +2143,7 @@
 
             const button = document.getElementById(`btn-upload-pdf-${mode}`);
             button.disabled = true;
-            button.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Mengunggah...';
+            button.innerHTML = '<span class="button-loading-skeleton mr-1" aria-hidden="true"></span> Mengunggah...';
             try {
                 const response = await fetch(`${BACKEND_API_URL}/api/upload-google-drive`, {
                     method: 'POST',
@@ -2216,7 +2285,7 @@
 
             const button = document.getElementById(`btn-upload-cover-${mode}`);
             button.disabled = true;
-            button.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Mengunggah...';
+            button.innerHTML = '<span class="button-loading-skeleton mr-1" aria-hidden="true"></span> Mengunggah...';
             try {
                 let result = null;
                 try {
@@ -2633,13 +2702,16 @@
         async function loadModuleSections(courseId, selectId = 'module-section', selectedSectionId = '') {
             const select = document.getElementById(selectId);
             if (!select) return;
-            select.innerHTML = '<option value="">Memuat bagian...</option>';
-            select.disabled = true;
             if (!courseId) {
                 select.innerHTML = '<option value="">Pilih materi terlebih dahulu</option>';
                 select.disabled = false;
                 return;
             }
+
+            const loadingSkeleton = document.getElementById(`${selectId}-loading`);
+            select.innerHTML = '<option value="">Bagian materi</option>';
+            select.disabled = true;
+            if (loadingSkeleton) loadingSkeleton.classList.remove('hidden');
 
             try {
                 const { data, error } = await supabaseClient
@@ -2671,6 +2743,7 @@
                 throw error;
             } finally {
                 select.disabled = false;
+                if (loadingSkeleton) loadingSkeleton.classList.add('hidden');
             }
         }
 
@@ -2698,7 +2771,7 @@
 
             const button = document.getElementById('btn-simpan-bagian');
             button.disabled = true;
-            button.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Menyimpan...';
+            button.innerHTML = '<span class="button-loading-skeleton mr-1" aria-hidden="true"></span>Menyimpan...';
             try {
                 const nextPosition = cachedModuleSections.filter(section => section.course_id === courseId)
                     .reduce((max, section) => Math.max(max, Number(section.position) || 0), -1) + 1;
@@ -2799,7 +2872,7 @@
             const filterSoalCourse = document.getElementById('filter-soal-course');
             const filterJadwalCourse = document.getElementById('filter-jadwal-course');
 
-            container.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">Memuat data materi...</p>';
+            container.innerHTML = '<div class="space-y-3 p-4" role="status" aria-label="Memuat data materi"><div class="loading-skeleton h-4 w-2/3"></div><div class="loading-skeleton h-3 w-full"></div><div class="loading-skeleton h-3 w-4/5"></div></div>';
             const { data, error } = await supabaseClient.from('courses').select('*').order('position', { ascending: true }).order('created_at', { ascending: false });
             if (error) { container.innerHTML = `<p class="text-sm text-red-500 text-center py-4">Gagal memuat: ${error.message}</p>`; return; }
             cachedCourses = data || [];
@@ -2921,7 +2994,7 @@
         // ================================================================
         async function fetchModules() {
             const container = document.getElementById('grouped-module-list');
-            container.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">Memuat modul video...</p>';
+            container.innerHTML = '<div class="space-y-3 p-4" role="status" aria-label="Memuat modul video"><div class="loading-skeleton h-4 w-2/3"></div><div class="loading-skeleton h-3 w-full"></div><div class="loading-skeleton h-3 w-4/5"></div></div>';
             const { data, error } = await supabaseClient.from('modules').select('*').order('position', { ascending: true });
             if (error) { container.innerHTML = `<p class="text-sm text-red-500 text-center py-4">Gagal memuat modul: ${error.message}</p>`; return; }
             const { data: sections, error: sectionError } = await supabaseClient
@@ -2993,7 +3066,7 @@
         // ================================================================
         async function fetchQuizzes() {
             const container = document.getElementById('grouped-quiz-list');
-            container.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">Memuat data soal...</p>';
+            container.innerHTML = '<div class="space-y-3 p-4" role="status" aria-label="Memuat data soal"><div class="loading-skeleton h-4 w-2/3"></div><div class="loading-skeleton h-3 w-full"></div><div class="loading-skeleton h-3 w-4/5"></div></div>';
             const pageSize = 1000;
             const quizzes = [];
             for (let from = 0; ; from += pageSize) {
@@ -3074,7 +3147,7 @@
 
         async function fetchSchedules() {
             const tbody = document.getElementById('jadwal-table-body');
-            if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-gray-400"><i class="fas fa-spinner fa-spin mr-2"></i>Memuat data jadwal...</td></tr>';
+            if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="p-6"><div class="space-y-2" role="status" aria-label="Memuat data jadwal"><div class="loading-skeleton h-3 w-full"></div><div class="loading-skeleton h-3 w-4/5"></div></div></td></tr>';
 
             const { data, error } = await supabaseClient.from('schedules').select('*').order('start_time', { ascending: true });
 
@@ -3252,7 +3325,7 @@
             e.preventDefault();
             const btn = document.getElementById('btn-simpan-jadwal');
             btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Memproses...';
+            btn.innerHTML = '<span class="button-loading-skeleton mr-1" aria-hidden="true"></span> Memproses...';
 
             const course_id = document.getElementById('jadwal-course_id').value;
             const titlePrefix = document.getElementById('jadwal-title').value.trim();
@@ -3428,7 +3501,7 @@
         async function submitEditJadwalForm() {
             const btn = document.getElementById('btn-simpan-edit-jadwal');
             btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Menyimpan...';
+            btn.innerHTML = '<span class="button-loading-skeleton mr-1" aria-hidden="true"></span> Menyimpan...';
 
             const id = document.getElementById('edit-jadwal-id').value;
             const isRescheduled = document.getElementById('edit-jadwal-is_rescheduled').checked;
@@ -3549,7 +3622,7 @@
 
         async function fetchUserAccessList(showNotification = false) {
             const tbody = document.getElementById('user-access-table-body');
-            if (tbody && cachedUserAccess.length === 0) tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-gray-400"><i class="fas fa-spinner fa-spin mr-2"></i>Memuat daftar akses siswa...</td></tr>';
+            if (tbody && cachedUserAccess.length === 0) tbody.innerHTML = '<tr><td colspan="6" class="p-6"><div class="space-y-2" role="status" aria-label="Memuat daftar akses siswa"><div class="loading-skeleton h-3 w-full"></div><div class="loading-skeleton h-3 w-4/5"></div></div></td></tr>';
             await fetchUsersList();
             const { data, error } = await supabaseClient.from('user_access').select('*').order('unlocked_at', { ascending: false });
             if (error) { if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-red-500">Gagal memuat akses: ${error.message}</td></tr>`; return; }
@@ -3719,7 +3792,7 @@
 
             const saveButton = document.getElementById('btn-save-student');
             saveButton.disabled = true;
-            saveButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Menyimpan...';
+            saveButton.innerHTML = '<span class="button-loading-skeleton mr-1" aria-hidden="true"></span> Menyimpan...';
             try {
                 const user = cachedUsers.find(candidate =>
                     (editingStudent.userId && String(candidate.id) === String(editingStudent.userId)) ||
@@ -3793,7 +3866,7 @@
             const recordFinance = document.getElementById('grant-record-finance').checked;
             const customAmountInput = document.getElementById('grant-custom-amount').value;
             if (!email || !name || !selectedCourseId) { showToast('Harap isi Email, Nama Siswa, dan pilih Materi yang ingin dibuka.', 'warning'); return; }
-            const btn = document.getElementById('btn-grant-access'); btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Membuka Akses...';
+            const btn = document.getElementById('btn-grant-access'); btn.disabled = true; btn.innerHTML = '<span class="button-loading-skeleton mr-2" aria-hidden="true"></span> Membuka Akses...';
             try {
                 const { data: savedUser, error: uErr } = await supabaseClient.from('users').upsert([{ email, name, whatsapp }], { onConflict: 'email' }).select().single();
                 if (uErr) throw uErr;
@@ -4196,7 +4269,7 @@
                 if (amount > currentBalance) { showToast(`Gagal: Saldo kas tidak mencukupi! Sisa saldo saat ini: ${formatRupiah(currentBalance)}. Anda mencoba mencatat pengeluaran sebesar ${formatRupiah(amount)}.`, 'error'); return; }
             }
 
-            const btn = document.getElementById('btn-save-fin-log'); btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Menyimpan...';
+            const btn = document.getElementById('btn-save-fin-log'); btn.disabled = true; btn.innerHTML = '<span class="button-loading-skeleton mr-1" aria-hidden="true"></span> Menyimpan...';
             const newEntry = { type, category, instructor_name: category === 'Bagi Hasil Pengajar' ? instructorName : null, course_id: type === 'IN' && courseId ? courseId : null, title, amount, notes, created_at: new Date().toISOString() };
             try {
                 const { data, error } = await supabaseClient.from('finance_logs').insert([newEntry]).select().single();
@@ -4247,7 +4320,7 @@
             const isBundle = document.getElementById('course-bundle-type').value === 'paket';
             if (isBundle && selectedBundleCourseIdsAdd.length === 0) { showToast('Silakan pilih minimal 1 materi untuk dimasukkan ke dalam Paket Bundling.', 'warning'); return; }
             if (!addCourseImage?.imageUrl) { showToast('Unggah gambar cover sebelum menyimpan materi.', 'warning'); return; }
-            const btnSubmit = document.getElementById('btn-simpan-materi'); btnSubmit.disabled = true; btnSubmit.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Menyimpan...';
+            const btnSubmit = document.getElementById('btn-simpan-materi'); btnSubmit.disabled = true; btnSubmit.innerHTML = '<span class="button-loading-skeleton mr-2" aria-hidden="true"></span> Menyimpan...';
             const newPosition = cachedCourses.length > 0 ? (Math.max(...cachedCourses.map(c => c.position || 0)) + 1) : 0;
             const whatsappGroupLink = isBundle ? '' : document.getElementById('course-whatsapp-group-link').value.trim();
             const whatsappGroupId = isBundle ? '' : document.getElementById('course-whatsapp-group-id').value.trim();
@@ -4279,7 +4352,7 @@
             e.preventDefault();
             const selectedCourseId = document.getElementById('module-course_id').value;
             if (!selectedCourseId) { showToast('Silakan pilih Materi / Kursus terkait terlebih dahulu.', 'warning'); return; }
-            const btn = document.getElementById('btn-simpan-modul'); btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Menyimpan...';
+            const btn = document.getElementById('btn-simpan-modul'); btn.disabled = true; btn.innerHTML = '<span class="button-loading-skeleton mr-2" aria-hidden="true"></span> Menyimpan...';
             const courseMods = cachedModules.filter(m => m.course_id === selectedCourseId);
             const nextPos = courseMods.length > 0 ? (Math.max(...courseMods.map(m => m.position || 0)) + 1) : 0;
             const selectedSectionId = document.getElementById('module-section').value;
@@ -4367,7 +4440,7 @@
             const courseId = document.getElementById('edit-course_id').value;
             const isBundle = document.getElementById('edit-bundle-type').value === 'paket';
             if (isBundle && selectedBundleCourseIdsEdit.length === 0) { showToast('Pilih minimal 1 materi untuk Paket Bundling ini.', 'warning'); return; }
-            const btnSubmit = document.getElementById('btn-simpan-edit'); btnSubmit.disabled = true; btnSubmit.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Menyimpan...';
+            const btnSubmit = document.getElementById('btn-simpan-edit'); btnSubmit.disabled = true; btnSubmit.innerHTML = '<span class="button-loading-skeleton mr-2" aria-hidden="true"></span> Menyimpan...';
             const rawExternalLink = document.getElementById('edit-link').value;
             const whatsappGroupLink = isBundle ? '' : document.getElementById('edit-whatsapp-group-link').value.trim();
             const whatsappGroupId = isBundle ? '' : document.getElementById('edit-whatsapp-group-id').value.trim();
@@ -4411,7 +4484,7 @@
         function closeEditModuleModal() { document.getElementById('edit-module-modal').classList.add('hidden'); }
 
         async function submitEditModuleForm() {
-            const modId = document.getElementById('edit-module_id').value; const btn = document.getElementById('btn-simpan-edit-modul'); btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Menyimpan...';
+            const modId = document.getElementById('edit-module_id').value; const btn = document.getElementById('btn-simpan-edit-modul'); btn.disabled = true; btn.innerHTML = '<span class="button-loading-skeleton mr-2" aria-hidden="true"></span> Menyimpan...';
             const courseId = document.getElementById('edit-module-course_id').value;
             const selectedSectionId = document.getElementById('edit-module-section').value;
             const selectedSection = cachedModuleSections.find(section => String(section.id) === String(selectedSectionId));
@@ -4563,7 +4636,7 @@
         async function executeDuplicate() {
             if (!duplicateContext) return;
             const btn = document.getElementById('btn-confirm-duplicate'); const originalText = btn.innerHTML;
-            btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Memproses Duplikasi...';
+            btn.disabled = true; btn.innerHTML = '<span class="button-loading-skeleton mr-2" aria-hidden="true"></span> Memproses Duplikasi...';
             try {
                 const { type, payload } = duplicateContext;
                 if (type === 'course') {
