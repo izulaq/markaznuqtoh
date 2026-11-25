@@ -39,51 +39,100 @@
             position: fixed;
             inset: 0;
             z-index: 1000000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 1.5rem;
-            background: #f9fafb;
+            overflow: auto;
+            padding: 0 1rem 2rem;
+            background: #fff;
         }
 
         #access-loading-overlay[hidden] {
             display: none;
         }
 
-        .access-loading-card {
+        .access-skeleton-nav {
+            height: 3.5rem;
+            margin: 0 -1rem;
+            padding: 0 1rem;
             display: flex;
-            flex-direction: column;
             align-items: center;
-            gap: 0.9rem;
-            color: #234b36;
-            font-size: 0.95rem;
-            font-weight: 700;
-            text-align: center;
+            justify-content: space-between;
+            background: #234b36;
         }
 
-        .access-loading-spinner {
-            width: 2.5rem;
-            height: 2.5rem;
-            border: 3px solid rgba(35, 75, 54, 0.16);
-            border-top-color: #234b36;
-            border-radius: 50%;
-            animation: access-loading-spin 0.8s linear infinite;
+        .access-skeleton-main {
+            max-width: 72rem;
+            margin: 1.5rem auto 0;
+            display: grid;
+            grid-template-columns: minmax(0, 2fr) minmax(16rem, 1fr);
+            gap: 1.5rem;
         }
 
-        .access-loading-dots::after {
-            content: "";
-            animation: access-loading-dots 1.2s steps(4, end) infinite;
+        .access-skeleton-column {
+            min-width: 0;
+            display: grid;
+            align-content: start;
+            gap: 1rem;
         }
 
-        @keyframes access-loading-spin {
-            to { transform: rotate(360deg); }
+        .access-skeleton-card {
+            padding: 1.25rem;
+            border: 1px solid #f1f5f9;
+            border-radius: 1rem;
+            background: #fff;
         }
 
-        @keyframes access-loading-dots {
-            0% { content: ""; }
-            25% { content: "."; }
-            50% { content: ".."; }
-            75%, 100% { content: "..."; }
+        .access-skeleton-lines {
+            display: grid;
+            gap: 0.65rem;
+        }
+
+        .access-skeleton-video {
+            aspect-ratio: 16 / 9;
+            border-radius: 1rem;
+        }
+
+        .access-skeleton-bar {
+            background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 37%, #e5e7eb 63%);
+            background-size: 200% 100%;
+            animation: access-skeleton-shimmer 1.4s ease infinite;
+        }
+
+        .access-skeleton-bar-dark {
+            background: linear-gradient(90deg, rgba(255,255,255,.2) 25%, rgba(255,255,255,.5) 50%, rgba(255,255,255,.2) 75%);
+            background-size: 200% 100%;
+            animation: access-skeleton-shimmer 1.4s ease infinite;
+        }
+
+        .button-loading-skeleton {
+            display: inline-block;
+            width: 5rem;
+            height: 0.75rem;
+            border-radius: 9999px;
+            background: linear-gradient(90deg, rgba(255,255,255,.25) 25%, rgba(255,255,255,.65) 50%, rgba(255,255,255,.25) 75%);
+            background-size: 200% 100%;
+            animation: access-skeleton-shimmer 1.4s ease infinite;
+            vertical-align: middle;
+        }
+
+        @keyframes access-skeleton-shimmer {
+            to { background-position: -200% 0; }
+        }
+
+        @media (max-width: 767px) {
+            .access-skeleton-main {
+                grid-template-columns: 1fr;
+            }
+
+            .access-skeleton-sidebar {
+                display: none;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .access-skeleton-bar,
+            .access-skeleton-bar-dark,
+            .button-loading-skeleton {
+                animation: none;
+            }
         }
 
         /* ============ VIDEO PLAYER ============ */
@@ -320,11 +369,38 @@
 
 <body class="bg-gray-50 text-gray-900 font-sans">
 
-    <div id="access-loading-overlay" role="status" aria-live="polite">
-        <div class="access-loading-card">
-            <span class="access-loading-spinner" aria-hidden="true"></span>
-            <span>Memuat status akses<span class="access-loading-dots" aria-hidden="true"></span></span>
+    <div id="access-loading-overlay" role="status" aria-label="Memuat status akses">
+        <div class="access-skeleton-nav">
+            <div class="access-skeleton-bar-dark h-4 w-40 rounded"></div>
+            <div class="access-skeleton-bar-dark h-7 w-28 rounded-full"></div>
         </div>
+        <main class="access-skeleton-main">
+            <div class="access-skeleton-column">
+                <div class="access-skeleton-card access-skeleton-lines">
+                    <div class="access-skeleton-bar h-3 w-32 rounded"></div>
+                    <div class="access-skeleton-bar h-6 w-56 max-w-full rounded"></div>
+                </div>
+                <div class="access-skeleton-bar access-skeleton-video"></div>
+                <div class="access-skeleton-card access-skeleton-lines">
+                    <div class="access-skeleton-bar h-5 w-2/3 rounded"></div>
+                    <div class="access-skeleton-bar h-3 w-full rounded"></div>
+                    <div class="access-skeleton-bar h-3 w-4/5 rounded"></div>
+                    <div class="access-skeleton-bar h-3 w-1/2 rounded"></div>
+                </div>
+                <div class="access-skeleton-card access-skeleton-lines">
+                    <div class="access-skeleton-bar h-5 w-48 rounded"></div>
+                    <div class="access-skeleton-bar h-3 w-full rounded"></div>
+                    <div class="access-skeleton-bar h-3 w-3/4 rounded"></div>
+                </div>
+            </div>
+            <aside class="access-skeleton-sidebar access-skeleton-card access-skeleton-column">
+                <div class="access-skeleton-bar h-5 w-40 rounded"></div>
+                <div class="access-skeleton-bar h-3 w-full rounded"></div>
+                <div class="access-skeleton-bar h-12 w-full rounded-xl"></div>
+                <div class="access-skeleton-bar h-12 w-full rounded-xl"></div>
+                <div class="access-skeleton-bar h-12 w-full rounded-xl"></div>
+            </aside>
+        </main>
     </div>
 
     <!-- ================= TOAST CONTAINER ================= -->
@@ -356,7 +432,8 @@
 
             <div id="user-status-badge"
                 class="text-[11px] sm:text-xs bg-white/10 px-3 py-1.5 rounded-full font-semibold">
-                Memuat Status Akses...
+                <span class="access-skeleton-bar inline-block h-3 w-24 rounded align-middle"
+                    aria-label="Memuat status akses"></span>
             </div>
         </div>
     </nav>
@@ -378,7 +455,8 @@
                             class="hidden text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-md font-bold truncate max-w-[200px]"></span>
                     </div>
                     <h2 id="current-module-title" class="text-base sm:text-lg font-bold text-primary truncate mt-0.5">
-                        Memuat Judul Sesi...</h2>
+                        <span class="access-skeleton-bar inline-block h-4 w-40 max-w-full rounded align-middle"
+                            aria-label="Memuat judul sesi"></span></h2>
                 </div>
                 <div class="bg-primary/10 text-primary px-3 py-1 rounded-lg text-xs font-bold shrink-0"
                     id="current-module-badge">
@@ -403,8 +481,8 @@
 
                     <div id="player-loader"
                         class="hidden flex-col items-center gap-2 bg-black/60 p-4 rounded-2xl backdrop-blur-sm">
-                        <i class="fas fa-circle-notch fa-spin text-white text-2xl sm:text-3xl"></i>
-                        <span class="text-white text-xs font-semibold">Memuat Video...</span>
+                        <span class="access-skeleton-bar-dark h-3 w-28 rounded" aria-hidden="true"></span>
+                        <span class="sr-only">Memuat video...</span>
                     </div>
 
                     <button id="center-play-btn" type="button" aria-label="Putar Video"
@@ -555,7 +633,9 @@
                             <i class="fas fa-boxes-stacked mr-1"></i> Paket Bundling
                         </span>
                     </div>
-                    <h1 id="course-title" class="text-2xl font-bold text-gray-900 mt-2">Memuat Judul Materi...</h1>
+                    <h1 id="course-title" class="text-2xl font-bold text-gray-900 mt-2">
+                        <span class="access-skeleton-bar inline-block h-6 w-56 max-w-full rounded align-middle"
+                            aria-label="Memuat judul materi"></span></h1>
                 </div>
 
                 <div class="flex items-center gap-4 p-4 bg-gray-50 rounded-xl border border-gray-100">
@@ -619,14 +699,16 @@
                     </div>
                     <span id="quiz-count-badge"
                         class="text-[10px] bg-gray-100 text-gray-500 px-3 py-1 rounded-full font-bold uppercase tracking-wider shrink-0">
-                        Memuat...
+                        <span class="access-skeleton-bar inline-block h-2.5 w-10 rounded align-middle"
+                            aria-label="Memuat jumlah soal"></span>
                     </span>
                 </div>
 
                 <div id="practice-content">
-                    <div class="text-center py-6 text-gray-400">
-                        <i class="fas fa-circle-notch fa-spin text-2xl mb-2 opacity-50"></i>
-                        <p class="text-xs">Memuat soal latihan...</p>
+                    <div class="space-y-3 py-4" role="status" aria-label="Memuat soal latihan">
+                        <div class="access-skeleton-bar h-4 w-3/4 rounded"></div>
+                        <div class="access-skeleton-bar h-10 w-full rounded-xl"></div>
+                        <div class="access-skeleton-bar h-10 w-full rounded-xl"></div>
                     </div>
                 </div>
             </div>
@@ -690,7 +772,11 @@
 
             <div id="module-list-content">
                 <div id="modules-list" class="space-y-2.5 max-h-[560px] overflow-y-auto pr-1">
-                    <p class="text-xs text-gray-400 text-center py-4">Memuat sesi...</p>
+                    <div class="space-y-2.5 py-2" role="status" aria-label="Memuat sesi">
+                        <div class="access-skeleton-bar h-12 w-full rounded-xl"></div>
+                        <div class="access-skeleton-bar h-12 w-full rounded-xl"></div>
+                        <div class="access-skeleton-bar h-12 w-full rounded-xl"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -3354,7 +3440,7 @@
             }
 
             submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Memproses Akun &amp; Pembayaran...';
+            submitBtn.innerHTML = '<span class="button-loading-skeleton mr-1" aria-hidden="true"></span> Memproses Akun &amp; Pembayaran...';
 
             try {
                 const { data: savedUser, error: userErr } = await supabaseClient
@@ -3509,7 +3595,7 @@
             }
 
             btnRequest.disabled = true;
-            btnRequest.innerHTML = '<i class="fas fa-circle-notch fa-spin mr-1"></i> Mengirim OTP...';
+            btnRequest.innerHTML = '<span class="button-loading-skeleton mr-1" aria-hidden="true"></span> Mengirim OTP...';
 
             try {
                 const res = await fetch(`${BACKEND_BASE_URL}/api/send-otp`, {
@@ -3548,7 +3634,7 @@
             }
 
             btnVerify.disabled = true;
-            btnVerify.innerHTML = '<i class="fas fa-circle-notch fa-spin mr-1"></i> Memverifikasi...';
+            btnVerify.innerHTML = '<span class="button-loading-skeleton mr-1" aria-hidden="true"></span> Memverifikasi...';
 
             try {
                 const res = await fetch(`${BACKEND_BASE_URL}/api/verify-otp`, {
